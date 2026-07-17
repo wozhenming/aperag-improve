@@ -36,13 +36,14 @@ export const CoreSettings = ({
   });
   const admin_config = useTranslations('admin_config');
   const common_action = useTranslations('common.action');
+  const common_tips = useTranslations('common.tips');
 
   const handleSave = useCallback(async () => {
     await apiClient.defaultApi.settingsPut({
       settings: data,
     });
-    toast.success(common_action('save_success'));
-  }, [data, common_action]);
+    toast.success(common_tips('save_success'));
+  }, [data, common_action, common_tips]);
 
   useEffect(() => {
     setData({

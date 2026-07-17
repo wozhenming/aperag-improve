@@ -16,7 +16,28 @@
     "use_markitdown": "Use markitdown",
     "use_markitdown_description": "When enabled, the system will use markitdown for document parsing.",
     "system_default_quota": "User default quotas",
-    "system_default_quota_description": "These default quotas help maintain system stability, prevent resource abuse, and ensure fair allocation across users or applications."
+    "system_default_quota_description": "These default quotas help maintain system stability, prevent resource abuse, and ensure fair allocation across users or applications.",
+
+    "core_chunking": "Core Chunking Configuration",
+    "core_chunking_description": "Document parsing chunk parameters that affect retrieval precision and context coherence",
+    "chunk_size": "Chunk Size",
+    "chunk_overlap_size": "Chunk Overlap Size",
+    "cache_settings": "Cache Configuration",
+    "cache_settings_description": "LLM call cache settings to reduce redundant API calls",
+    "cache_ttl": "Cache TTL (seconds)",
+
+    "kg_settings": "Knowledge Graph Configuration",
+    "kg_settings_description": "Controls entity extraction, chunking, and merging behavior during knowledge graph construction",
+    "kg_chunk_token_size": "Graph Chunk Token Size",
+    "kg_chunk_overlap_token_size": "Graph Chunk Overlap Token Size",
+    "kg_entity_extract_max_gleaning": "Entity Extract Max Gleaning Rounds",
+    "kg_llm_model_max_async": "LLM Max Concurrency",
+    "kg_cosine_threshold": "Cosine Similarity Threshold",
+    "kg_max_batch_size": "Max Batch Size",
+    "kg_summary_max_tokens": "Summary Max Tokens",
+    "kg_force_llm_summary_on_merge": "Force LLM Summary on Merge Threshold",
+    "kg_entity_types": "Entity Types",
+    "kg_entity_types_placeholder": "Enter entity type and press Enter to add"
   },
   "admin_users": {
     "metadata": {
@@ -50,7 +71,8 @@
       "save": "Save",
       "cancel": "Cancel",
       "continue": "Continue",
-      "update": "Update"
+      "update": "Update",
+      "add": "Add"
     },
     "tips": {
       "confirm": "Are you absolutely sure?",
