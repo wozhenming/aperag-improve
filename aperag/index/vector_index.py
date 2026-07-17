@@ -18,10 +18,11 @@ from typing import Any, List
 
 from sqlalchemy import and_, select
 
-from aperag.config import get_vector_db_connector, settings
+from aperag.config import get_vector_db_connector
 from aperag.index.base import BaseIndexer, IndexResult, IndexType
 from aperag.llm.embed.base_embedding import get_collection_embedding_service_sync
 from aperag.llm.embed.embedding_utils import create_embeddings_and_store
+from aperag.service.setting_service import setting_service
 from aperag.utils.tokenizer import get_default_tokenizer
 from aperag.utils.utils import generate_vector_db_collection_name
 
@@ -73,8 +74,8 @@ class VectorIndexer(BaseIndexer):
                 parts=doc_parts,
                 vector_store_adaptor=vector_store_adaptor,
                 embedding_model=embedding_model,
-                chunk_size=settings.chunk_size,
-                chunk_overlap=settings.chunk_overlap_size,
+                chunk_size=setting_service.get_chunk_size_sync(),
+                chunk_overlap=setting_service.get_chunk_overlap_size_sync(),
                 tokenizer=get_default_tokenizer(),
             )
 
@@ -87,8 +88,8 @@ class VectorIndexer(BaseIndexer):
                 metadata={
                     "vector_count": len(ctx_ids),
                     "vector_size": vector_size,
-                    "chunk_size": settings.chunk_size,
-                    "chunk_overlap": settings.chunk_overlap_size,
+                    "chunk_size": setting_service.get_chunk_size_sync(),
+                    "chunk_overlap": setting_service.get_chunk_overlap_size_sync(),
                 },
             )
 
@@ -155,8 +156,8 @@ class VectorIndexer(BaseIndexer):
                 parts=doc_parts,
                 vector_store_adaptor=vector_store_adaptor,
                 embedding_model=embedding_model,
-                chunk_size=settings.chunk_size,
-                chunk_overlap=settings.chunk_overlap_size,
+                chunk_size=setting_service.get_chunk_size_sync(),
+                chunk_overlap=setting_service.get_chunk_overlap_size_sync(),
                 tokenizer=get_default_tokenizer(),
             )
 

@@ -13,3 +13,44 @@ Settings:
     use_markitdown:
       type: boolean
       description: Whether to use MarkItDown
+    chunk_size:
+      type: integer
+      description: Chunk size for document parsing
+    chunk_overlap_size:
+      type: integer
+      description: Chunk overlap size for document parsing
+    kg_chunk_token_size:
+      type: integer
+      description: Token size for graph chunking
+    kg_chunk_overlap_token_size:
+      type: integer
+      description: Token overlap size for graph chunking
+    kg_entity_extract_max_gleaning:
+      type: integer
+      description: Max gleaning rounds for entity extraction
+    kg_llm_model_max_async:
+      type: integer
+      description: Max concurrent LLM calls for graph processing
+    kg_cosine_threshold:
+      type: number
+      description: Cosine similarity threshold for vector matching
+    kg_max_batch_size:
+      type: integer
+      description: Max batch size for graph processing
+    kg_summary_max_tokens:
+      type: integer
+      description: Max tokens for entity/relation summaries
+    kg_force_llm_summary_on_merge:
+      type: integer
+      description: Threshold to force LLM summary when merging entities
+    kg_entity_types:
+      type: array
+      items:
+        type: string
+      description: Custom entity types for knowledge graph extraction
+    cache_enabled:
+      type: boolean
+      description: Whether LLM cache is enabled
+    cache_ttl:
+      type: integer
+      description: Cache TTL in seconds

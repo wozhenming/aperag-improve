@@ -36,17 +36,59 @@ logger = logging.getLogger(__name__)
 
 # Configuration constants
 class LightRAGConfig:
-    """Centralized configuration for LightRAG"""
+    """Centralized configuration for LightRAG — reads from DB settings with hardcoded fallbacks."""
 
-    CHUNK_TOKEN_SIZE = 1200
-    CHUNK_OVERLAP_TOKEN_SIZE = 100
-    LLM_MODEL_MAX_ASYNC = 20
-    COSINE_BETTER_THAN_THRESHOLD = 0.2
-    MAX_BATCH_SIZE = 32
-    ENTITY_EXTRACT_MAX_GLEANING = 0
-    SUMMARY_TO_MAX_TOKENS = 2000
-    FORCE_LLM_SUMMARY_ON_MERGE = 10
-    EMBEDDING_MAX_TOKEN_SIZE = 8192
+    @staticmethod
+    def _get_setting(key: str, default):
+        """Read a setting from the DB key-value store, falling back to default."""
+        try:
+            from aperag.service.setting_service import setting_service
+
+            val = setting_service.get_all_settings_sync().get(key)
+            return val if val is not None else default
+        except Exception:
+            return default
+
+    @classmethod
+    def get_chunk_token_size(cls) -> int:
+        return cls._get_setting("kg_chunk_token_size", 1200)
+
+    @classmethod
+    def get_chunk_overlap_token_size(cls) -> int:
+        return cls._get_setting("kg_chunk_overlap_token_size", 100)
+
+    @classmethod
+    def get_llm_model_max_async(cls) -> int:
+        return cls._get_setting("kg_llm_model_max_async", 20)
+
+    @classmethod
+    def get_cosine_better_than_threshold(cls) -> float:
+        return cls._get_setting("kg_cosine_threshold", 0.2)
+
+    @classmethod
+    def get_max_batch_size(cls) -> int:
+        return cls._get_setting("kg_max_batch_size", 32)
+
+    @classmethod
+    def get_entity_extract_max_gleaning(cls) -> int:
+        return cls._get_setting("kg_entity_extract_max_gleaning", 0)
+
+    @classmethod
+    def get_summary_to_max_tokens(cls) -> int:
+        return cls._get_setting("kg_summary_max_tokens", 2000)
+
+    @classmethod
+    def get_force_llm_summary_on_merge(cls) -> int:
+        return cls._get_setting("kg_force_llm_summary_on_merge", 10)
+
+    @classmethod
+    def get_embedding_max_token_size(cls) -> int:
+        return cls._get_setting("kg_embedding_max_token_size", 8192)
+
+    @classmethod
+    def get_entity_types(cls) -> list[str] | None:
+        return cls._get_setting("kg_entity_types", None)
+
     DEFAULT_LANGUAGE = "zh-CN"
 
 
@@ -77,38 +119,36 @@ async def create_lightrag_instance(collection: Collection) -> LightRAG:
         await _configure_storage_backends(kv_storage, vector_storage, graph_storage)
 
         # Parse knowledge graph config from collection config
-        from aperag.schema.utils import parseCollectionConfig
-
         config = parseCollectionConfig(collection.config)
         kg_config = config.knowledge_graph_config
         language = LightRAGConfig.DEFAULT_LANGUAGE
-        entity_types = DEFAULT_ENTITY_TYPES
+        entity_types = LightRAGConfig.get_entity_types() or DEFAULT_ENTITY_TYPES
 
         # Use collection-level language if available
         if config.language:
             language = config.language
 
-        if kg_config:
-            if kg_config.entity_types:
-                entity_types = kg_config.entity_types
+        # Collection-level entity types override global settings
+        if kg_config and kg_config.entity_types:
+            entity_types = kg_config.entity_types
 
-        # Create LightRAG instance
+        # Create LightRAG instance with dynamic configuration from DB
         rag = LightRAG(
             workspace=collection_id,
-            chunk_token_size=LightRAGConfig.CHUNK_TOKEN_SIZE,
-            chunk_overlap_token_size=LightRAGConfig.CHUNK_OVERLAP_TOKEN_SIZE,
+            chunk_token_size=LightRAGConfig.get_chunk_token_size(),
+            chunk_overlap_token_size=LightRAGConfig.get_chunk_overlap_token_size(),
             llm_model_func=llm_func,
             embedding_func=EmbeddingFunc(
                 embedding_dim=embed_dim,
-                max_token_size=LightRAGConfig.EMBEDDING_MAX_TOKEN_SIZE,
+                max_token_size=LightRAGConfig.get_embedding_max_token_size(),
                 func=embed_func,
             ),
-            cosine_better_than_threshold=LightRAGConfig.COSINE_BETTER_THAN_THRESHOLD,
-            max_batch_size=LightRAGConfig.MAX_BATCH_SIZE,
-            llm_model_max_async=LightRAGConfig.LLM_MODEL_MAX_ASYNC,
-            entity_extract_max_gleaning=LightRAGConfig.ENTITY_EXTRACT_MAX_GLEANING,
-            summary_to_max_tokens=LightRAGConfig.SUMMARY_TO_MAX_TOKENS,
-            force_llm_summary_on_merge=LightRAGConfig.FORCE_LLM_SUMMARY_ON_MERGE,
+            cosine_better_than_threshold=LightRAGConfig.get_cosine_better_than_threshold(),
+            max_batch_size=LightRAGConfig.get_max_batch_size(),
+            llm_model_max_async=LightRAGConfig.get_llm_model_max_async(),
+            entity_extract_max_gleaning=LightRAGConfig.get_entity_extract_max_gleaning(),
+            summary_to_max_tokens=LightRAGConfig.get_summary_to_max_tokens(),
+            force_llm_summary_on_merge=LightRAGConfig.get_force_llm_summary_on_merge(),
             language=language,
             entity_types=entity_types,
             kv_storage=kv_storage,

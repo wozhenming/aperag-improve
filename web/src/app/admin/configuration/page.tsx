@@ -8,6 +8,8 @@ import {
 import { getServerApi } from '@/lib/api/server';
 import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
+import { CoreSettings } from './core-settings';
+import { KgSettings } from './kg-settings';
 import { ParserSettings } from './parser-settings';
 import { QuotaSettings } from './quota-settings';
 
@@ -40,6 +42,8 @@ export default async function Page() {
         </PageDescription>
 
         <div className="flex flex-col gap-6">
+          <CoreSettings data={settings} />
+          <KgSettings data={settings} />
           <ParserSettings data={settings} />
           <QuotaSettings data={resSystemDefaultQuotas.data.quotas} />
         </div>

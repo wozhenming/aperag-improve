@@ -1031,6 +1031,44 @@ class Settings(BaseModel):
     use_markitdown: Optional[bool] = Field(
         None, description='Whether to use MarkItDown'
     )
+    # Core chunking configuration
+    chunk_size: Optional[int] = Field(
+        None, description='Chunk size for document parsing'
+    )
+    chunk_overlap_size: Optional[int] = Field(
+        None, description='Chunk overlap size for document parsing'
+    )
+    # Knowledge graph configuration
+    kg_chunk_token_size: Optional[int] = Field(
+        None, description='Token size for graph chunking'
+    )
+    kg_chunk_overlap_token_size: Optional[int] = Field(
+        None, description='Token overlap size for graph chunking'
+    )
+    kg_entity_extract_max_gleaning: Optional[int] = Field(
+        None, description='Max gleaning rounds for entity extraction'
+    )
+    kg_llm_model_max_async: Optional[int] = Field(
+        None, description='Max concurrent LLM calls for graph processing'
+    )
+    kg_cosine_threshold: Optional[float] = Field(
+        None, description='Cosine similarity threshold for vector matching'
+    )
+    kg_max_batch_size: Optional[int] = Field(
+        None, description='Max batch size for graph processing'
+    )
+    kg_summary_max_tokens: Optional[int] = Field(
+        None, description='Max tokens for entity/relation summaries'
+    )
+    kg_force_llm_summary_on_merge: Optional[int] = Field(
+        None, description='Threshold to force LLM summary when merging entities'
+    )
+    kg_entity_types: Optional[list[str]] = Field(
+        None, description='Custom entity types for knowledge graph extraction'
+    )
+    # Cache configuration
+    cache_enabled: Optional[bool] = Field(None, description='Whether LLM cache is enabled')
+    cache_ttl: Optional[int] = Field(None, description='Cache TTL in seconds')
 
 
 class PromptDetail(BaseModel):

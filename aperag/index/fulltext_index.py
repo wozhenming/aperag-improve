@@ -26,6 +26,7 @@ from aperag.docparser.chunking import rechunk
 from aperag.index.base import BaseIndexer, IndexResult, IndexType
 from aperag.llm.completion.completion_service import CompletionService
 from aperag.query.query import DocumentWithScore
+from aperag.service.setting_service import setting_service
 from aperag.utils.tokenizer import get_default_tokenizer
 from aperag.utils.utils import generate_fulltext_index_name
 
@@ -74,8 +75,8 @@ class FulltextIndexer(BaseIndexer):
         chunk_count = 0
         total_content_length = 0
 
-        chunk_size = settings.chunk_size
-        chunk_overlap_size = settings.chunk_overlap_size
+        chunk_size = setting_service.get_chunk_size_sync()
+        chunk_overlap_size = setting_service.get_chunk_overlap_size_sync()
         tokenizer = get_default_tokenizer()
 
         # Rechunk the document parts (resulting in text parts)

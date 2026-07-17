@@ -17,5 +17,26 @@
   "use_markitdown_description": "启用后，系统将使用 markitdown 进行文档解析。",
 
   "system_default_quota": "用户默认配额",
-  "system_default_quota_description": "默认配额有助于维护系统稳定性，防止资源滥用，并确保用户或应用间的公平分配"
+  "system_default_quota_description": "默认配额有助于维护系统稳定性，防止资源滥用，并确保用户或应用间的公平分配",
+
+  "core_chunking": "核心分块配置",
+  "core_chunking_description": "文档解析时的分块参数，影响检索精度和上下文连贯性",
+  "chunk_size": "分块大小",
+  "chunk_overlap_size": "分块重叠大小",
+  "cache_settings": "缓存配置",
+  "cache_settings_description": "LLM 调用缓存设置，可减少重复 API 调用",
+  "cache_ttl": "缓存过期时间（秒）",
+
+  "kg_settings": "知识图谱配置",
+  "kg_settings_description": "控制知识图谱构建过程中的实体提取、分块和合并行为",
+  "kg_chunk_token_size": "图谱分块 Token 数",
+  "kg_chunk_overlap_token_size": "图谱分块重叠 Token 数",
+  "kg_entity_extract_max_gleaning": "实体提取 Gleaning 轮次",
+  "kg_llm_model_max_async": "LLM 最大并发数",
+  "kg_cosine_threshold": "向量相似度阈值",
+  "kg_max_batch_size": "最大批处理大小",
+  "kg_summary_max_tokens": "摘要最大 Token 数",
+  "kg_force_llm_summary_on_merge": "合并时强制 LLM 摘要阈值",
+  "kg_entity_types": "实体类型",
+  "kg_entity_types_placeholder": "输入实体类型后按回车添加"
 }

@@ -44,5 +44,83 @@ export interface Settings {
      * @memberof Settings
      */
     'use_markitdown'?: boolean;
+    /**
+     * Chunk size for document parsing
+     * @type {number}
+     * @memberof Settings
+     */
+    'chunk_size'?: number;
+    /**
+     * Chunk overlap size for document parsing
+     * @type {number}
+     * @memberof Settings
+     */
+    'chunk_overlap_size'?: number;
+    /**
+     * Token size for graph chunking
+     * @type {number}
+     * @memberof Settings
+     */
+    'kg_chunk_token_size'?: number;
+    /**
+     * Token overlap size for graph chunking
+     * @type {number}
+     * @memberof Settings
+     */
+    'kg_chunk_overlap_token_size'?: number;
+    /**
+     * Max gleaning rounds for entity extraction
+     * @type {number}
+     * @memberof Settings
+     */
+    'kg_entity_extract_max_gleaning'?: number;
+    /**
+     * Max concurrent LLM calls for graph processing
+     * @type {number}
+     * @memberof Settings
+     */
+    'kg_llm_model_max_async'?: number;
+    /**
+     * Cosine similarity threshold for vector matching
+     * @type {number}
+     * @memberof Settings
+     */
+    'kg_cosine_threshold'?: number;
+    /**
+     * Max batch size for graph processing
+     * @type {number}
+     * @memberof Settings
+     */
+    'kg_max_batch_size'?: number;
+    /**
+     * Max tokens for entity/relation summaries
+     * @type {number}
+     * @memberof Settings
+     */
+    'kg_summary_max_tokens'?: number;
+    /**
+     * Threshold to force LLM summary when merging entities
+     * @type {number}
+     * @memberof Settings
+     */
+    'kg_force_llm_summary_on_merge'?: number;
+    /**
+     * Custom entity types for knowledge graph extraction
+     * @type {Array<string>}
+     * @memberof Settings
+     */
+    'kg_entity_types'?: Array<string>;
+    /**
+     * Whether LLM cache is enabled
+     * @type {boolean}
+     * @memberof Settings
+     */
+    'cache_enabled'?: boolean;
+    /**
+     * Cache TTL in seconds
+     * @type {number}
+     * @memberof Settings
+     */
+    'cache_ttl'?: number;
 }
 

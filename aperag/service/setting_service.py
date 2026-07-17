@@ -18,6 +18,7 @@ from typing import Any
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from aperag.config import settings as config_settings
 from aperag.db.ops import AsyncDatabaseOps, async_db_ops, db_ops
 
 
@@ -62,6 +63,118 @@ class SettingService:
 
     async def update_use_markitdown(self, use_markitdown: bool):
         await self.update_setting("use_markitdown", use_markitdown)
+
+    # ── Core chunking configuration ──────────────────────────────────────
+
+    async def get_chunk_size(self) -> int:
+        val = await self.get_setting("chunk_size")
+        return val if val is not None else config_settings.chunk_size
+
+    def get_chunk_size_sync(self) -> int:
+        settings_dict = self.get_all_settings_sync()
+        val = settings_dict.get("chunk_size")
+        return val if val is not None else config_settings.chunk_size
+
+    async def get_chunk_overlap_size(self) -> int:
+        val = await self.get_setting("chunk_overlap_size")
+        return val if val is not None else config_settings.chunk_overlap_size
+
+    def get_chunk_overlap_size_sync(self) -> int:
+        settings_dict = self.get_all_settings_sync()
+        val = settings_dict.get("chunk_overlap_size")
+        return val if val is not None else config_settings.chunk_overlap_size
+
+    # ── Knowledge graph configuration ────────────────────────────────────
+
+    async def get_kg_chunk_token_size(self) -> int:
+        val = await self.get_setting("kg_chunk_token_size")
+        return val if val is not None else 1200
+
+    def get_kg_chunk_token_size_sync(self) -> int:
+        val = self.get_all_settings_sync().get("kg_chunk_token_size")
+        return val if val is not None else 1200
+
+    async def get_kg_chunk_overlap_token_size(self) -> int:
+        val = await self.get_setting("kg_chunk_overlap_token_size")
+        return val if val is not None else 100
+
+    def get_kg_chunk_overlap_token_size_sync(self) -> int:
+        val = self.get_all_settings_sync().get("kg_chunk_overlap_token_size")
+        return val if val is not None else 100
+
+    async def get_kg_entity_extract_max_gleaning(self) -> int:
+        val = await self.get_setting("kg_entity_extract_max_gleaning")
+        return val if val is not None else 0
+
+    def get_kg_entity_extract_max_gleaning_sync(self) -> int:
+        val = self.get_all_settings_sync().get("kg_entity_extract_max_gleaning")
+        return val if val is not None else 0
+
+    async def get_kg_llm_model_max_async(self) -> int:
+        val = await self.get_setting("kg_llm_model_max_async")
+        return val if val is not None else 20
+
+    def get_kg_llm_model_max_async_sync(self) -> int:
+        val = self.get_all_settings_sync().get("kg_llm_model_max_async")
+        return val if val is not None else 20
+
+    async def get_kg_cosine_threshold(self) -> float:
+        val = await self.get_setting("kg_cosine_threshold")
+        return val if val is not None else 0.2
+
+    def get_kg_cosine_threshold_sync(self) -> float:
+        val = self.get_all_settings_sync().get("kg_cosine_threshold")
+        return val if val is not None else 0.2
+
+    async def get_kg_max_batch_size(self) -> int:
+        val = await self.get_setting("kg_max_batch_size")
+        return val if val is not None else 32
+
+    def get_kg_max_batch_size_sync(self) -> int:
+        val = self.get_all_settings_sync().get("kg_max_batch_size")
+        return val if val is not None else 32
+
+    async def get_kg_summary_max_tokens(self) -> int:
+        val = await self.get_setting("kg_summary_max_tokens")
+        return val if val is not None else 2000
+
+    def get_kg_summary_max_tokens_sync(self) -> int:
+        val = self.get_all_settings_sync().get("kg_summary_max_tokens")
+        return val if val is not None else 2000
+
+    async def get_kg_force_llm_summary_on_merge(self) -> int:
+        val = await self.get_setting("kg_force_llm_summary_on_merge")
+        return val if val is not None else 10
+
+    def get_kg_force_llm_summary_on_merge_sync(self) -> int:
+        val = self.get_all_settings_sync().get("kg_force_llm_summary_on_merge")
+        return val if val is not None else 10
+
+    async def get_kg_entity_types(self) -> list[str] | None:
+        return await self.get_setting("kg_entity_types")
+
+    def get_kg_entity_types_sync(self) -> list[str] | None:
+        return self.get_all_settings_sync().get("kg_entity_types")
+
+    # ── Cache configuration ──────────────────────────────────────────────
+
+    async def get_cache_enabled(self) -> bool:
+        val = await self.get_setting("cache_enabled")
+        return val if val is not None else config_settings.cache_enabled
+
+    def get_cache_enabled_sync(self) -> bool:
+        val = self.get_all_settings_sync().get("cache_enabled")
+        return val if val is not None else config_settings.cache_enabled
+
+    async def get_cache_ttl(self) -> int:
+        val = await self.get_setting("cache_ttl")
+        return val if val is not None else config_settings.cache_ttl
+
+    def get_cache_ttl_sync(self) -> int:
+        val = self.get_all_settings_sync().get("cache_ttl")
+        return val if val is not None else config_settings.cache_ttl
+
+    # ── Bulk operations ──────────────────────────────────────────────────
 
     async def get_all_settings(self) -> dict:
         settings = await self.db_ops.query_all_settings()

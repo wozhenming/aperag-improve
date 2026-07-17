@@ -20,32 +20,34 @@
 ## 一、Prompt解析服务实现
 
 ### 1.1 文件位置
+
 `aperag/service/prompt_template_service.py`
 
 ### 1.2 需要添加的方法
 
 #### resolve_agent_system_prompt
+
 ```python
 async def resolve_agent_system_prompt(bot, user_id: str, language: str) -> str:
     """
     解析Agent系统prompt
-    
+  
     优先级：
     1. Bot.config.agent.system_prompt_template
     2. prompt_template表（scope='user', prompt_type='agent_system'）
     3. prompt_template表（scope='system', prompt_type='agent_system'）
     4. 代码硬编码（APERAG_AGENT_INSTRUCTION_EN/ZH）
-    
+  
     Args:
         bot: Bot对象
         user_id: 用户ID
         language: 语言代码 (en-US, zh-CN)
-        
+      
     Returns:
         解析后的system prompt内容
     """
     from aperag.db.ops import async_db_ops
-    
+  
     # 层级1：Bot配置
     if bot.config:
         try:
@@ -55,7 +57,7 @@ async def resolve_agent_system_prompt(bot, user_id: str, language: str) -> str:
                 return config_dict["agent"]["system_prompt_template"]
         except:
             pass
-    
+  
     # 层级2：用户默认
     user_default = await async_db_ops.query_prompt_template(
         prompt_type="agent_system",
@@ -65,7 +67,7 @@ async def resolve_agent_system_prompt(bot, user_id: str, language: str) -> str:
     )
     if user_default:
         return user_default.content
-    
+  
     # 层级3：系统默认
     system_default = await async_db_ops.query_prompt_template(
         prompt_type="agent_system",
@@ -75,7 +77,7 @@ async def resolve_agent_system_prompt(bot, user_id: str, language: str) -> str:
     )
     if system_default:
         return system_default.content
-    
+  
     # 层级4：代码硬编码
     if language == "zh-CN":
         return APERAG_AGENT_INSTRUCTION_ZH
@@ -84,22 +86,23 @@ async def resolve_agent_system_prompt(bot, user_id: str, language: str) -> str:
 ```
 
 #### resolve_agent_query_prompt
+
 ```python
 async def resolve_agent_query_prompt(bot, user_id: str, language: str) -> str:
     """
     解析Agent查询prompt模板
-    
+  
     优先级：
     1. Bot.config.agent.query_prompt_template
     2. prompt_template表（scope='user', prompt_type='agent_query'）
     3. prompt_template表（scope='system', prompt_type='agent_query'）
     4. 代码硬编码（DEFAULT_AGENT_QUERY_PROMPT_EN/ZH）
-    
+  
     Args:
         bot: Bot对象
         user_id: 用户ID
         language: 语言代码
-        
+      
     Returns:
         解析后的query prompt模板内容
     """
@@ -108,6 +111,7 @@ async def resolve_agent_query_prompt(bot, user_id: str, language: str) -> str:
 ```
 
 #### resolve_index_prompt
+
 ```python
 async def resolve_index_prompt(
     collection, 
@@ -116,23 +120,23 @@ async def resolve_index_prompt(
 ) -> str:
     """
     解析索引prompt
-    
+  
     优先级：
     1. Collection.config.index_prompts.{type}
     2. prompt_template表（scope='user', prompt_type='index_{type}'）
     3. prompt_template表（scope='system', prompt_type='index_{type}'）
     4. 代码硬编码
-    
+  
     Args:
         collection: Collection对象
         prompt_type: Prompt类型 (graph, summary, vision)
         user_id: 用户ID
-        
+      
     Returns:
         解析后的index prompt内容
     """
     from aperag.db.ops import async_db_ops
-    
+  
     # 层级1：Collection配置
     if collection.config:
         try:
@@ -143,7 +147,7 @@ async def resolve_index_prompt(
                 return index_prompts[prompt_type]
         except:
             pass
-    
+  
     # 层级2：用户默认
     db_prompt_type = f"index_{prompt_type}"
     collection_language = "zh-CN"  # 从collection.config.language获取
@@ -152,7 +156,7 @@ async def resolve_index_prompt(
         collection_language = config_dict.get("language", "zh-CN")
     except:
         pass
-    
+  
     user_default = await async_db_ops.query_prompt_template(
         prompt_type=db_prompt_type,
         scope="user",
@@ -161,7 +165,7 @@ async def resolve_index_prompt(
     )
     if user_default:
         return user_default.content
-    
+  
     # 层级3：系统默认
     system_default = await async_db_ops.query_prompt_template(
         prompt_type=db_prompt_type,
@@ -171,7 +175,7 @@ async def resolve_index_prompt(
     )
     if system_default:
         return system_default.content
-    
+  
     # 层级4：代码硬编码
     return get_hardcoded_index_prompt(prompt_type)
 
@@ -194,6 +198,7 @@ def get_hardcoded_index_prompt(prompt_type: str) -> str:
 ## 二、Agent对话集成
 
 ### 2.1 文件位置
+
 `aperag/service/agent_chat_service.py`
 
 ### 2.2 改造点1：_get_agent_session方法
@@ -201,6 +206,7 @@ def get_hardcoded_index_prompt(prompt_type: str) -> str:
 **位置**：约第402-461行
 
 **当前代码**：
+
 ```python
 # 约437-439行
 system_prompt = (
@@ -210,6 +216,7 @@ system_prompt = (
 ```
 
 **改造后**：
+
 ```python
 from aperag.service.prompt_template_service import resolve_agent_system_prompt
 
@@ -221,6 +228,7 @@ system_prompt = await resolve_agent_system_prompt(
 ```
 
 **影响**：
+
 - 需要将bot对象传递到这个方法中
 - 当前方法签名可能需要调整
 
@@ -229,6 +237,7 @@ system_prompt = await resolve_agent_system_prompt(
 **位置**：约第463-551行
 
 **当前代码**：
+
 ```python
 # 约518-521行
 comprehensive_prompt = build_agent_query_prompt(
@@ -237,6 +246,7 @@ comprehensive_prompt = build_agent_query_prompt(
 ```
 
 **改造后**：
+
 ```python
 from aperag.service.prompt_template_service import resolve_agent_query_prompt
 
@@ -255,6 +265,7 @@ comprehensive_prompt = build_agent_query_prompt(
 ```
 
 **注意事项**：
+
 - 需要确保bot对象在此方法中可用
 - 当前代码使用custom_query_prompt参数，需要替换为解析服务
 
@@ -263,6 +274,7 @@ comprehensive_prompt = build_agent_query_prompt(
 ## 三、Graph索引集成（LightRAG）
 
 ### 3.1 文件位置
+
 `aperag/graph/lightrag_manager.py`
 
 ### 3.2 改造点：create_lightrag_instance函数
@@ -270,44 +282,46 @@ comprehensive_prompt = build_agent_query_prompt(
 **位置**：约第59-123行
 
 **当前代码**：
+
 ```python
 async def create_lightrag_instance(collection: Collection) -> LightRAG:
     # ... 获取配置 ...
-    
+  
     rag = LightRAG(
         working_dir=working_dir,
         entity_types=entity_types,
         # ... 其他配置 ...
     )
-    
+  
     return rag
 ```
 
 **改造后**：
+
 ```python
 from aperag.service.prompt_template_service import resolve_index_prompt
 
 async def create_lightrag_instance(collection: Collection) -> LightRAG:
     # ... 获取配置 ...
-    
+  
     # 解析自定义graph prompt
     custom_graph_prompt = await resolve_index_prompt(
         collection=collection,
         prompt_type="graph",
         user_id=collection.user
     )
-    
+  
     # 创建LightRAG实例
     rag = LightRAG(
         working_dir=working_dir,
         entity_types=entity_types,
         # ... 其他配置 ...
     )
-    
+  
     # 如果有自定义prompt，需要覆盖LightRAG的默认prompt
     # 方案1：扩展LightRAG支持custom_prompts参数（需要修改lightrag.py）
     # 方案2：运行时替换（临时方案，但要注意线程安全）
-    
+  
     return rag
 ```
 
@@ -316,14 +330,15 @@ async def create_lightrag_instance(collection: Collection) -> LightRAG:
 **文件位置**：`aperag/graph/lightrag/lightrag.py`
 
 **建议扩展**：
+
 ```python
 @dataclass
 class LightRAG:
     # ... 现有字段 ...
-    
+  
     # 新增：自定义prompts字典
     custom_prompts: Optional[Dict[str, str]] = None
-    
+  
     def _get_prompt(self, key: str) -> str:
         """获取prompt，支持自定义覆盖"""
         if self.custom_prompts and key in self.custom_prompts:
@@ -332,6 +347,7 @@ class LightRAG:
 ```
 
 **使用**：
+
 ```python
 rag = LightRAG(
     working_dir=working_dir,
@@ -348,6 +364,7 @@ rag = LightRAG(
 ## 四、Summary索引集成
 
 ### 4.1 文件位置
+
 `aperag/index/summary_index.py`
 
 ### 4.2 改造点：create_index方法
@@ -355,28 +372,30 @@ rag = LightRAG(
 **位置**：约第46-87行
 
 **当前代码**：
+
 ```python
 def create_index(self, document_id: str, content: str, doc_parts: List[Any], collection, **kwargs):
     # ... 现有逻辑 ...
-    
+  
     # 使用默认的map-reduce prompt生成摘要
     summary = self._generate_document_summary(content, doc_parts, collection)
 ```
 
 **改造后**：
+
 ```python
 from aperag.service.prompt_template_service import resolve_index_prompt
 
 def create_index(self, document_id: str, content: str, doc_parts: List[Any], collection, **kwargs):
     # ... 现有逻辑 ...
-    
+  
     # 解析自定义summary prompt
     custom_summary_prompt = await resolve_index_prompt(
         collection=collection,
         prompt_type="summary",
         user_id=collection.user
     )
-    
+  
     if custom_summary_prompt:
         # 使用自定义prompt生成摘要
         summary = self._generate_summary_with_custom_prompt(
@@ -388,6 +407,7 @@ def create_index(self, document_id: str, content: str, doc_parts: List[Any], col
 ```
 
 **注意事项**：
+
 - `create_index` 可能是同步方法，需要确认是否可以改为异步
 - 可能需要新增 `_generate_summary_with_custom_prompt` 方法
 
@@ -396,6 +416,7 @@ def create_index(self, document_id: str, content: str, doc_parts: List[Any], col
 ## 五、Vision索引集成
 
 ### 5.1 文件位置
+
 `aperag/index/vision_index.py`
 
 ### 5.2 改造点：create_index方法
@@ -403,11 +424,13 @@ def create_index(self, document_id: str, content: str, doc_parts: List[Any], col
 **位置**：约第146行附近
 
 **当前代码**：
+
 ```python
 prompt = """Analyze the provided image and extract its content with high fidelity. Follow these instructions precisely..."""
 ```
 
 **改造后**：
+
 ```python
 from aperag.service.prompt_template_service import resolve_index_prompt
 
@@ -428,11 +451,13 @@ Analyze the provided image and extract its content with high fidelity...
 ## 六、Collection API扩展
 
 ### 6.1 说明
+
 Collection的API已经通过Schema扩展支持`index_prompts`字段，无需额外改造。
 
 ### 6.2 使用示例
 
 **更新Collection配置**：
+
 ```bash
 PUT /api/v1/collections/{collection_id}
 Content-Type: application/json
@@ -462,15 +487,16 @@ Content-Type: application/json
 **位置**：`update_collection`方法
 
 **增强逻辑**：
+
 ```python
 async def update_collection(self, user: str, collection_id: str, update_data: dict):
     # ... 现有更新逻辑 ...
-    
+  
     # 检测index_prompts是否变更
     warnings = []
     if "config" in update_data and "index_prompts" in update_data["config"]:
         warnings.append("索引Prompt配置已变更，建议重建相关索引以使新配置生效")
-    
+  
     # 在返回结果中包含warnings
     return {
         "collection": updated_collection,
@@ -483,15 +509,18 @@ async def update_collection(self, user: str, collection_id: str, update_data: di
 ## 七、实施优先级建议
 
 ### 高优先级（核心功能）
+
 1. ✅ **Prompt解析服务**：实现三个resolve方法
 2. **Agent集成**：改造agent_chat_service.py
 3. **Graph索引集成**：改造lightrag_manager.py和LightRAG
 
 ### 中优先级（常用功能）
+
 4. **Summary索引集成**：改造summary_index.py
 5. **Collection API增强**：添加变更提示
 
 ### 低优先级（可选功能）
+
 6. **Vision索引集成**：改造vision_index.py
 7. **性能优化**：添加缓存机制
 8. **使用统计**：记录prompt使用情况
@@ -503,6 +532,7 @@ async def update_collection(self, user: str, collection_id: str, update_data: di
 ### 8.1 API测试
 
 **用户默认Prompt**：
+
 ```bash
 # 1. 设置用户默认的Agent System Prompt
 curl -X PUT http://localhost:8000/api/v1/prompts/defaults/agent \
@@ -538,6 +568,7 @@ curl -X POST http://localhost:8000/api/v1/prompts/validate \
 ```
 
 **Collection索引Prompt**：
+
 ```bash
 # 更新Collection配置
 curl -X PUT http://localhost:8000/api/v1/collections/{collection_id} \
@@ -555,12 +586,14 @@ curl -X PUT http://localhost:8000/api/v1/collections/{collection_id} \
 ### 8.2 集成测试流程
 
 **Agent对话测试**：
+
 1. 创建Bot（不配置prompt） → 应使用用户默认
 2. 用户设置默认Agent prompt
 3. 发起对话 → 验证使用了用户默认prompt
 4. 更新Bot配置（设置prompt） → 应优先使用Bot配置
 
 **索引构建测试**：
+
 1. 创建Collection（不配置index_prompts） → 应使用系统默认
 2. 用户设置默认索引prompt
 3. 上传文档构建索引 → 验证使用了用户默认prompt
@@ -572,21 +605,28 @@ curl -X PUT http://localhost:8000/api/v1/collections/{collection_id} \
 ## 九、常见问题
 
 ### Q1: Bot.config是字符串还是对象？
+
 **A**: 数据库中是Text类型（JSON字符串），读取后需要json.loads()解析。
 
 ### Q2: 异步方法在同步context中如何调用？
+
 **A**: 如果indexer的create_index是同步方法，可能需要：
+
 - 改为异步方法（推荐）
 - 或使用asyncio.run()包装（不推荐，可能有事件循环冲突）
 
 ### Q3: LightRAG的PROMPTS是全局变量，如何实现实例级覆盖？
-**A**: 
+
+**A**:
+
 - 方案1：扩展LightRAG支持custom_prompts参数（推荐）
 - 方案2：创建实例时深拷贝PROMPTS字典
 - 方案3：运行时临时替换（需注意线程安全）
 
 ### Q4: 用户修改索引prompt后，旧索引怎么办？
-**A**: 
+
+**A**:
+
 - 旧索引仍然有效，但是用旧prompt生成的
 - 建议在API响应中提示用户"需重建索引"
 - 可以添加Collection.index_config_changed字段标记（可选）
