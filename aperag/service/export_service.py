@@ -179,8 +179,12 @@ class ExportService:
         date_str = utc_now().strftime("%Y-%m-%d")
         filename = f"{safe_title}_export_{date_str}.zip"
 
+        # Use RFC 5987 encoding to support non-ASCII filenames in Content-Disposition
+        from urllib.parse import quote
+
+        encoded_filename = quote(filename, safe="")
         headers = {
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}",
             "Content-Length": str(size),
         }
 

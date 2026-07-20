@@ -36,6 +36,7 @@ import { QuestionSetDelete } from '../question-set-delete';
 import { QuestionActions } from './question-actions';
 import { QuestionDelete } from './question-delete';
 import { QuestionGenerate } from './question-generate';
+import { QuestionImport } from './question-import';
 
 export const QuestionsList = ({
   questionSet,
@@ -81,9 +82,11 @@ export const QuestionsList = ({
                   </DropdownMenuItem>
                 </QuestionGenerate>
 
-                <DropdownMenuItem disabled>
-                  <FileUp /> {page_question_set('add_question_import')}
-                </DropdownMenuItem>
+                <QuestionImport questionSet={questionSet}>
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                    <FileUp /> {page_question_set('add_question_import')}
+                  </DropdownMenuItem>
+                </QuestionImport>
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>

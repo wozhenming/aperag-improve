@@ -12,8 +12,8 @@
 - **异步评估执行**: 评估任务在后台异步执行，支持查看进度，并为未来实现暂停/恢复功能奠定基础。
 - **LLM 自动评判**: RAG 的回答将由指定的 LLM 根据标准答案进行打分（5分制），并给出评判理由。
 - **评估结果可视化**:
-    - **评估列表页**: 展示所有历史和正在进行的评估任务。
-    - **评估详情页**: 展示评估的总体摘要（如总得分、完成度）和每个问题的详细对比（问题、标准答案、RAG 回答、LLM 评判结果、引用来源等）。
+  - **评估列表页**: 展示所有历史和正在进行的评估任务。
+  - **评估详情页**: 展示评估的总体摘要（如总得分、完成度）和每个问题的详细对比（问题、标准答案、RAG 回答、LLM 评判结果、引用来源等）。
 
 ### 1.2 设计原则
 
@@ -186,47 +186,52 @@ graph TD
 ### 3.2 核心业务流程
 
 **流程1: 创建问题集 (富客户端模式)**
-1.  **进入创建页面**: 用户在“评估”功能区进入“问题集”管理，并点击“新建问题集”，进入一个富客户端编辑界面。
-2.  **动态编辑问题列表**:
-    -   **手动编辑**: 页面核心是一个可编辑的问题列表，用户可以直接在列表中增、删、改问题和标准答案。
-    -   **从文件导入**: 用户点击“导入文件”按钮，选择本地的 CSV 或 JSON 文件。前端直接解析文件内容，将其转换为问题项并追加到当前列表中，此过程不涉及后端文件上传。UI 会提供清晰的文件格式说明。
-    -   **从 Collection 生成**: 用户点击“生成问题”按钮，弹出一个配置界面。
-        -   用户选择一个已有的 Collection、指定生成用的 LLM、问题数量，并可以按需修改生成 Prompt。
-        -   点击“生成”后，前端调用 `POST /api/v1/question-sets/generate` 接口。
-        -   后端异步或同步执行生成任务，并将生成的问题列表返回。
-        -   用户在前端预览生成结果，确认后可将其导入到当前的问题列表中。
-3.  **最终创建**:
-    -   用户在主界面上填写问题集的名称和描述。
-    -   当问题列表准备就绪后，用户点击“创建”按钮。
-    -   前端将问题集元数据（名称、描述）和整个问题列表一次性通过 `POST /api/v1/question-sets` 接口提交给后端。
-    -   后端服务接收到请求后，在单个事务中创建 `question_sets` 记录和所有对应的 `questions` 记录。
+
+1. **进入创建页面**: 用户在“评估”功能区进入“问题集”管理，并点击“新建问题集”，进入一个富客户端编辑界面。
+2. **动态编辑问题列表**:
+   - **手动编辑**: 页面核心是一个可编辑的问题列表，用户可以直接在列表中增、删、改问题和标准答案。
+   - **从文件导入**: 用户点击“导入文件”按钮，选择本地的 CSV 或 JSON 文件。前端直接解析文件内容，将其转换为问题项并追加到当前列表中，此过程不涉及后端文件上传。UI 会提供清晰的文件格式说明。
+   - **从 Collection 生成**: 用户点击“生成问题”按钮，弹出一个配置界面。
+     - 用户选择一个已有的 Collection、指定生成用的 LLM、问题数量，并可以按需修改生成 Prompt。
+     - 点击“生成”后，前端调用 `POST /api/v1/question-sets/generate` 接口。
+     - 后端异步或同步执行生成任务，并将生成的问题列表返回。
+     - 用户在前端预览生成结果，确认后可将其导入到当前的问题列表中。
+3. **最终创建**:
+   - 用户在主界面上填写问题集的名称和描述。
+   - 当问题列表准备就绪后，用户点击“创建”按钮。
+   - 前端将问题集元数据（名称、描述）和整个问题列表一次性通过 `POST /api/v1/question-sets` 接口提交给后端。
+   - 后端服务接收到请求后，在单个事务中创建 `question_sets` 记录和所有对应的 `questions` 记录。
 
 **流程2: 发起评估**
-1.  用户在“评估”页面点击“新建评估”。
-2.  选择一个 Collection、一个 Question Set、一个 Bot 和一个用于评判的 LLM。
-3.  后端 `EvaluationService` 创建一条 `evaluations` 记录，初始状态为 `PENDING`。
-4.  一个后台定时任务（类似 `IndexReconciler`）发现 `PENDING` 状态的评估，并触发 `EvaluationTaskRunner`。
+
+1. 用户在“评估”页面点击“新建评估”。
+2. 选择一个 Collection、一个 Question Set、一个 Bot 和一个用于评判的 LLM。
+3. 后端 `EvaluationService` 创建一条 `evaluations` 记录，初始状态为 `PENDING`。
+4. 一个后台定时任务（类似 `IndexReconciler`）发现 `PENDING` 状态的评估，并触发 `EvaluationTaskRunner`。
 
 **流程3: 异步评估执行**
-1.  `EvaluationTaskRunner` 启动，将评估状态更新为 `RUNNING`。
-2.  任务遍历问题集中的每一个问题。
-3.  对于每个问题，调用 `AgentService`（即指定的 Bot）获取 RAG 回答。
-4.  记录 RAG 回答、来源、工具调用等信息。
-5.  调用 `LLMService`，将（原问题、标准答案、RAG回答）发送给评判 LLM，获取评分和理由。
-6.  将详细结果写入 `evaluation_results` 表。
-7.  更新 `evaluations` 表的进度（`completed_questions`）。
-8.  所有问题处理完毕后，计算总分，将评估状态更新为 `COMPLETED`。
+
+1. `EvaluationTaskRunner` 启动，将评估状态更新为 `RUNNING`。
+2. 任务遍历问题集中的每一个问题。
+3. 对于每个问题，调用 `AgentService`（即指定的 Bot）获取 RAG 回答。
+4. 记录 RAG 回答、来源、工具调用等信息。
+5. 调用 `LLMService`，将（原问题、标准答案、RAG回答）发送给评判 LLM，获取评分和理由。
+6. 将详细结果写入 `evaluation_results` 表。
+7. 更新 `evaluations` 表的进度（`completed_questions`）。
+8. 所有问题处理完毕后，计算总分，将评估状态更新为 `COMPLETED`。
 
 **流程4: 查看评估结果**
-1.  用户在“评估列表”页看到所有评估任务及其状态和进度。
-2.  对于进行中的任务，前端可以定时轮询 API 获取最新进度。
-3.  点击进入详情页，前端获取评估的总体信息和已完成问题的详细结果列表，进行可视化展示。
+
+1. 用户在“评估列表”页看到所有评估任务及其状态和进度。
+2. 对于进行中的任务，前端可以定时轮询 API 获取最新进度。
+3. 点击进入详情页，前端获取评估的总体信息和已完成问题的详细结果列表，进行可视化展示。
 
 ## 4. 后端设计 (API & Service)
 
 ### 4.1 API 端点设计
 
 **问题集管理 (`/api/v1/question-sets`)**
+
 - `GET /`: 获取当前用户的所有问题集。
 - `POST /`: 创建一个包含完整问题列表的新问题集。请求体将包含问题集的元数据和问题数组。
 - `POST /generate`: 根据指定的 Collection 和配置，调用 LLM 实时生成问题列表并返回，不直接创建问题集。
@@ -239,6 +244,7 @@ graph TD
 - **注意**: `POST /upload` 接口将不再需要，文件解析在前端完成。
 
 **评估管理 (`/api/v1/evaluations`)**
+
 - `GET /`: 获取所有评估任务列表。
 - `POST /`: 创建并启动一个新的评估任务。
 - `GET /{eval_id}`: 获取评估任务的详情（包括总体结果和已完成问题的结果）。
@@ -249,10 +255,12 @@ graph TD
 ### 4.2 服务层设计
 
 **`QuestionSetService`**
+
 - 负责问题集和问题的 CRUD 业务逻辑。
 - 包含触发问题生成任务的逻辑。
 
 **`EvaluationService`**
+
 - 负责评估任务的 CRUD 业务逻辑。
 - 核心职责是创建评估记录，并与异步任务系统解耦。状态变更由任务回调或调谐器处理。
 
@@ -307,7 +315,9 @@ graph TD
 
 **文档内容:**
 ```
+
 {document_content}
+
 ```
 
 **你的任务:**
@@ -346,32 +356,36 @@ graph TD
 - **`ResultComparisonCard`**: 在详情页中，用于并排展示单个问题的标准答案、RAG 回答和 LLM 评判结果的卡片。
 - **`QuestionSetList`**: 展示问题集列表。
 - **`QuestionSetEditor`**: 创建和编辑问题集的富客户端组件。
-    - **`EditableQuestionTable`**: 一个可交互的表格，用于手动增删改查问题列表。
-    - **`FileUploadParser`**: 客户端文件解析器，支持 CSV/JSON，并能将结果填入表格。
-    - **`QuestionGenerationModal`**: 一个模态框，封装了从 Collection 生成问题的交互流程。
+  - **`EditableQuestionTable`**: 一个可交互的表格，用于手动增删改查问题列表。
+  - **`FileUploadParser`**: 客户端文件解析器，支持 CSV/JSON，并能将结果填入表格。
+  - **`QuestionGenerationModal`**: 一个模态框，封装了从 Collection 生成问题的交互流程。
 
 ## 7. 实施计划
 
 ### 第一阶段：后端基础与核心逻辑
-1.  **数据库**: 创建 `question_sets`, `questions`, `evaluations`, `evaluation_results` 四张表及迁移脚本。
-2.  **API & Service**: 实现问题集管理的完整 CRUD 后端接口。
-3.  **评估任务创建**: 实现创建评估任务的 API，能在数据库中正确创建 `PENDING` 状态的记录。
-4.  **异步任务框架**: 设计 `EvaluationTaskRunner` 的基本结构，实现从 `PENDING` 到 `RUNNING` 的状态流转。
+
+1. **数据库**: 创建 `question_sets`, `questions`, `evaluations`, `evaluation_results` 四张表及迁移脚本。
+2. **API & Service**: 实现问题集管理的完整 CRUD 后端接口。
+3. **评估任务创建**: 实现创建评估任务的 API，能在数据库中正确创建 `PENDING` 状态的记录。
+4. **异步任务框架**: 设计 `EvaluationTaskRunner` 的基本结构，实现从 `PENDING` 到 `RUNNING` 的状态流转。
 
 ### 第二阶段：评估执行与评判
-1.  **RAG 调用**: 在 `EvaluationTaskRunner` 中实现调用 Agent Service 获取回答的逻辑。
-2.  **LLM 评判**: 实现 `LLMJudge` 模块，封装评判 prompt 和逻辑，并在 Task Runner 中调用。
-3.  **结果存储**: 将 RAG 回答和 LLM 评判结果正确写入 `evaluation_results` 表。
-4.  **状态更新**: 完成从 `RUNNING` 到 `COMPLETED` / `FAILED` 的状态流转，并计算最终得分。
+
+1. **RAG 调用**: 在 `EvaluationTaskRunner` 中实现调用 Agent Service 获取回答的逻辑。
+2. **LLM 评判**: 实现 `LLMJudge` 模块，封装评判 prompt 和逻辑，并在 Task Runner 中调用。
+3. **结果存储**: 将 RAG 回答和 LLM 评判结果正确写入 `evaluation_results` 表。
+4. **状态更新**: 完成从 `RUNNING` 到 `COMPLETED` / `FAILED` 的状态流转，并计算最终得分。
 
 ### 第三阶段：前端页面开发
-1.  **问题集管理**: 开发 `/question-sets` 页面，实现完整的 UI 操作。
-2.  **评估列表与创建**: 开发 `/evaluations` 和 `/evaluations/new` 页面。
-3.  **评估详情页**: 开发 `/evaluations/{eval_id}` 页面，重点是 `ResultComparisonCard` 的可视化效果。实现进行中任务的自动刷新。
+
+1. **问题集管理**: 开发 `/question-sets` 页面，实现完整的 UI 操作。
+2. **评估列表与创建**: 开发 `/evaluations` 和 `/evaluations/new` 页面。
+3. **评估详情页**: 开发 `/evaluations/{eval_id}` 页面，重点是 `ResultComparisonCard` 的可视化效果。实现进行中任务的自动刷新。
 
 ### 第四阶段：高级功能
-1.  **问题自动生成**: 实现 `QuestionGenerationTask` 及对应的 Service 和 API。
-2.  **文件上传**: 实现问题集的文件上传解析功能。
-3.  **暂停/恢复**: (可选) 实现评估任务的暂停与恢复功能，这需要更复杂的状态管理。
+
+1. **问题自动生成**: 实现 `QuestionGenerationTask` 及对应的 Service 和 API。
+2. **文件上传**: 实现问题集的文件上传解析功能。
+3. **暂停/恢复**: (可选) 实现评估任务的暂停与恢复功能，这需要更复杂的状态管理。
 
 这份设计文档为自动化评估功能提供了一个清晰、可行的蓝图。我们可以基于此分阶段进行开发。

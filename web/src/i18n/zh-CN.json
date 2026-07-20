@@ -605,7 +605,19 @@
     "prompt_template_placeholder": "请输入提示词模版",
     "prompt_template_tips": "以下变量将被系统替换：",
     "prompt_template_document_content": "从知识库中提取的文档内容",
-    "prompt_template_number_of_question": "需要生成的问题数量"
+    "prompt_template_number_of_question": "需要生成的问题数量",
+
+    "import_questions": "从文件导入问题",
+    "import_questions_description": "支持 CSV 和 JSON 格式。前端直接解析文件内容，不会上传到服务器。",
+    "import_format_guide": "文件格式说明",
+    "import_select_file": "选择文件",
+    "import_parsed_count": "已解析",
+    "import_confirm": "确认导入",
+    "import_unsupported_format": "不支持的文件格式，请选择 CSV 或 JSON 文件",
+    "import_no_valid_questions": "未能从文件中解析出有效问题，请检查文件格式",
+    "import_parse_error": "文件解析失败，请检查文件内容是否为有效的 CSV 或 JSON 格式",
+    "import_more_items": "还有更多项未显示",
+    "import_failed": "导入失败，请重试"
   },
   "page_quota": {
     "metadata": {
