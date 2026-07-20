@@ -502,7 +502,10 @@ class ParentChildRechunker:
     def _create_parent_chunks(self, parts: list[Part], raw_text: str) -> list[Part]:
         """Create parent chunks, using separator or hierarchy-based splitting."""
         if self.parent_separator:
-            return self._split_by_separator(raw_text, self.parent_separator, parts)
+            return self._split_by_separator(raw_text, self.parent_separator,
+                                            max_chunk_size=self.parent_chunk_size,
+                                            chunk_overlap=max(self.parent_chunk_size // 10, 1),
+                                            tokenizer=self.tokenizer, original_parts=parts)
         # Fallback to hierarchy-based Rechunker
         parent_rechunker = Rechunker(self.parent_chunk_size, max(self.parent_chunk_size // 10, 1), self.tokenizer)
         parent_parts = parent_rechunker._to_groups(parts)
@@ -521,7 +524,10 @@ class ParentChildRechunker:
             parent_id = f"parent_{parent_idx}"
 
             if self.child_separator:
-                child_parts = self._split_by_separator(parent_content, self.child_separator)
+                child_parts = self._split_by_separator(parent_content, self.child_separator,
+                                                       max_chunk_size=self.child_chunk_size,
+                                                       chunk_overlap=self.child_chunk_overlap,
+                                                       tokenizer=self.tokenizer)
             else:
                 child_rechunker = Rechunker(self.child_chunk_size, self.child_chunk_overlap, self.tokenizer)
                 wrapper_parts = [Part(content=parent_content, metadata=parent_part.metadata.copy())]
@@ -541,12 +547,16 @@ class ParentChildRechunker:
         return all_children
 
     @staticmethod
-    def _split_by_separator(text: str, separator: str, original_parts: list[Part] = None) -> list[Part]:
+    def _split_by_separator(text: str, separator: str, max_chunk_size: int = 0,
+                            chunk_overlap: int = 0, tokenizer: Callable[[str], List[int]] = None,
+                            original_parts: list[Part] = None) -> list[Part]:
         """
-        Split text by a separator into Part objects.
+        Split text by separator into Part objects.
 
         Handles escaped newlines (\\n\\n → real newlines) in separators.
         Empty segments are skipped.
+        If max_chunk_size > 0, oversized segments are further split via the
+        standard Rechunker to stay within embedding model limits.
         """
         # Unescape common escape sequences in separators
         sep = separator.replace("\\n", "\n").replace("\\t", "\t").replace("\\r", "\r")
@@ -562,5 +572,17 @@ class ParentChildRechunker:
                     if part.metadata:
                         metadata = part.metadata.copy()
                         break
-            result.append(Part(content=segment, metadata=metadata))
+
+            # If the segment is too large for the embedding model, further split it
+            if max_chunk_size > 0 and tokenizer is not None and len(tokenizer(segment)) > max_chunk_size:
+                sub_rechunker = Rechunker(max_chunk_size, chunk_overlap, tokenizer)
+                wrapper = [Part(content=segment, metadata=metadata)]
+                sub_groups = sub_rechunker._to_groups(wrapper)
+                sub_groups = sub_rechunker._merge_consecutive_title_groups(sub_groups)
+                sub_parts = sub_rechunker._rechunk(sub_groups)
+                for sub_part in sub_parts:
+                    if sub_part.content and sub_part.content.strip():
+                        result.append(sub_part)
+            else:
+                result.append(Part(content=segment, metadata=metadata))
         return result
