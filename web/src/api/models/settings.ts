@@ -122,5 +122,53 @@ export interface Settings {
      * @memberof Settings
      */
     'cache_ttl'?: number;
+    /**
+     * Enable parent-child chunking for richer retrieval context
+     * @type {boolean}
+     * @memberof Settings
+     */
+    'parent_child_enabled'?: boolean;
+    /**
+     * Parent chunk size in tokens
+     * @type {number}
+     * @memberof Settings
+     */
+    'parent_chunk_size'?: number;
+    /**
+     * Child chunk size in tokens
+     * @type {number}
+     * @memberof Settings
+     */
+    'child_chunk_size'?: number;
+    /**
+     * Overlap size between child chunks in tokens
+     * @type {number}
+     * @memberof Settings
+     */
+    'child_chunk_overlap'?: number;
+    /**
+     * Separator for parent chunks e.g. "##". Empty = hierarchy-based
+     * @type {string}
+     * @memberof Settings
+     */
+    'parent_chunk_separator'?: string;
+    /**
+     * Separator for child chunks e.g. "\n\n". Empty = semantic splitting
+     * @type {string}
+     * @memberof Settings
+     */
+    'child_chunk_separator'?: string;
+    /**
+     * Collapse consecutive spaces, newlines and tabs
+     * @type {boolean}
+     * @memberof Settings
+     */
+    'preprocess_collapse_whitespace'?: boolean;
+    /**
+     * Remove all URLs and email addresses before chunking
+     * @type {boolean}
+     * @memberof Settings
+     */
+    'preprocess_remove_urls_emails'?: boolean;
 }
 

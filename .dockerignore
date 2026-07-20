@@ -1,7 +1,11 @@
-# Git and version control
-.git
-.gitignore
-.dockerignore
+# Python virtual environment (huge, hundreds of MB)
+.venv/
+venv/
+env/
+
+# Node modules (frontend is at web/, not frontend/)
+node_modules/
+web/node_modules
 
 # Python cache and temporary files
 *.pyc
@@ -15,19 +19,13 @@ __pycache__/
 .tox/
 .cache/
 .mypy_cache/
+.ruff_cache/
 .dmypy.json
 dmypy.json
+*.egg-info/
 aperag.egg-info/
 
-# Frontend development files (keep dist and deploy for production builds)
-frontend/node_modules
-frontend/.umi
-frontend/.umi-production
-frontend/yarn-error.log
-frontend/npm-debug.log*
-
 # Development and build artifacts
-*.egg-info/
 build/
 dist/
 
@@ -37,6 +35,11 @@ dist/
 *.swp
 *.swo
 *~
+
+# Git and version control
+.git
+.gitignore
+.dockerignore
 
 # OS generated files
 .DS_Store
@@ -53,3 +56,21 @@ Thumbs.db
 
 # Object storage cache (runtime data)
 .objects/
+
+# Downloads (addlicense binary, etc.)
+downloads/
+
+# Deployment and docs (not needed in runtime image)
+deploy/
+docs/
+
+# Tests (not needed in runtime image)
+tests/
+
+# Celery pid/schedule files
+celerybeat-schedule*
+*.pid
+
+# Environment files (contains secrets, should be provided at runtime)
+.env
+envs/

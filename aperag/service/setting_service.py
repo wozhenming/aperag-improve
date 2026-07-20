@@ -174,6 +174,76 @@ class SettingService:
         val = self.get_all_settings_sync().get("cache_ttl")
         return val if val is not None else config_settings.cache_ttl
 
+    # ── Parent-child chunking configuration ─────────────────────────────
+
+    async def get_parent_child_enabled(self) -> bool:
+        val = await self.get_setting("parent_child_enabled")
+        return val if val is not None else False
+
+    def get_parent_child_enabled_sync(self) -> bool:
+        val = self.get_all_settings_sync().get("parent_child_enabled")
+        return val if val is not None else False
+
+    async def get_parent_chunk_size(self) -> int:
+        val = await self.get_setting("parent_chunk_size")
+        return val if val is not None else 800
+
+    def get_parent_chunk_size_sync(self) -> int:
+        val = self.get_all_settings_sync().get("parent_chunk_size")
+        return val if val is not None else 800
+
+    async def get_child_chunk_size(self) -> int:
+        val = await self.get_setting("child_chunk_size")
+        return val if val is not None else 150
+
+    def get_child_chunk_size_sync(self) -> int:
+        val = self.get_all_settings_sync().get("child_chunk_size")
+        return val if val is not None else 150
+
+    async def get_child_chunk_overlap(self) -> int:
+        val = await self.get_setting("child_chunk_overlap")
+        return val if val is not None else 50
+
+    def get_child_chunk_overlap_sync(self) -> int:
+        val = self.get_all_settings_sync().get("child_chunk_overlap")
+        return val if val is not None else 50
+
+    # ── Chunk separator configuration ──────────────────────────────────
+
+    async def get_parent_chunk_separator(self) -> str:
+        val = await self.get_setting("parent_chunk_separator")
+        return val if val else ""
+
+    def get_parent_chunk_separator_sync(self) -> str:
+        val = self.get_all_settings_sync().get("parent_chunk_separator")
+        return val if val else ""
+
+    async def get_child_chunk_separator(self) -> str:
+        val = await self.get_setting("child_chunk_separator")
+        return val if val else ""
+
+    def get_child_chunk_separator_sync(self) -> str:
+        val = self.get_all_settings_sync().get("child_chunk_separator")
+        return val if val else ""
+
+    # ── Text preprocessing configuration ────────────────────────────────
+
+    async def get_preprocess_collapse_whitespace(self) -> bool:
+        val = await self.get_setting("preprocess_collapse_whitespace")
+        return val if val is not None else False
+
+    def get_preprocess_collapse_whitespace_sync(self) -> bool:
+        val = self.get_all_settings_sync().get("preprocess_collapse_whitespace")
+        return val if val is not None else False
+
+    async def get_preprocess_remove_urls_emails(self) -> bool:
+        val = await self.get_setting("preprocess_remove_urls_emails")
+        return val if val is not None else False
+
+    def get_preprocess_remove_urls_emails_sync(self) -> bool:
+        val = self.get_all_settings_sync().get("preprocess_remove_urls_emails")
+        return val if val is not None else False
+
     # ── Bulk operations ──────────────────────────────────────────────────
 
     async def get_all_settings(self) -> dict:

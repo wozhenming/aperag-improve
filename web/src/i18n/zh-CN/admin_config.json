@@ -38,5 +38,23 @@
   "kg_summary_max_tokens": "摘要最大 Token 数",
   "kg_force_llm_summary_on_merge": "合并时强制 LLM 摘要阈值",
   "kg_entity_types": "实体类型",
-  "kg_entity_types_placeholder": "输入实体类型后按回车添加"
+  "kg_entity_types_placeholder": "输入实体类型后按回车添加",
+
+  "parent_child_chunking": "父子分段",
+  "parent_child_chunking_description": "启用后将文档切分为父块（大块保留上下文）和子块（小块精准匹配）。检索命中子块时返回完整父块内容作为上下文。",
+  "parent_chunk_size": "父块大小（Token）",
+  "child_chunk_size": "子块大小（Token）",
+  "child_chunk_overlap": "子块重叠（Token）",
+  "parent_chunk_separator": "父块分隔符",
+  "parent_chunk_separator_hint": "用于将文档切分为父块的分隔符，如 ##。留空则使用标题层级自动切分。",
+  "child_chunk_separator": "子块分隔符",
+  "child_chunk_separator_hint": "用于将父块切分为子块的分隔符，如 \\n\\n（段落分隔）。留空则使用语义自动切分。",
+  "text_preprocessing": "文本预处理",
+  "preprocess_collapse_whitespace": "合并连续空白",
+  "preprocess_remove_urls_emails": "删除 URL 和邮箱地址",
+
+  "hint_max_bot_count": "每个用户允许创建的机器人数量上限",
+  "hint_max_collection_count": "每个用户允许创建的知识库集合数量上限",
+  "hint_max_document_count": "每个用户允许上传的文档总数量上限",
+  "hint_max_document_count_per_collection": "每个知识库集合中允许包含的文档数量上限"
 }

@@ -83,6 +83,12 @@ class QdrantVectorStoreConnector(VectorStoreConnector):
             if relationships is not None and metadata.get("source") is None:
                 source = relationships.get("1").get("metadata").get("source")
                 metadata["source"] = os.path.basename(source)
+
+            # When parent-child chunking is active, return the full parent content
+            # for richer LLM context instead of the matched child chunk
+            if metadata and metadata.get("parent_content"):
+                text = metadata["parent_content"]
+
             return DocumentWithScore(
                 id=scored_point.id,
                 text=text,  # type: ignore

@@ -38,5 +38,23 @@
   "kg_summary_max_tokens": "Summary Max Tokens",
   "kg_force_llm_summary_on_merge": "Force LLM Summary on Merge Threshold",
   "kg_entity_types": "Entity Types",
-  "kg_entity_types_placeholder": "Enter entity type and press Enter to add"
+  "kg_entity_types_placeholder": "Enter entity type and press Enter to add",
+
+  "parent_child_chunking": "Parent-Child Chunking",
+  "parent_child_chunking_description": "When enabled, documents are split into large parent chunks (preserving context) and small child chunks (for precise matching). When a child chunk is matched during retrieval, the full parent chunk is returned as context.",
+  "parent_chunk_size": "Parent Chunk Size (Tokens)",
+  "child_chunk_size": "Child Chunk Size (Tokens)",
+  "child_chunk_overlap": "Child Chunk Overlap (Tokens)",
+  "parent_chunk_separator": "Parent Chunk Separator",
+  "parent_chunk_separator_hint": "Delimiter to split the document into parent chunks, e.g. ##. Leave empty to use title hierarchy.",
+  "child_chunk_separator": "Child Chunk Separator",
+  "child_chunk_separator_hint": "Delimiter to split parent chunks into child chunks, e.g. \\n\\n (paragraph). Leave empty for semantic splitting.",
+  "text_preprocessing": "Text Preprocessing",
+  "preprocess_collapse_whitespace": "Collapse consecutive whitespace",
+  "preprocess_remove_urls_emails": "Remove URLs and email addresses",
+
+  "hint_max_bot_count": "Maximum number of bots a user can create",
+  "hint_max_collection_count": "Maximum number of knowledge base collections a user can create",
+  "hint_max_document_count": "Maximum total number of documents a user can upload",
+  "hint_max_document_count_per_collection": "Maximum number of documents allowed per collection"
 }

@@ -54,3 +54,27 @@ Settings:
     cache_ttl:
       type: integer
       description: Cache TTL in seconds
+    parent_child_enabled:
+      type: boolean
+      description: Enable parent-child chunking for richer retrieval context
+    parent_chunk_size:
+      type: integer
+      description: Parent chunk size in tokens
+    child_chunk_size:
+      type: integer
+      description: Child chunk size in tokens
+    child_chunk_overlap:
+      type: integer
+      description: Overlap size between child chunks in tokens
+    parent_chunk_separator:
+      type: string
+      description: Separator for parent chunks e.g. "##". Empty = hierarchy-based
+    child_chunk_separator:
+      type: string
+      description: Separator for child chunks e.g. "\n\n". Empty = semantic splitting
+    preprocess_collapse_whitespace:
+      type: boolean
+      description: Collapse consecutive spaces, newlines and tabs
+    preprocess_remove_urls_emails:
+      type: boolean
+      description: Remove all URLs and email addresses before chunking

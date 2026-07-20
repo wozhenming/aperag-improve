@@ -1069,6 +1069,31 @@ class Settings(BaseModel):
     # Cache configuration
     cache_enabled: Optional[bool] = Field(None, description='Whether LLM cache is enabled')
     cache_ttl: Optional[int] = Field(None, description='Cache TTL in seconds')
+    # Parent-child chunking configuration
+    parent_child_enabled: Optional[bool] = Field(
+        None, description='Enable parent-child chunking for richer retrieval context'
+    )
+    parent_chunk_size: Optional[int] = Field(
+        None, description='Parent chunk size in tokens (large context-preserving chunks)'
+    )
+    child_chunk_size: Optional[int] = Field(
+        None, description='Child chunk size in tokens (small precise chunks for retrieval)'
+    )
+    child_chunk_overlap: Optional[int] = Field(
+        None, description='Overlap size between child chunks in tokens'
+    )
+    parent_chunk_separator: Optional[str] = Field(
+        None, description='Separator for parent chunks, e.g. "##". Empty = hierarchy-based'
+    )
+    child_chunk_separator: Optional[str] = Field(
+        None, description='Separator for child chunks, e.g. "\\n\\n". Empty = semantic splitting'
+    )
+    preprocess_collapse_whitespace: Optional[bool] = Field(
+        None, description='Collapse consecutive spaces, newlines and tabs into a single space'
+    )
+    preprocess_remove_urls_emails: Optional[bool] = Field(
+        None, description='Remove all URLs and email addresses from text before chunking'
+    )
 
 
 class PromptDetail(BaseModel):

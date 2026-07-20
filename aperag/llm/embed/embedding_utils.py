@@ -39,6 +39,7 @@ def create_embeddings_and_store(
     chunk_size: int = None,
     chunk_overlap: int = None,
     tokenizer=None,
+    skip_rechunk: bool = False,
 ) -> List[str]:
     """
     Processes document parts, rechunks content, generates embeddings,
@@ -51,6 +52,8 @@ def create_embeddings_and_store(
         chunk_size: Size for chunking text (defaults to settings.chunk_size)
         chunk_overlap: Overlap size for chunking (defaults to settings.chunk_overlap_size)
         tokenizer: Tokenizer to use (defaults to default tokenizer)
+        skip_rechunk: If True, skip rechunking (parts are already chunked,
+                      e.g. by ParentChildRechunker). Useful for parent-child mode.
 
     Returns:
         List[str]: A list of vector store IDs
@@ -65,9 +68,12 @@ def create_embeddings_and_store(
 
     nodes: List[BaseNode] = []
 
-    # 1. Rechunk the document parts (resulting in text parts)
-    # After rechunk(), parts only contains TextPart
-    chunked_parts = rechunk(parts, chunk_size, chunk_overlap, tokenizer)
+    # 1. Rechunk the document parts (if not skipped, e.g. parent-child mode)
+    if skip_rechunk:
+        chunked_parts = parts
+    else:
+        # After rechunk(), parts only contains TextPart
+        chunked_parts = rechunk(parts, chunk_size, chunk_overlap, tokenizer)
 
     # 2. Process each text chunk
     for part in chunked_parts:

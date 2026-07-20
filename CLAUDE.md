@@ -16,7 +16,7 @@ ApeRAG 是一个生产就绪的 **Agentic Graph RAG 平台** —— 由 FastAPI 
 cp envs/env.template .env           # 配置环境变量
 make compose-infra                  # 启动数据库（PostgreSQL、Redis、Qdrant、Elasticsearch）
 make dev                            # 安装 uv、创建 .venv、安装开发工具及 git hooks
-source .venv/bin/activate           # 激活虚拟环境（Windows: .venv\Scripts\activate）
+.venv\Scripts\activate           # 激活虚拟环境（Windows: .venv\Scripts\activate）
 make install                        # 通过 uv sync + yarn 安装所有 Python 及前端依赖
 make migrate                        # 向 PostgreSQL 应用 Alembic 迁移
 ```
@@ -27,6 +27,8 @@ make migrate                        # 向 PostgreSQL 应用 Alembic 迁移
 make run-backend    # FastAPI，地址 :8000，开启自动重载（uvicorn）
 make run-celery     # Celery worker + beat（--pool=threads --concurrency=16）
 make run-frontend   # Next.js 开发服务器，地址 :3000（yarn dev --turbopack）
+# 在 web 目录下，不通过 yarn dev，直接运行
+npx next dev --turbopack
 ```
 
 ### 代码质量

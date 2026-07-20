@@ -19,6 +19,7 @@ from typing import Any, List
 from sqlalchemy import and_, select
 
 from aperag.config import get_vector_db_connector
+from aperag.docparser.chunking import ParentChildRechunker, TextPreprocessor
 from aperag.index.base import BaseIndexer, IndexResult, IndexType
 from aperag.llm.embed.base_embedding import get_collection_embedding_service_sync
 from aperag.llm.embed.embedding_utils import create_embeddings_and_store
@@ -69,14 +70,48 @@ class VectorIndexer(BaseIndexer):
                     part.metadata = {}
                 part.metadata["indexer"] = "vector"
 
+            # Determine chunking mode: parent-child or traditional flat
+            use_parent_child = setting_service.get_parent_child_enabled_sync()
+            skip_rechunk = False
+            chunk_size = setting_service.get_chunk_size_sync()
+            chunk_overlap = setting_service.get_chunk_overlap_size_sync()
+
+            if use_parent_child:
+                parent_size = setting_service.get_parent_chunk_size_sync()
+                child_size = setting_service.get_child_chunk_size_sync()
+                child_overlap = setting_service.get_child_chunk_overlap_sync()
+                parent_sep = setting_service.get_parent_chunk_separator_sync() or None
+                child_sep = setting_service.get_child_chunk_separator_sync() or None
+                preprocessor = TextPreprocessor(
+                    collapse_whitespace=setting_service.get_preprocess_collapse_whitespace_sync(),
+                    remove_urls_emails=setting_service.get_preprocess_remove_urls_emails_sync(),
+                )
+                tokenizer = get_default_tokenizer()
+                rechunker = ParentChildRechunker(
+                    parent_chunk_size=parent_size,
+                    child_chunk_size=child_size,
+                    child_chunk_overlap=child_overlap,
+                    tokenizer=tokenizer,
+                    parent_separator=parent_sep,
+                    child_separator=child_sep,
+                    preprocessor=preprocessor,
+                )
+                doc_parts = rechunker(doc_parts)
+                skip_rechunk = True
+                logger.info(
+                    f"Parent-child chunking enabled: {len(doc_parts)} child chunks "
+                    f"(parent_size={parent_size}, child_size={child_size})"
+                )
+
             # Generate embeddings and store in vector database
             ctx_ids = create_embeddings_and_store(
                 parts=doc_parts,
                 vector_store_adaptor=vector_store_adaptor,
                 embedding_model=embedding_model,
-                chunk_size=setting_service.get_chunk_size_sync(),
-                chunk_overlap=setting_service.get_chunk_overlap_size_sync(),
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
                 tokenizer=get_default_tokenizer(),
+                skip_rechunk=skip_rechunk,
             )
 
             logger.info(f"Vector index created for document {document_id}: {len(ctx_ids)} vectors")
@@ -150,15 +185,48 @@ class VectorIndexer(BaseIndexer):
                     part.metadata = {}
                 part.metadata["indexer"] = "vector"
 
+            # Determine chunking mode: parent-child or traditional flat
+            use_parent_child = setting_service.get_parent_child_enabled_sync()
+            skip_rechunk = False
+            chunk_size = setting_service.get_chunk_size_sync()
+            chunk_overlap = setting_service.get_chunk_overlap_size_sync()
+
+            if use_parent_child:
+                parent_size = setting_service.get_parent_chunk_size_sync()
+                child_size = setting_service.get_child_chunk_size_sync()
+                child_overlap = setting_service.get_child_chunk_overlap_sync()
+                parent_sep = setting_service.get_parent_chunk_separator_sync() or None
+                child_sep = setting_service.get_child_chunk_separator_sync() or None
+                preprocessor = TextPreprocessor(
+                    collapse_whitespace=setting_service.get_preprocess_collapse_whitespace_sync(),
+                    remove_urls_emails=setting_service.get_preprocess_remove_urls_emails_sync(),
+                )
+                tokenizer = get_default_tokenizer()
+                rechunker = ParentChildRechunker(
+                    parent_chunk_size=parent_size,
+                    child_chunk_size=child_size,
+                    child_chunk_overlap=child_overlap,
+                    tokenizer=tokenizer,
+                    parent_separator=parent_sep,
+                    child_separator=child_sep,
+                    preprocessor=preprocessor,
+                )
+                doc_parts = rechunker(doc_parts)
+                skip_rechunk = True
+                logger.info(
+                    f"Parent-child chunking enabled for update: {len(doc_parts)} child chunks"
+                )
+
             # Create new vectors
             embedding_model, vector_size = get_collection_embedding_service_sync(collection)
             ctx_ids = create_embeddings_and_store(
                 parts=doc_parts,
                 vector_store_adaptor=vector_store_adaptor,
                 embedding_model=embedding_model,
-                chunk_size=setting_service.get_chunk_size_sync(),
-                chunk_overlap=setting_service.get_chunk_overlap_size_sync(),
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
                 tokenizer=get_default_tokenizer(),
+                skip_rechunk=skip_rechunk,
             )
 
             logger.info(f"Vector index updated for document {document_id}: {len(ctx_ids)} vectors")

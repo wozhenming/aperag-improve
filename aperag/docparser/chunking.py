@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
 from dataclasses import dataclass
-from typing import Callable, List
+from typing import Callable, List, Optional
 
 from aperag.docparser.base import Part
 
@@ -385,3 +386,181 @@ class SimpleSemanticSplitter:
         if len(current_chunk) > 0:
             merged_chunks.append(current_chunk)
         return merged_chunks
+
+
+class TextPreprocessor:
+    """
+    Text preprocessing utilities for cleaning document content before chunking.
+
+    Usage:
+        preprocessor = TextPreprocessor(
+            collapse_whitespace=True, remove_urls_emails=True
+        )
+        cleaned = preprocessor.preprocess(raw_text)
+    """
+
+    URL_PATTERN = re.compile(r"https?://\S+")
+    EMAIL_PATTERN = re.compile(r"[\w.\-+]+@[\w\-]+\.\w+")
+    WHITESPACE_PATTERN = re.compile(r"\s+")
+
+    def __init__(self, collapse_whitespace: bool = False, remove_urls_emails: bool = False):
+        self.collapse_whitespace = collapse_whitespace
+        self.remove_urls_emails = remove_urls_emails
+
+    @property
+    def enabled(self) -> bool:
+        return self.collapse_whitespace or self.remove_urls_emails
+
+    def preprocess(self, text: str) -> str:
+        """Apply enabled preprocessing rules to the text."""
+        if not text:
+            return text
+        if self.remove_urls_emails:
+            text = self.URL_PATTERN.sub("", text)
+            text = self.EMAIL_PATTERN.sub("", text)
+        if self.collapse_whitespace:
+            text = self.WHITESPACE_PATTERN.sub(" ", text)
+        return text
+
+
+class ParentChildRechunker:
+    """
+    Two-stage rechunker that produces parent-child chunk pairs.
+
+    Supports two splitting modes:
+    - Separator-based: Use custom delimiters to split parents (e.g. "##")
+      and children (e.g. "\\n\\n").
+    - Hierarchy-based: Use the standard Rechunker which respects document
+      title hierarchy. Used when separators are empty.
+
+    Text preprocessing (collapse whitespace, remove URLs/emails) is applied
+    before chunking when enabled.
+
+    At retrieval time, when a child chunk is matched, the full parent content
+    is returned, giving the LLM rich surrounding context.
+
+    Usage:
+        rechunker = ParentChildRechunker(
+            parent_chunk_size=800, child_chunk_size=150,
+            child_chunk_overlap=50, tokenizer=my_tokenizer,
+            parent_separator="##", child_separator="\\n\\n",
+            preprocessor=TextPreprocessor(collapse_whitespace=True),
+        )
+        children = rechunker(parts)
+    """
+
+    def __init__(
+        self,
+        parent_chunk_size: int,
+        child_chunk_size: int,
+        child_chunk_overlap: int,
+        tokenizer: Callable[[str], List[int]],
+        parent_separator: Optional[str] = None,
+        child_separator: Optional[str] = None,
+        preprocessor: Optional[TextPreprocessor] = None,
+    ):
+        self.parent_chunk_size = parent_chunk_size
+        self.child_chunk_size = child_chunk_size
+        self.child_chunk_overlap = child_chunk_overlap
+        self.tokenizer = tokenizer
+        self.parent_separator = parent_separator or ""
+        self.child_separator = child_separator or ""
+        self.preprocessor = preprocessor
+
+    def __call__(self, parts: list[Part]) -> list[Part]:
+        """
+        Produce child chunks whose metadata carries parent_content.
+
+        Returns:
+            list[Part]: child chunks ready for embedding, each with
+                        metadata["parent_id"] and metadata["parent_content"].
+        """
+        if not parts:
+            return []
+
+        # Extract and preprocess raw text from parts
+        raw_text = self._extract_raw_text(parts)
+        if self.preprocessor and self.preprocessor.enabled:
+            raw_text = self.preprocessor.preprocess(raw_text)
+
+        # Stage 1: Create large parent chunks
+        parent_chunks = self._create_parent_chunks(parts, raw_text)
+
+        # Stage 2: Split each parent into child chunks
+        all_children = self._create_child_chunks(parent_chunks)
+
+        return all_children
+
+    def _extract_raw_text(self, parts: list[Part]) -> str:
+        """Concatenate all part content into a single raw text."""
+        texts = []
+        for part in parts:
+            if part.content and part.content.strip():
+                texts.append(part.content)
+        return "\n\n".join(texts)
+
+    def _create_parent_chunks(self, parts: list[Part], raw_text: str) -> list[Part]:
+        """Create parent chunks, using separator or hierarchy-based splitting."""
+        if self.parent_separator:
+            return self._split_by_separator(raw_text, self.parent_separator, parts)
+        # Fallback to hierarchy-based Rechunker
+        parent_rechunker = Rechunker(self.parent_chunk_size, max(self.parent_chunk_size // 10, 1), self.tokenizer)
+        parent_parts = parent_rechunker._to_groups(parts)
+        parent_parts = parent_rechunker._merge_consecutive_title_groups(parent_parts)
+        return parent_rechunker._rechunk(parent_parts)
+
+    def _create_child_chunks(self, parent_chunks: list[Part]) -> list[Part]:
+        """Split each parent into child chunks."""
+        all_children: list[Part] = []
+
+        for parent_idx, parent_part in enumerate(parent_chunks):
+            parent_content = parent_part.content or ""
+            if not parent_content.strip():
+                continue
+
+            parent_id = f"parent_{parent_idx}"
+
+            if self.child_separator:
+                child_parts = self._split_by_separator(parent_content, self.child_separator)
+            else:
+                child_rechunker = Rechunker(self.child_chunk_size, self.child_chunk_overlap, self.tokenizer)
+                wrapper_parts = [Part(content=parent_content, metadata=parent_part.metadata.copy())]
+                child_parts = child_rechunker._to_groups(wrapper_parts)
+                child_parts = child_rechunker._merge_consecutive_title_groups(child_parts)
+                child_parts = child_rechunker._rechunk(child_parts)
+
+            for child in child_parts:
+                if not child.content or not child.content.strip():
+                    continue
+                child.metadata["parent_id"] = parent_id
+                child.metadata["parent_content"] = parent_content
+                child.metadata["parent_chunk_size"] = self.parent_chunk_size
+                child.metadata["child_chunk_size"] = self.child_chunk_size
+                all_children.append(child)
+
+        return all_children
+
+    @staticmethod
+    def _split_by_separator(text: str, separator: str, original_parts: list[Part] = None) -> list[Part]:
+        """
+        Split text by a separator into Part objects.
+
+        Handles escaped newlines (\\n\\n → real newlines) in separators.
+        Empty segments are skipped.
+        """
+        # Unescape common escape sequences in separators
+        sep = separator.replace("\\n", "\n").replace("\\t", "\t").replace("\\r", "\r")
+        segments = text.split(sep)
+        result = []
+        for segment in segments:
+            segment = segment.strip()
+            if not segment:
+                continue
+            metadata = {}
+            if original_parts:
+                for part in original_parts:
+                    if part.metadata:
+                        metadata = part.metadata.copy()
+                        break
+            result.append(Part(content=segment, metadata=metadata))
+        return result

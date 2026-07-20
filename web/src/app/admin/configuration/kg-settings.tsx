@@ -12,12 +12,27 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { apiClient } from '@/lib/api/client';
+import { Info, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { X } from 'lucide-react';
+
+/* Helper: label with an info icon that shows a tooltip hint on hover */
+const HintLabel = ({ text, hint }: { text: string; hint: string }) => (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <span className="inline-flex items-center gap-1 cursor-help">
+        {text}
+        <Info className="h-3.5 w-3.5 text-muted-foreground" />
+      </span>
+    </TooltipTrigger>
+    <TooltipContent>
+      <p className="max-w-xs">{hint}</p>
+    </TooltipContent>
+  </Tooltip>
+);
 
 const defaultEntityTypes = [
   'organization',
@@ -59,9 +74,7 @@ export const KgSettings = ({
   const entityTypes: string[] = data.kg_entity_types || defaultEntityTypes;
 
   const handleSave = useCallback(async () => {
-    await apiClient.defaultApi.settingsPut({
-      settings: data,
-    });
+    await apiClient.defaultApi.settingsPut({ settings: data });
     toast.success(common_tips('save_success'));
   }, [data, common_action, common_tips]);
 
@@ -76,174 +89,74 @@ export const KgSettings = ({
 
   const removeEntityType = useCallback(
     (type: string) => {
-      const updated = {
-        ...data,
-        kg_entity_types: entityTypes.filter((t) => t !== type),
-      };
+      const updated = { ...data, kg_entity_types: entityTypes.filter((t) => t !== type) };
       setData(updated);
     },
     [entityTypes, data],
   );
 
   useEffect(() => {
-    setData({
-      ...defaults,
-      ...initData,
-    });
+    setData({ ...defaults, ...initData });
   }, [initData]);
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>{admin_config('kg_settings')}</CardTitle>
-        <CardDescription>
-          {admin_config('kg_settings_description')}
-        </CardDescription>
+        <CardDescription>{admin_config('kg_settings_description')}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <div className="flex flex-col gap-2">
-            <Label>{admin_config('kg_chunk_token_size')}</Label>
-            <Input
-              type="number"
-              min={100}
-              max={10000}
-              value={data.kg_chunk_token_size}
-              onChange={(e) => {
-                setData({
-                  ...data,
-                  kg_chunk_token_size: Number(e.currentTarget.value),
-                });
-              }}
-            />
+            <HintLabel text={admin_config('kg_chunk_token_size')} hint={admin_config('hint_kg_chunk_token_size')} />
+            <Input type="number" min={100} max={10000} value={data.kg_chunk_token_size}
+              onChange={(e) => setData({ ...data, kg_chunk_token_size: Number(e.currentTarget.value) })} />
           </div>
           <div className="flex flex-col gap-2">
-            <Label>{admin_config('kg_chunk_overlap_token_size')}</Label>
-            <Input
-              type="number"
-              min={0}
-              max={1000}
-              value={data.kg_chunk_overlap_token_size}
-              onChange={(e) => {
-                setData({
-                  ...data,
-                  kg_chunk_overlap_token_size: Number(e.currentTarget.value),
-                });
-              }}
-            />
+            <HintLabel text={admin_config('kg_chunk_overlap_token_size')} hint={admin_config('hint_kg_chunk_overlap_token_size')} />
+            <Input type="number" min={0} max={1000} value={data.kg_chunk_overlap_token_size}
+              onChange={(e) => setData({ ...data, kg_chunk_overlap_token_size: Number(e.currentTarget.value) })} />
           </div>
           <div className="flex flex-col gap-2">
-            <Label>{admin_config('kg_entity_extract_max_gleaning')}</Label>
-            <Input
-              type="number"
-              min={0}
-              max={10}
-              value={data.kg_entity_extract_max_gleaning}
-              onChange={(e) => {
-                setData({
-                  ...data,
-                  kg_entity_extract_max_gleaning: Number(
-                    e.currentTarget.value,
-                  ),
-                });
-              }}
-            />
+            <HintLabel text={admin_config('kg_entity_extract_max_gleaning')} hint={admin_config('hint_kg_entity_extract_max_gleaning')} />
+            <Input type="number" min={0} max={10} value={data.kg_entity_extract_max_gleaning}
+              onChange={(e) => setData({ ...data, kg_entity_extract_max_gleaning: Number(e.currentTarget.value) })} />
           </div>
           <div className="flex flex-col gap-2">
-            <Label>{admin_config('kg_llm_model_max_async')}</Label>
-            <Input
-              type="number"
-              min={1}
-              max={100}
-              value={data.kg_llm_model_max_async}
-              onChange={(e) => {
-                setData({
-                  ...data,
-                  kg_llm_model_max_async: Number(e.currentTarget.value),
-                });
-              }}
-            />
+            <HintLabel text={admin_config('kg_llm_model_max_async')} hint={admin_config('hint_kg_llm_model_max_async')} />
+            <Input type="number" min={1} max={100} value={data.kg_llm_model_max_async}
+              onChange={(e) => setData({ ...data, kg_llm_model_max_async: Number(e.currentTarget.value) })} />
           </div>
           <div className="flex flex-col gap-2">
-            <Label>{admin_config('kg_cosine_threshold')}</Label>
-            <Input
-              type="number"
-              step={0.01}
-              min={0}
-              max={1}
-              value={data.kg_cosine_threshold}
-              onChange={(e) => {
-                setData({
-                  ...data,
-                  kg_cosine_threshold: Number(e.currentTarget.value),
-                });
-              }}
-            />
+            <HintLabel text={admin_config('kg_cosine_threshold')} hint={admin_config('hint_kg_cosine_threshold')} />
+            <Input type="number" step={0.01} min={0} max={1} value={data.kg_cosine_threshold}
+              onChange={(e) => setData({ ...data, kg_cosine_threshold: Number(e.currentTarget.value) })} />
           </div>
           <div className="flex flex-col gap-2">
-            <Label>{admin_config('kg_max_batch_size')}</Label>
-            <Input
-              type="number"
-              min={1}
-              max={256}
-              value={data.kg_max_batch_size}
-              onChange={(e) => {
-                setData({
-                  ...data,
-                  kg_max_batch_size: Number(e.currentTarget.value),
-                });
-              }}
-            />
+            <HintLabel text={admin_config('kg_max_batch_size')} hint={admin_config('hint_kg_max_batch_size')} />
+            <Input type="number" min={1} max={256} value={data.kg_max_batch_size}
+              onChange={(e) => setData({ ...data, kg_max_batch_size: Number(e.currentTarget.value) })} />
           </div>
           <div className="flex flex-col gap-2">
-            <Label>{admin_config('kg_summary_max_tokens')}</Label>
-            <Input
-              type="number"
-              min={50}
-              max={10000}
-              value={data.kg_summary_max_tokens}
-              onChange={(e) => {
-                setData({
-                  ...data,
-                  kg_summary_max_tokens: Number(e.currentTarget.value),
-                });
-              }}
-            />
+            <HintLabel text={admin_config('kg_summary_max_tokens')} hint={admin_config('hint_kg_summary_max_tokens')} />
+            <Input type="number" min={50} max={10000} value={data.kg_summary_max_tokens}
+              onChange={(e) => setData({ ...data, kg_summary_max_tokens: Number(e.currentTarget.value) })} />
           </div>
           <div className="flex flex-col gap-2">
-            <Label>{admin_config('kg_force_llm_summary_on_merge')}</Label>
-            <Input
-              type="number"
-              min={1}
-              max={100}
-              value={data.kg_force_llm_summary_on_merge}
-              onChange={(e) => {
-                setData({
-                  ...data,
-                  kg_force_llm_summary_on_merge: Number(
-                    e.currentTarget.value,
-                  ),
-                });
-              }}
-            />
+            <HintLabel text={admin_config('kg_force_llm_summary_on_merge')} hint={admin_config('hint_kg_force_llm_summary_on_merge')} />
+            <Input type="number" min={1} max={100} value={data.kg_force_llm_summary_on_merge}
+              onChange={(e) => setData({ ...data, kg_force_llm_summary_on_merge: Number(e.currentTarget.value) })} />
           </div>
         </div>
 
         {/* Entity types */}
         <div className="flex flex-col gap-2">
-          <Label>{admin_config('kg_entity_types')}</Label>
+          <HintLabel text={admin_config('kg_entity_types')} hint={admin_config('hint_kg_entity_types')} />
           <div className="flex flex-row gap-2">
-            <Input
-              placeholder={admin_config('kg_entity_types_placeholder')}
+            <Input placeholder={admin_config('kg_entity_types_placeholder')}
               value={entityTypeInput}
               onChange={(e) => setEntityTypeInput(e.currentTarget.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addEntityType();
-                }
-              }}
-            />
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addEntityType(); } }} />
             <Button type="button" variant="outline" onClick={addEntityType}>
               {common_action('add')}
             </Button>
@@ -252,11 +165,7 @@ export const KgSettings = ({
             {entityTypes.map((type) => (
               <Badge key={type} variant="secondary">
                 {type}
-                <button
-                  type="button"
-                  className="ml-1 hover:text-destructive"
-                  onClick={() => removeEntityType(type)}
-                >
+                <button type="button" className="ml-1 hover:text-destructive" onClick={() => removeEntityType(type)}>
                   <X className="h-3 w-3" />
                 </button>
               </Badge>

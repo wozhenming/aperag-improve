@@ -22,7 +22,7 @@ from elasticsearch import AsyncElasticsearch, Elasticsearch
 
 from aperag.config import settings
 from aperag.db.ops import db_ops
-from aperag.docparser.chunking import rechunk
+from aperag.docparser.chunking import ParentChildRechunker, TextPreprocessor, rechunk
 from aperag.index.base import BaseIndexer, IndexResult, IndexType
 from aperag.llm.completion.completion_service import CompletionService
 from aperag.query.query import DocumentWithScore
@@ -79,18 +79,47 @@ class FulltextIndexer(BaseIndexer):
         chunk_overlap_size = setting_service.get_chunk_overlap_size_sync()
         tokenizer = get_default_tokenizer()
 
-        # Rechunk the document parts (resulting in text parts)
-        # After rechunk(), parts only contains TextPart
-        chunked_parts = rechunk(doc_parts, chunk_size, chunk_overlap_size, tokenizer)
+        # Determine chunking mode
+        use_parent_child = setting_service.get_parent_child_enabled_sync()
+        if use_parent_child:
+            parent_size = setting_service.get_parent_chunk_size_sync()
+            child_size = setting_service.get_child_chunk_size_sync()
+            child_overlap = setting_service.get_child_chunk_overlap_sync()
+            parent_sep = setting_service.get_parent_chunk_separator_sync() or None
+            child_sep = setting_service.get_child_chunk_separator_sync() or None
+            preprocessor = TextPreprocessor(
+                collapse_whitespace=setting_service.get_preprocess_collapse_whitespace_sync(),
+                remove_urls_emails=setting_service.get_preprocess_remove_urls_emails_sync(),
+            )
+            rechunker = ParentChildRechunker(
+                parent_chunk_size=parent_size,
+                child_chunk_size=child_size,
+                child_chunk_overlap=child_overlap,
+                tokenizer=tokenizer,
+                parent_separator=parent_sep,
+                child_separator=child_sep,
+                preprocessor=preprocessor,
+            )
+            chunked_parts = rechunker(doc_parts)
+            logger.info(
+                f"Fulltext parent-child chunking: {len(chunked_parts)} child chunks "
+                f"(parent_size={parent_size}, child_size={child_size})"
+            )
+        else:
+            chunked_parts = rechunk(doc_parts, chunk_size, chunk_overlap_size, tokenizer)
 
         for chunk_idx, part in enumerate(chunked_parts):
             chunk_content, title_text, chunk_metadata = self._extract_chunk_data(part)
             if not chunk_content:
                 continue
 
+            # Extract parent_content from metadata (set by ParentChildRechunker)
+            parent_content = chunk_metadata.pop("parent_content", None)
+
             chunk_id = f"{document_id}_{chunk_idx}"
             self._insert_chunk(
-                index_name, chunk_id, document_id, document_name, chunk_content, title_text, chunk_metadata
+                index_name, chunk_id, document_id, document_name, chunk_content, title_text, chunk_metadata,
+                parent_content=parent_content,
             )
             chunk_count += 1
             total_content_length += len(chunk_content)
@@ -236,6 +265,7 @@ class FulltextIndexer(BaseIndexer):
         content: str,
         title_text: str = "",
         metadata: Dict[str, Any] = None,
+        parent_content: str = None,
     ):
         """Insert a document chunk into the fulltext index"""
         if not self.es.indices.exists(index=index).body:
@@ -250,6 +280,8 @@ class FulltextIndexer(BaseIndexer):
             "title": title_text,
             "metadata": metadata or {},
         }
+        if parent_content:
+            doc["parent_content"] = parent_content
         self.es.index(index=index, id=chunk_id, document=doc)
 
     async def search_document(
@@ -295,9 +327,12 @@ class FulltextIndexer(BaseIndexer):
                 if source.get("metadata"):
                     metadata.update(source["metadata"])
 
+                # When parent-child mode is active, return the parent content
+                # for richer context, otherwise return the matched chunk
+                text = source.get("parent_content", source["content"])
                 result.append(
                     DocumentWithScore(
-                        text=source["content"],
+                        text=text,
                         score=hit["_score"],
                         metadata=metadata,
                     )
