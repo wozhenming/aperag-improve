@@ -189,8 +189,16 @@ def build_agent_query_prompt(
         - chat_id: Chat ID string (may be None)
         - language: Language code
     """
+    # Use default template if none provided
+    if not template:
+        template = DEFAULT_AGENT_QUERY_PROMPT
+
     # Create Jinja2 template
-    jinja_template = Template(template)
+    try:
+        jinja_template = Template(template)
+    except Exception:
+        # If template is invalid, treat as a plain string (no variable substitution)
+        return template
 
     # Prepare template variables
     template_vars = {

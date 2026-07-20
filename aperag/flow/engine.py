@@ -18,7 +18,7 @@ import uuid
 from collections import deque
 from typing import Any, AsyncGenerator, Dict, List, Set
 
-from jinja2 import Environment, StrictUndefined
+from jinja2 import DebugUndefined, Environment
 
 import aperag.flow.runners  # noqa: F401
 from aperag.flow.base.exceptions import CycleError, ValidationError
@@ -77,7 +77,7 @@ class FlowEngine:
         self.context = ExecutionContext()
         self.execution_id = None
         self._event_queue = asyncio.Queue()
-        self.jinja_env = Environment(undefined=StrictUndefined)
+        self.jinja_env = Environment(undefined=DebugUndefined)
 
     async def emit_event(self, event: FlowEvent):
         """Emit an event to all consumers"""
@@ -307,9 +307,16 @@ class FlowEngine:
         try:
             template = self.jinja_env.from_string(value)
             rendered = template.render(nodes=nodes_ctx)
-        except Exception as e:
-            raise ValidationError(f"Jinja2 render error in node '{node_id}': {e}")
-        return rendered
+            return rendered
+        except Exception:
+            # If rendering fails (e.g. invalid template syntax, undefined variables),
+            # fall back to treating the value as a plain string — no template expansion.
+            logger.warning(
+                "Failed to render jinja2 template in node '%s', using raw value. "
+                "Value: '%s...'",
+                node_id, value[:100],
+            )
+            return value
 
     def convert_type_by_schema(self, value, field_schema):
         """Convert value to the type declared in field_schema (jsonschema property)."""
