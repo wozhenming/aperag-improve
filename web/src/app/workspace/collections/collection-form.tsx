@@ -66,6 +66,16 @@ const collectionSchema = z
       enable_summary: z.boolean(),
       enable_vector: z.boolean(),
       enable_vision: z.boolean(),
+      knowledge_graph_config: z.object({ entity_types: z.array(z.string()) }).optional(),
+      chunk_size: z.number().optional(),
+      chunk_overlap_size: z.number().optional(),
+      parent_child_enabled: z.boolean().optional(),
+      parent_chunk_size: z.number().optional(),
+      child_chunk_size: z.number().optional(),
+      child_chunk_overlap: z.number().optional(),
+      kg_chunk_token_size: z.number().optional(),
+      kg_entity_extract_max_gleaning: z.number().optional(),
+      kg_llm_model_max_async: z.number().optional(),
       completion: collectionModelSchema,
       embedding: collectionModelSchema,
       language: z.enum(Object.values(TitleGenerateRequestLanguageEnum)),
@@ -128,6 +138,9 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
       enable_vector: true,
       enable_summary: false,
       enable_vision: false,
+      knowledge_graph_config: {
+        entity_types: ['organization', 'person', 'geo', 'event', 'product', 'technology', 'date', 'category'],
+      },
       completion: {
         custom_llm_provider: '',
         model: '',
@@ -281,6 +294,8 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
    * Watch embeddingModelName
    * When the embedding model name is changed, synchronize changes to other model parameters.
    */
+  const enableKG = useWatch({ control: form.control, name: 'config.enable_knowledge_graph' });
+  const watchPC = useWatch({ control: form.control, name: 'config.parent_child_enabled' });
   const embeddingModelName = useWatch({
     control: form.control,
     name: 'config.embedding.model',
@@ -458,6 +473,40 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
             </CardContent>
           </Card>
 
+          {/* Entity types — only shown when knowledge_graph is enabled */}
+          {enableKG && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{page_collections('kg_entity_types_title')}</CardTitle>
+                <CardDescription>{page_collections('kg_entity_types_desc')}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FormField
+                  control={form.control}
+                  name="config.knowledge_graph_config.entity_types"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <Textarea
+                          className="h-24"
+                          placeholder="organization, person, geo, event, product, technology, date, category"
+                          value={(field.value || []).join(', ')}
+                          onChange={(e) => {
+                            const types = e.target.value.split(',').map((s) => s.trim()).filter(Boolean);
+                            field.onChange(types);
+                          }}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {page_collections('kg_entity_types_placeholder')}
+                      </FormDescription>
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle>{page_collections('model_settings')}</CardTitle>
@@ -560,6 +609,84 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
                   </FormItem>
                 )}
               />
+            </CardContent>
+          </Card>
+
+          {/* Advanced Chunking & KG Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{page_collections('advanced_settings')}</CardTitle>
+              <CardDescription>{page_collections('advanced_settings_desc')}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormField control={form.control} name="config.chunk_size" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{page_collections('chunk_size')}</FormLabel>
+                    <FormControl><Input type="number" placeholder="400" {...field} value={field.value || ''}
+                      onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)} /></FormControl>
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="config.chunk_overlap_size" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{page_collections('chunk_overlap_size')}</FormLabel>
+                    <FormControl><Input type="number" placeholder="20" {...field} value={field.value || ''}
+                      onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)} /></FormControl>
+                  </FormItem>
+                )} />
+              </div>
+              <Separator />
+              <FormField control={form.control} name="config.parent_child_enabled" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-3">
+                    <span>{page_collections('parent_child_chunking')}</span>
+                    <Switch checked={Boolean(field.value)} onCheckedChange={field.onChange} />
+                  </FormLabel>
+                  <FormDescription>{page_collections('parent_child_chunking_description')}</FormDescription>
+                </FormItem>
+              )} />
+              {watchPC && (
+                <div className="grid gap-4 md:grid-cols-3 pl-4 border-l-2">
+                  <FormField control={form.control} name="config.parent_chunk_size" render={({ field }) => (
+                    <FormItem><FormLabel>{page_collections('parent_chunk_size')}</FormLabel>
+                      <FormControl><Input type="number" placeholder="800" {...field} value={field.value || ''}
+                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)} /></FormControl></FormItem>
+                  )} />
+                  <FormField control={form.control} name="config.child_chunk_size" render={({ field }) => (
+                    <FormItem><FormLabel>{page_collections('child_chunk_size')}</FormLabel>
+                      <FormControl><Input type="number" placeholder="150" {...field} value={field.value || ''}
+                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)} /></FormControl></FormItem>
+                  )} />
+                  <FormField control={form.control} name="config.child_chunk_overlap" render={({ field }) => (
+                    <FormItem><FormLabel>{page_collections('child_chunk_overlap')}</FormLabel>
+                      <FormControl><Input type="number" placeholder="50" {...field} value={field.value || ''}
+                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)} /></FormControl></FormItem>
+                  )} />
+                </div>
+              )}
+              {enableKG && (
+                <>
+                  <Separator />
+                  <p className="text-sm font-medium">{page_collections('kg_settings')}</p>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <FormField control={form.control} name="config.kg_chunk_token_size" render={({ field }) => (
+                      <FormItem><FormLabel>{page_collections('kg_chunk_token_size')}</FormLabel>
+                        <FormControl><Input type="number" placeholder="1200" {...field} value={field.value || ''}
+                          onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)} /></FormControl></FormItem>
+                    )} />
+                    <FormField control={form.control} name="config.kg_entity_extract_max_gleaning" render={({ field }) => (
+                      <FormItem><FormLabel>{page_collections('kg_entity_extract_max_gleaning')}</FormLabel>
+                        <FormControl><Input type="number" placeholder="0" {...field} value={field.value || ''}
+                          onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)} /></FormControl></FormItem>
+                    )} />
+                    <FormField control={form.control} name="config.kg_llm_model_max_async" render={({ field }) => (
+                      <FormItem><FormLabel>{page_collections('kg_llm_model_max_async')}</FormLabel>
+                        <FormControl><Input type="number" placeholder="20" {...field} value={field.value || ''}
+                          onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)} /></FormControl></FormItem>
+                    )} />
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 

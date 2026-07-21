@@ -121,34 +121,30 @@ async def create_lightrag_instance(collection: Collection) -> LightRAG:
         # Parse knowledge graph config from collection config
         config = parseCollectionConfig(collection.config)
         kg_config = config.knowledge_graph_config
-        language = LightRAGConfig.DEFAULT_LANGUAGE
-        entity_types = LightRAGConfig.get_entity_types() or DEFAULT_ENTITY_TYPES
+        language = config.language or LightRAGConfig.DEFAULT_LANGUAGE
+        entity_types = (kg_config and kg_config.entity_types) or LightRAGConfig.get_entity_types() or DEFAULT_ENTITY_TYPES
 
-        # Use collection-level language if available
-        if config.language:
-            language = config.language
+        # Helper: collection config → global setting → hardcoded default
+        def _vc(col_val, default):
+            return col_val if col_val is not None else default
 
-        # Collection-level entity types override global settings
-        if kg_config and kg_config.entity_types:
-            entity_types = kg_config.entity_types
-
-        # Create LightRAG instance with dynamic configuration from DB
+        # Create LightRAG instance with per-collection overrides
         rag = LightRAG(
             workspace=collection_id,
-            chunk_token_size=LightRAGConfig.get_chunk_token_size(),
-            chunk_overlap_token_size=LightRAGConfig.get_chunk_overlap_token_size(),
+            chunk_token_size=_vc(config.kg_chunk_token_size, LightRAGConfig.get_chunk_token_size()),
+            chunk_overlap_token_size=_vc(None, LightRAGConfig.get_chunk_overlap_token_size()),
             llm_model_func=llm_func,
             embedding_func=EmbeddingFunc(
                 embedding_dim=embed_dim,
-                max_token_size=LightRAGConfig.get_embedding_max_token_size(),
+                max_token_size=_vc(None, LightRAGConfig.get_embedding_max_token_size()),
                 func=embed_func,
             ),
-            cosine_better_than_threshold=LightRAGConfig.get_cosine_better_than_threshold(),
-            max_batch_size=LightRAGConfig.get_max_batch_size(),
-            llm_model_max_async=LightRAGConfig.get_llm_model_max_async(),
-            entity_extract_max_gleaning=LightRAGConfig.get_entity_extract_max_gleaning(),
-            summary_to_max_tokens=LightRAGConfig.get_summary_to_max_tokens(),
-            force_llm_summary_on_merge=LightRAGConfig.get_force_llm_summary_on_merge(),
+            cosine_better_than_threshold=_vc(None, LightRAGConfig.get_cosine_better_than_threshold()),
+            max_batch_size=_vc(None, LightRAGConfig.get_max_batch_size()),
+            llm_model_max_async=_vc(config.kg_llm_model_max_async, LightRAGConfig.get_llm_model_max_async()),
+            entity_extract_max_gleaning=_vc(config.kg_entity_extract_max_gleaning, LightRAGConfig.get_entity_extract_max_gleaning()),
+            summary_to_max_tokens=_vc(None, LightRAGConfig.get_summary_to_max_tokens()),
+            force_llm_summary_on_merge=_vc(None, LightRAGConfig.get_force_llm_summary_on_merge()),
             language=language,
             entity_types=entity_types,
             kv_storage=kv_storage,

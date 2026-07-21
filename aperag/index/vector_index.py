@@ -23,6 +23,7 @@ from aperag.docparser.chunking import ParentChildRechunker, TextPreprocessor
 from aperag.index.base import BaseIndexer, IndexResult, IndexType
 from aperag.llm.embed.base_embedding import get_collection_embedding_service_sync
 from aperag.llm.embed.embedding_utils import create_embeddings_and_store
+from aperag.schema.utils import parseCollectionConfig
 from aperag.service.setting_service import setting_service
 from aperag.utils.tokenizer import get_default_tokenizer
 from aperag.utils.utils import generate_vector_db_collection_name
@@ -71,10 +72,22 @@ class VectorIndexer(BaseIndexer):
                 part.metadata["indexer"] = "vector"
 
             # Determine chunking mode: parent-child or traditional flat
-            use_parent_child = setting_service.get_parent_child_enabled_sync()
+            use_parent_child = (
+                collection.config and parseCollectionConfig(collection.config).parent_child_enabled
+                if collection.config and parseCollectionConfig(collection.config).parent_child_enabled is not None
+                else setting_service.get_parent_child_enabled_sync()
+            )
             skip_rechunk = False
-            chunk_size = setting_service.get_chunk_size_sync()
-            chunk_overlap = setting_service.get_chunk_overlap_size_sync()
+            chunk_size = (
+                collection.config and parseCollectionConfig(collection.config).chunk_size
+                if collection.config and parseCollectionConfig(collection.config).chunk_size is not None
+                else setting_service.get_chunk_size_sync()
+            )
+            chunk_overlap = (
+                collection.config and parseCollectionConfig(collection.config).chunk_overlap_size
+                if collection.config and parseCollectionConfig(collection.config).chunk_overlap_size is not None
+                else setting_service.get_chunk_overlap_size_sync()
+            )
 
             if use_parent_child:
                 parent_size = setting_service.get_parent_chunk_size_sync()
@@ -186,10 +199,22 @@ class VectorIndexer(BaseIndexer):
                 part.metadata["indexer"] = "vector"
 
             # Determine chunking mode: parent-child or traditional flat
-            use_parent_child = setting_service.get_parent_child_enabled_sync()
+            use_parent_child = (
+                collection.config and parseCollectionConfig(collection.config).parent_child_enabled
+                if collection.config and parseCollectionConfig(collection.config).parent_child_enabled is not None
+                else setting_service.get_parent_child_enabled_sync()
+            )
             skip_rechunk = False
-            chunk_size = setting_service.get_chunk_size_sync()
-            chunk_overlap = setting_service.get_chunk_overlap_size_sync()
+            chunk_size = (
+                collection.config and parseCollectionConfig(collection.config).chunk_size
+                if collection.config and parseCollectionConfig(collection.config).chunk_size is not None
+                else setting_service.get_chunk_size_sync()
+            )
+            chunk_overlap = (
+                collection.config and parseCollectionConfig(collection.config).chunk_overlap_size
+                if collection.config and parseCollectionConfig(collection.config).chunk_overlap_size is not None
+                else setting_service.get_chunk_overlap_size_sync()
+            )
 
             if use_parent_child:
                 parent_size = setting_service.get_parent_chunk_size_sync()

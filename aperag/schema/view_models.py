@@ -145,6 +145,18 @@ class CollectionConfig(BaseModel):
             }
         )
     )
+    # Per-collection advanced chunking & KG params (override system defaults when set)
+    chunk_size: Optional[int] = Field(None, description='Chunk size for document parsing')
+    chunk_overlap_size: Optional[int] = Field(None, description='Chunk overlap size')
+    parent_child_enabled: Optional[bool] = Field(None, description='Enable parent-child chunking')
+    parent_chunk_size: Optional[int] = Field(None, description='Parent chunk size in tokens')
+    child_chunk_size: Optional[int] = Field(None, description='Child chunk size in tokens')
+    child_chunk_overlap: Optional[int] = Field(None, description='Child chunk overlap in tokens')
+    parent_chunk_separator: Optional[str] = Field(None, description='Parent chunk separator')
+    child_chunk_separator: Optional[str] = Field(None, description='Child chunk separator')
+    kg_chunk_token_size: Optional[int] = Field(None, description='KG chunk token size')
+    kg_entity_extract_max_gleaning: Optional[int] = Field(None, description='KG entity gleaning rounds')
+    kg_llm_model_max_async: Optional[int] = Field(None, description='KG LLM max concurrency')
     index_prompts: Optional[IndexPrompts] = None
     language: Optional[Literal['zh-CN', 'en-US', 'ja-JP', 'ko-KR']] = Field(
         'zh-CN',

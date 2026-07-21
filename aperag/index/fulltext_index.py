@@ -26,6 +26,7 @@ from aperag.docparser.chunking import ParentChildRechunker, TextPreprocessor, re
 from aperag.index.base import BaseIndexer, IndexResult, IndexType
 from aperag.llm.completion.completion_service import CompletionService
 from aperag.query.query import DocumentWithScore
+from aperag.schema.utils import parseCollectionConfig
 from aperag.service.setting_service import setting_service
 from aperag.utils.tokenizer import get_default_tokenizer
 from aperag.utils.utils import generate_fulltext_index_name
@@ -69,18 +70,21 @@ class FulltextIndexer(BaseIndexer):
         return chunk_content, title_text, chunk_metadata
 
     def _process_chunks(
-        self, document_id: int, doc_parts: List[Any], document_name: str, index_name: str
+        self, document_id: int, doc_parts: List[Any], document_name: str, index_name: str, collection=None
     ) -> Tuple[int, int]:
         """Process and insert all chunks for a document. Returns (chunk_count, total_content_length)"""
         chunk_count = 0
         total_content_length = 0
 
-        chunk_size = setting_service.get_chunk_size_sync()
-        chunk_overlap_size = setting_service.get_chunk_overlap_size_sync()
+        coll_config = collection.config and parseCollectionConfig(collection.config)
+        chunk_size = (coll_config.chunk_size if (coll_config and coll_config.chunk_size is not None)
+                      else setting_service.get_chunk_size_sync())
+        chunk_overlap_size = (coll_config.chunk_overlap_size if (coll_config and coll_config.chunk_overlap_size is not None)
+                              else setting_service.get_chunk_overlap_size_sync())
         tokenizer = get_default_tokenizer()
 
         # Determine chunking mode
-        use_parent_child = setting_service.get_parent_child_enabled_sync()
+        use_parent_child = (coll_config and coll_config.parent_child_enabled) or setting_service.get_parent_child_enabled_sync()
         if use_parent_child:
             parent_size = setting_service.get_parent_chunk_size_sync()
             child_size = setting_service.get_child_chunk_size_sync()
@@ -166,7 +170,7 @@ class FulltextIndexer(BaseIndexer):
                 raise Exception(f"Document {document_id} not found")
 
             index_name = generate_fulltext_index_name(collection.id)
-            chunk_count, total_content_length = self._process_chunks(document_id, doc_parts, document.name, index_name)
+            chunk_count, total_content_length = self._process_chunks(document_id, doc_parts, document.name, index_name, collection)
 
             logger.info(f"Fulltext index created for document {document_id} with {chunk_count} chunks")
             return self._create_success_result(index_name, document.name, chunk_count, total_content_length, "created")
@@ -199,7 +203,7 @@ class FulltextIndexer(BaseIndexer):
             # Create new chunks if there are doc_parts
             if doc_parts:
                 chunk_count, total_content_length = self._process_chunks(
-                    document_id, doc_parts, document.name, index_name
+                    document_id, doc_parts, document.name, index_name, collection
                 )
                 logger.info(f"Fulltext index updated for document {document_id} with {chunk_count} chunks")
                 return self._create_success_result(

@@ -454,11 +454,12 @@ def _restore_pg(pg_dir, new_ws, old_ws):
         LightRAGVDBRelationModel,
     )
 
+    # Skip auto-increment `id` columns — let the database assign new IDs
     tmap = {
         "graph_nodes.jsonl": (LightRAGGraphNode,
-                               ["id","entity_id","entity_name","entity_type","description","source_id","file_path","workspace"]),
+                               ["entity_id","entity_name","entity_type","description","source_id","file_path","workspace"]),
         "graph_edges.jsonl": (LightRAGGraphEdge,
-                               ["id","source_entity_id","target_entity_id","weight","keywords","description","source_id","file_path","workspace"]),
+                               ["source_entity_id","target_entity_id","weight","keywords","description","source_id","file_path","workspace"]),
         "vdb_entity.jsonl": (LightRAGVDBEntityModel,
                               ["id","entity_name","content","chunk_ids","file_path","workspace"]),
         "vdb_relation.jsonl": (LightRAGVDBRelationModel,
