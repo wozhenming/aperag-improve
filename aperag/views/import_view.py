@@ -14,7 +14,6 @@
 
 import logging
 import os
-import tempfile
 import uuid
 
 from fastapi import APIRouter, Depends, Form, Request, UploadFile
@@ -43,9 +42,11 @@ async def import_collection_view(
     """Upload a ZIP file exported from ApeRAG to import a knowledge base."""
     from aperag.service.import_service import import_service
 
-    # Save uploaded file to temp location
+    # Save to shared volume (/shared) so Celery worker can access it
+    shared_dir = "/shared/imports"
+    os.makedirs(shared_dir, exist_ok=True)
     suffix = os.path.splitext(file.filename)[1] if file.filename else ".zip"
-    temp_path = os.path.join(tempfile.gettempdir(), f"import_{uuid.uuid4().hex}{suffix}")
+    temp_path = os.path.join(shared_dir, f"import_{uuid.uuid4().hex}{suffix}")
     try:
         with open(temp_path, "wb") as f:
             content = await file.read()
@@ -72,3 +73,22 @@ async def get_import_task_view(
     from aperag.service.import_service import import_service
 
     return await import_service.get_import_task(str(user.id), task_id)
+
+
+@router.post(
+    "/import-tasks/{task_id}/continue",
+    tags=["import"],
+    operation_id="continue_import_task",
+)
+async def continue_import_task_view(
+    request: Request,
+    task_id: str,
+    body: view_models.ContinueImportRequest,
+    user: User = Depends(required_user),
+) -> view_models.ImportTaskResponse:
+    """Continue a paused import task (e.g. after embedding mismatch)."""
+    from aperag.service.import_service import import_service
+
+    return await import_service.continue_import_task(
+        str(user.id), task_id, body.action
+    )

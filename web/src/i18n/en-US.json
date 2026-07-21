@@ -381,6 +381,7 @@
     "import_format_hint": "Supports basic and full export ZIPs",
     "import_invalid_file": "Please select a .zip file",
     "import_warning": "Full export imports require the same embedding model. Basic exports will be re-indexed automatically.",
+    "import_embedding_model": "Embedding Model",
     "import_start": "Start Import",
     "import_uploading_title": "Uploading file...",
     "import_uploading_desc": "Uploading ZIP file to the server",
@@ -390,7 +391,11 @@
     "import_go_to_collection": "View Collection",
     "import_failed_title": "Import Failed",
     "import_failed": "An error occurred during import. Please try again.",
-    "import_retry": "Retry Import"
+    "import_retry": "Retry Import",
+    "import_incompatible_title": "Embedding Model Mismatch",
+    "import_incompatible_desc": "The embedding model in the ZIP does not match the current instance. Vectors cannot be restored directly.",
+    "import_incompatible_hint": "You can either 'Re-index' to rebuild all indexes with the current embedding model (consumes API quota), or 'Cancel' the import.",
+    "import_reindex_action": "Re-index"
   },
   "page_docs": {
     "metadata": {

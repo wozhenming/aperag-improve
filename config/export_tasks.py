@@ -125,6 +125,19 @@ def export_collection_task(self, export_task_id: str):
 
         # Phase 4: generate manifest.json from DB
         manifest = _build_manifest(collection_id, user_id, get_sync_session, Collection, Document)
+        # Add embedding model info
+        from aperag.schema.utils import parseCollectionConfig
+        for session in get_sync_session():
+            r = session.execute(select(Collection).where(Collection.id == collection_id))
+            col = r.scalars().first()
+            if col and col.config:
+                try:
+                    cc = parseCollectionConfig(col.config)
+                    if cc.embedding and cc.embedding.model:
+                        manifest["embedding_model"] = cc.embedding.model
+                        manifest["embedding_provider"] = cc.embedding.model_service_provider or ""
+                except Exception:
+                    pass
         manifest_path = os.path.join(temp_dir, "manifest.json")
         with open(manifest_path, "w", encoding="utf-8") as f:
             json.dump(manifest, f, ensure_ascii=False, indent=2)
@@ -324,20 +337,40 @@ def export_collection_full_task(self, export_task_id: str):
         manifest["export_type"] = "full"
         manifest["schema_version"] = "2.0"
         manifest["embedding_dim"] = _detect_embedding_dim(collection_id)
+        from aperag.schema.utils import parseCollectionConfig
+        for session in get_sync_session():
+            r = session.execute(select(Collection).where(Collection.id == collection_id))
+            col = r.scalars().first()
+            if col and col.config:
+                try:
+                    cc = parseCollectionConfig(col.config)
+                    if cc.embedding and cc.embedding.model:
+                        manifest["embedding_model"] = cc.embedding.model
+                        manifest["embedding_provider"] = cc.embedding.model_service_provider or ""
+                except Exception:
+                    pass
         with open(os.path.join(temp_dir, "manifest.json"), "w", encoding="utf-8") as f:
             json.dump(manifest, f, ensure_ascii=False, indent=2)
 
         # Phase 7: README
+        emb_model = manifest.get("embedding_model", "unknown")
+        emb_prov = manifest.get("embedding_provider", "unknown")
+        emb_dim = manifest.get("embedding_dim", 0)
         with open(os.path.join(temp_dir, "README.txt"), "w", encoding="utf-8") as f:
             f.write("ApeRAG Full Export\n==================\n\n")
             f.write(f"Collection: {manifest['collection']['title']}\n")
             f.write(f"Exported: {manifest['collection']['exported_at']}\n\n")
+            f.write(f"Embedding Model: {emb_model}\n")
+            f.write(f"Embedding Provider: {emb_prov}\n")
+            f.write(f"Embedding Dimension: {emb_dim}\n\n")
             f.write("Contents:\n")
             f.write(f"  qdrant.jsonl: {qdrant_points} vectors\n")
             f.write(f"  es.jsonl: {es_docs} fulltext docs\n")
             f.write(f"  pg/: {sum(pg_counts.values())} graph records\n")
             f.write("  source/: original files\n\n")
-            f.write("NOTE: Same embedding model required on target instance.\n")
+            f.write("IMPORTANT: The target ApeRAG instance must use the same embedding model.\n")
+            f.write(f"  Model: {emb_model}\n")
+            f.write(f"  Provider: {emb_prov}\n")
 
         # Phase 8: ZIP
         _update_full(progress=90, message="Full export: packaging ZIP...")

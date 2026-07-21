@@ -18,7 +18,7 @@ import { toast } from 'sonner';
 
 // endOfLine placeholder for clean diff
 
-type ImportStep = 'select' | 'uploading' | 'processing' | 'completed' | 'failed';
+type ImportStep = 'select' | 'uploading' | 'processing' | 'incompatible' | 'completed' | 'failed';
 
 interface ImportStatus {
   task_id?: string;
@@ -53,7 +53,8 @@ export const CollectionImport = () => {
         const data = await resp.json() as ImportStatus;
         setStatus(data);
         if (data.status === 'COMPLETED') { stopPolling(); setStep('completed'); }
-        if (data.status === 'FAILED') { stopPolling(); setStep('failed'); }
+        if (data.status === 'FAILED' || data.status === 'CANCELLED') { stopPolling(); setStep('failed'); }
+        if (data.status === 'INCOMPATIBLE') { stopPolling(); setStep('incompatible'); }
       } catch { /* ignore */ }
     }, 2000);
   }, [stopPolling]);
@@ -67,13 +68,43 @@ export const CollectionImport = () => {
     stopPolling(); setOpen(false);
   }, [step, stopPolling]);
 
+  const [embeddingInfo, setEmbeddingInfo] = useState('');
+
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    if (f && f.name.endsWith('.zip')) {
-      setFile(f);
-    } else {
+    if (!f) return;
+    if (!f.name.endsWith('.zip')) {
       toast.error(t('import_invalid_file'));
+      return;
     }
+    setFile(f);
+    setEmbeddingInfo('');
+    // Try to read manifest.json from ZIP to show embedding info
+    f.arrayBuffer().then((buf) => {
+      try {
+        // Minimal ZIP reader: find manifest.json
+        const view = new DataView(buf);
+        const decoder = new TextDecoder();
+        let pos = 0;
+        while (pos < buf.byteLength - 30) {
+          const sig = view.getUint32(pos, true);
+          if (sig !== 0x04034b50) { pos++; continue; }
+          const nameLen = view.getUint16(pos + 26, true);
+          const extraLen = view.getUint16(pos + 28, true);
+          const compSize = view.getUint32(pos + 18, true);
+          const name = decoder.decode(new Uint8Array(buf, pos + 30, nameLen));
+          const dataStart = pos + 30 + nameLen + extraLen;
+          if (name === 'manifest.json' && compSize < 100000) {
+            const manifest = JSON.parse(decoder.decode(new Uint8Array(buf, dataStart, compSize)));
+            if (manifest.embedding_model) {
+              setEmbeddingInfo(`${manifest.embedding_model}${manifest.embedding_provider ? ` (${manifest.embedding_provider})` : ''} | dim=${manifest.embedding_dim || '?'}`);
+            }
+            break;
+          }
+          pos = dataStart + compSize;
+        }
+      } catch { /* ignore parse errors */ }
+    }).catch(() => {});
   }, [t]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -114,6 +145,26 @@ export const CollectionImport = () => {
       setUploading(false);
     }
   }, [file, startPolling, t]);
+
+  const handleContinue = useCallback(async (action: 'reindex' | 'cancel') => {
+    if (!status?.task_id) return;
+    if (action === 'cancel') {
+      setOpen(false);
+      return;
+    }
+    setStep('processing');
+    try {
+      await fetch(`/api/v1/import-tasks/${status.task_id}/continue`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      startPolling(status.task_id);
+    } catch {
+      toast.error(t('import_failed'));
+      setStep('failed');
+    }
+  }, [status, startPolling, t]);
 
   const handleGoToCollection = useCallback(() => {
     if (status?.collection_id) {
@@ -159,6 +210,11 @@ export const CollectionImport = () => {
                     <p className="text-xs text-muted-foreground">
                       {(file.size / 1024 / 1024).toFixed(1)} MB
                     </p>
+                    {embeddingInfo && (
+                      <p className="text-xs bg-blue-50 text-blue-700 rounded px-2 py-1">
+                        {t('import_embedding_model')}: {embeddingInfo}
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -237,6 +293,34 @@ export const CollectionImport = () => {
                 <Button variant="outline" onClick={handleClose}>{t('cancel')}</Button>
                 <Button onClick={handleGoToCollection}>
                   {t('import_go_to_collection')}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {/* ── Step: Incompatible ── */}
+          {step === 'incompatible' && (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  <span className="flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-amber-600" />
+                    {t('import_incompatible_title')}
+                  </span>
+                </DialogTitle>
+                <DialogDescription>
+                  {status?.message || t('import_incompatible_desc')}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="bg-amber-50 rounded-md p-3 text-sm text-amber-800">
+                {t('import_incompatible_hint')}
+              </div>
+              <DialogFooter className="flex-col sm:flex-row gap-2">
+                <Button variant="outline" onClick={() => handleContinue('cancel')}>
+                  {t('cancel')}
+                </Button>
+                <Button onClick={() => handleContinue('reindex')}>
+                  {t('import_reindex_action')}
                 </Button>
               </DialogFooter>
             </>

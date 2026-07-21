@@ -383,6 +383,7 @@
     "import_format_hint": "支持轻量导出和完整导出 ZIP",
     "import_invalid_file": "请选择 .zip 文件",
     "import_warning": "完整导出导入需要相同嵌入模型。轻量导出导入后会自动重新索引。",
+    "import_embedding_model": "嵌入模型",
     "import_start": "开始导入",
     "import_uploading_title": "正在上传文件...",
     "import_uploading_desc": "正在将 ZIP 文件上传到服务器",
@@ -392,7 +393,11 @@
     "import_go_to_collection": "查看知识库",
     "import_failed_title": "导入失败",
     "import_failed": "导入过程中发生错误，请重试。",
-    "import_retry": "重新导入"
+    "import_retry": "重新导入",
+    "import_incompatible_title": "嵌入模型不匹配",
+    "import_incompatible_desc": "ZIP中导出的嵌入模型与当前实例不匹配，无法直接恢复向量索引。",
+    "import_incompatible_hint": "您可以选择「重建索引」：用当前实例的嵌入模型重新构建所有索引（需消耗 API 调用额度），或「取消」导入。",
+    "import_reindex_action": "重建索引"
   },
   "page_docs": {
     "metadata": {

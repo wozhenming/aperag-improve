@@ -2848,6 +2848,11 @@ class AgentMessage(BaseModel):
     files: Optional[list[File]] = None
 
 
+class ContinueImportRequest(BaseModel):
+    """Request to continue a paused import task."""
+    action: str = Field(..., description="'reindex' to rebuild with target model, 'cancel' to abort")
+
+
 class ImportTaskResponse(BaseModel):
     task_id: str = Field(..., description='Unique ID of the import task')
     status: str = Field(..., description='Task status')

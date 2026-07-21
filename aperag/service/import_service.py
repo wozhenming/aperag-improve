@@ -97,5 +97,55 @@ class ImportService:
             collection_title=task.collection_title,
         )
 
+    async def continue_import_task(
+        self, user_id: str, task_id: str, action: str
+    ) -> view_models.ImportTaskResponse:
+        async def _get(session):
+            result = await session.execute(
+                select(ImportTask).where(and_(ImportTask.id == task_id, ImportTask.user == user_id))
+            )
+            return result.scalars().first()
+
+        task = await self.db_ops._execute_query(_get)
+        if task is None:
+            raise HTTPException(status_code=404, detail="Import task not found")
+
+        if action == "cancel":
+            async def _cancel(session):
+                t = await session.get(ImportTask, task.id)
+                if t:
+                    t.status = ImportTaskStatus.FAILED
+                    t.message = "Import cancelled by user."
+                    session.commit()
+
+            await self.db_ops._execute_query(_cancel)
+            return view_models.ImportTaskResponse(
+                task_id=str(task.id),
+                status="CANCELLED",
+                message="Import cancelled.",
+            )
+
+        if action == "reindex":
+            from config.celery_tasks import import_collection_reindex_task
+
+            async def _start(session):
+                t = await session.get(ImportTask, task.id)
+                if t:
+                    t.status = ImportTaskStatus.PROCESSING
+                    t.message = "Import: re-indexing with target embedding model..."
+                    t.progress = 55
+                    session.commit()
+
+            await self.db_ops._execute_query(_start)
+            import_collection_reindex_task.delay(str(task.id))
+            return view_models.ImportTaskResponse(
+                task_id=str(task.id),
+                status="PROCESSING",
+                progress=55,
+                message="Re-indexing with target model...",
+            )
+
+        raise HTTPException(status_code=400, detail=f"Unknown action: {action}")
+
 
 import_service = ImportService()

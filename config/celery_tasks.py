@@ -1062,20 +1062,38 @@ def import_collection_task(self, import_task_id: str):
         _create_indexes(doc_id_map, get_sync_session, DocumentIndex, DocumentIndexType, DocumentIndexStatus, utc_now)
 
         if export_type == "full":
-            _update(progress=55, message="Import: restoring Qdrant vectors...")
-            qf = _os.path.join(temp_dir, "qdrant.jsonl")
-            if _os.path.exists(qf):
-                _restore_qdrant_jsonl(qf, new_coll_id)
+            # Check embedding model compatibility before restoring vectors
+            full_ok = _check_embedding_match(manifest)
+            if not full_ok:
+                logger.warning(
+                    f"Import {import_task_id}: embedding model mismatch, "
+                    f"Export dim={manifest.get('embedding_dim')}, pausing for user choice"
+                )
+                export_model = manifest.get("embedding_model", "unknown")
+                export_prov = manifest.get("embedding_provider", "unknown")
+                export_dim = manifest.get("embedding_dim", "?")
+                _update(
+                    status="INCOMPATIBLE",
+                    progress=55,
+                    message=f"Embedding model mismatch. Export: {export_model} ({export_prov}, dim={export_dim}). "
+                            f"Choose: re-index with target model, or cancel.",
+                )
+                return  # Pause here, wait for user to call /continue endpoint
+            else:
+                _update(progress=55, message="Import: restoring Qdrant vectors...")
+                qf = _os.path.join(temp_dir, "qdrant.jsonl")
+                if _os.path.exists(qf):
+                    _restore_qdrant_jsonl(qf, new_coll_id)
 
-            _update(progress=70, message="Import: restoring Elasticsearch documents...")
-            ef = _os.path.join(temp_dir, "es.jsonl")
-            if _os.path.exists(ef):
-                _restore_es_jsonl(ef, new_coll_id, doc_id_map)
+                _update(progress=70, message="Import: restoring Elasticsearch documents...")
+                ef = _os.path.join(temp_dir, "es.jsonl")
+                if _os.path.exists(ef):
+                    _restore_es_jsonl(ef, new_coll_id, doc_id_map)
 
-            _update(progress=85, message="Import: restoring PostgreSQL graph data...")
-            pg_dir = _os.path.join(temp_dir, "pg")
-            if _os.path.exists(pg_dir):
-                _restore_pg_jsonl(pg_dir, new_coll_id, old_coll_id)
+                _update(progress=85, message="Import: restoring PostgreSQL graph data...")
+                pg_dir = _os.path.join(temp_dir, "pg")
+                if _os.path.exists(pg_dir):
+                    _restore_pg_jsonl(pg_dir, new_coll_id, old_coll_id)
         else:
             _update(progress=55, message="Import: triggering re-index for all documents...")
             _trigger_reindex(doc_id_map, get_sync_session)
@@ -1240,3 +1258,99 @@ def _restore_pg_jsonl(pg_dir: str, new_ws: str, old_ws: str):
             for row in rows:
                 s.add(model(**{k: row.get(k) for k in cols}))
             s.commit()
+
+
+@app.task(bind=True, soft_time_limit=55 * 60, time_limit=60 * 60)
+def import_collection_reindex_task(self, import_task_id: str):
+    """Celery task: continue a paused import by triggering re-index."""
+    from sqlalchemy import select, update
+
+    from aperag.config import get_sync_session
+    from aperag.db.models import DocumentIndex, DocumentIndexStatus, ImportTask, ImportTaskStatus
+    from aperag.utils.utils import utc_now
+
+    for session in get_sync_session():
+        r = session.execute(select(ImportTask).where(ImportTask.id == import_task_id))
+        t = r.scalars().first()
+        if not t:
+            return
+        collection_id = t.collection_id
+        t.status = ImportTaskStatus.PROCESSING
+        t.progress = 55
+        t.message = "Import: triggering re-index..."
+        t.gmt_updated = utc_now()
+        session.commit()
+
+        # Trigger re-index for all documents in the new collection
+        stmt = (
+            update(DocumentIndex)
+            .where(DocumentIndex.document_id.in_(
+                select(DocumentIndex.document_id).where(
+                    DocumentIndex.index_type == "VECTOR",
+                    DocumentIndex.document_id.like("doc%"),
+                )
+            ))
+            .values(status=DocumentIndexStatus.PENDING, version=DocumentIndex.version + 1)
+        )
+        # Re-index docs belonging to the imported collection
+        from aperag.db.models import Document
+        doc_stmt = select(Document.id).where(Document.collection_id == collection_id)
+        doc_ids = [r[0] for r in session.execute(doc_stmt).all()]
+
+        for did in doc_ids:
+            session.execute(
+                update(DocumentIndex)
+                .where(DocumentIndex.document_id == did)
+                .values(status=DocumentIndexStatus.PENDING, version=DocumentIndex.version + 1)
+            )
+
+        t.status = ImportTaskStatus.COMPLETED
+        t.progress = 100
+        t.message = "Import complete (re-indexed with target model)."
+        t.gmt_completed = utc_now()
+        session.commit()
+
+
+def _check_embedding_match(manifest: dict) -> bool:
+    """Check if the target instance's embedding model matches the export.
+
+    Returns True if vectors can be restored directly, False if re-index is needed.
+    """
+    export_dim = manifest.get("embedding_dim", 0)
+    if not export_dim:
+        return True  # No dimension info, assume compatible
+
+    try:
+        import json as _json
+
+        from aperag.config import settings
+
+        ctx = _json.loads(settings.vector_db_context)
+        # Get target vector dimension by creating a test collection
+        import qdrant_client as qc
+
+        client = qc.QdrantClient(
+            url=ctx.get("url", "http://localhost"),
+            port=ctx.get("port", 6333),
+            timeout=5,
+        )
+        # Check existing collections to find one with matching dim
+        collections = client.get_collections().collections
+        for c in collections:
+            try:
+                info = client.get_collection(c.name)
+                target_dim = info.config.params.vectors.size
+                if target_dim == export_dim:
+                    return True  # Same dimension, vectors are compatible
+            except Exception:
+                pass
+
+        # No matching collection found — different embedding model likely
+        logger.warning(
+            f"Embedding dimension mismatch: export={export_dim}, "
+            f"no matching collection found on target. Falling back to re-index."
+        )
+        return False
+    except Exception as e:
+        logger.warning(f"Could not verify embedding compatibility: {e}, assuming compatible")
+        return True  # If we can't check, assume it's OK
