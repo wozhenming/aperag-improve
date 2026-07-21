@@ -945,7 +945,8 @@ def process_evaluation_item_task(self, evaluation_id: str, item_id: str) -> Any:
 # ── Knowledge Base Import Task ─────────────────────────────────────────────
 
 @app.task(bind=True, soft_time_limit=55 * 60, time_limit=60 * 60)
-def import_collection_task(self, import_task_id: str):
+def import_collection_task(self, import_task_id: str, target_embedding_model: str = "",
+                          export_type: str = "basic"):
     """Celery task: import a ZIP (basic or full export) and restore the knowledge base."""
     import json as _json
     import os as _os
@@ -1031,8 +1032,11 @@ def import_collection_task(self, import_task_id: str):
         export_type = manifest.get("export_type", "basic")
         _update(progress=15, message=f"Import: detected {export_type} export, creating collection...")
 
-        # Create new collection
-        new_coll_id = _create_coll(user_id, collection_title, get_sync_session, Collection, utc_now)
+        # Create new collection with target embedding model in config
+        coll_config = "{}"
+        if target_embedding_model:
+            coll_config = _json.dumps({"embedding": {"model": target_embedding_model}})
+        new_coll_id = _create_coll(user_id, collection_title, get_sync_session, Collection, utc_now, coll_config)
         old_coll_id = manifest.get("collection", {}).get("id", "")
 
         _update(progress=25, message="Import: creating document records...", collection_id=new_coll_id)
@@ -1117,13 +1121,13 @@ def import_collection_task(self, import_task_id: str):
                 pass
 
 
-def _create_coll(user_id, title, get_sync_session, Collection, utc_now) -> str:
+def _create_coll(user_id, title, get_sync_session, Collection, utc_now, config: str = "{}") -> str:
     import uuid as _uuid
 
     from aperag.db.models import CollectionStatus
     cid = f"col{_uuid.uuid4().hex[:16]}"
     for s in get_sync_session():
-        s.add(Collection(id=cid, user=user_id, title=title, type="document", status=CollectionStatus.ACTIVE, config="{}"))
+        s.add(Collection(id=cid, user=user_id, title=title, type="document", status=CollectionStatus.ACTIVE, config=config))
         s.commit()
     return cid
 
@@ -1281,18 +1285,7 @@ def import_collection_reindex_task(self, import_task_id: str):
         t.gmt_updated = utc_now()
         session.commit()
 
-        # Trigger re-index for all documents in the new collection
-        stmt = (
-            update(DocumentIndex)
-            .where(DocumentIndex.document_id.in_(
-                select(DocumentIndex.document_id).where(
-                    DocumentIndex.index_type == "VECTOR",
-                    DocumentIndex.document_id.like("doc%"),
-                )
-            ))
-            .values(status=DocumentIndexStatus.PENDING, version=DocumentIndex.version + 1)
-        )
-        # Re-index docs belonging to the imported collection
+        # Trigger re-index for docs belonging to the imported collection
         from aperag.db.models import Document
         doc_stmt = select(Document.id).where(Document.collection_id == collection_id)
         doc_ids = [r[0] for r in session.execute(doc_stmt).all()]

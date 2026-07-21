@@ -395,7 +395,19 @@
     "import_incompatible_title": "Embedding Model Mismatch",
     "import_incompatible_desc": "The embedding model in the ZIP does not match the current instance. Vectors cannot be restored directly.",
     "import_incompatible_hint": "You can either 'Re-index' to rebuild all indexes with the current embedding model (consumes API quota), or 'Cancel' the import.",
-    "import_reindex_action": "Re-index"
+    "import_reindex_action": "Re-index",
+    "import_continue": "Continue",
+    "import_confirm_title": "Confirm Import",
+    "import_confirm_desc": "Review import details and select a target embedding model.",
+    "import_export_type": "Export Type",
+    "import_doc_count": "Documents",
+    "import_export_model": "Export Embedding Model",
+    "import_target_model": "Target Embedding Model",
+    "import_loading_models": "Loading models...",
+    "import_select_model": "Select embedding model",
+    "import_model_match": "Models match! Vector data can be restored directly.",
+    "import_model_mismatch": "Models do not match. Indexes will be rebuilt with the selected model.",
+    "import_force_warning": "Risk: selecting a different embedding model will discard vector data and require full re-indexing. This consumes API quota."
   },
   "page_docs": {
     "metadata": {

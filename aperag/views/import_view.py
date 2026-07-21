@@ -37,6 +37,8 @@ async def import_collection_view(
     request: Request,
     file: UploadFile,
     collection_title: str = Form("Imported Collection"),
+    target_embedding_model: str = Form(""),
+    export_type: str = Form("basic"),
     user: User = Depends(required_user),
 ) -> view_models.ImportTaskResponse:
     """Upload a ZIP file exported from ApeRAG to import a knowledge base."""
@@ -55,7 +57,7 @@ async def import_collection_view(
         raise ValueError("Failed to save uploaded file")
 
     return await import_service.create_import_task(
-        str(user.id), temp_path, collection_title
+        str(user.id), temp_path, collection_title, target_embedding_model, export_type
     )
 
 

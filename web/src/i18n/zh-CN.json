@@ -397,7 +397,19 @@
     "import_incompatible_title": "嵌入模型不匹配",
     "import_incompatible_desc": "ZIP中导出的嵌入模型与当前实例不匹配，无法直接恢复向量索引。",
     "import_incompatible_hint": "您可以选择「重建索引」：用当前实例的嵌入模型重新构建所有索引（需消耗 API 调用额度），或「取消」导入。",
-    "import_reindex_action": "重建索引"
+    "import_reindex_action": "重建索引",
+    "import_continue": "继续",
+    "import_confirm_title": "确认导入",
+    "import_confirm_desc": "请确认导入信息并选择目标嵌入模型。",
+    "import_export_type": "导出类型",
+    "import_doc_count": "文档数量",
+    "import_export_model": "导出嵌入模型",
+    "import_target_model": "目标嵌入模型",
+    "import_loading_models": "加载模型列表...",
+    "import_select_model": "选择嵌入模型",
+    "import_model_match": "模型匹配！可直接恢复向量数据。",
+    "import_model_mismatch": "模型不匹配。将使用选中的模型重建索引。",
+    "import_force_warning": "强制导入风险：选择与导出不同的嵌入模型将导致向量数据被丢弃，需要重新构建索引。这会消耗 API 调用额度。"
   },
   "page_docs": {
     "metadata": {

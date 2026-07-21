@@ -32,7 +32,8 @@ class ImportService:
         self.db_ops = async_db_ops
 
     async def create_import_task(
-        self, user_id: str, zip_path: str, collection_title: str
+        self, user_id: str, zip_path: str, collection_title: str,
+        target_embedding_model: str = "", export_type: str = "basic",
     ) -> view_models.ImportTaskResponse:
         from sqlalchemy import func
 
@@ -67,7 +68,11 @@ class ImportService:
 
         from config.celery_tasks import import_collection_task
 
-        import_collection_task.delay(str(task.id))
+        import_collection_task.delay(
+            str(task.id),
+            target_embedding_model=target_embedding_model,
+            export_type=export_type,
+        )
 
         return view_models.ImportTaskResponse(
             task_id=str(task.id),

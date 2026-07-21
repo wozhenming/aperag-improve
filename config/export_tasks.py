@@ -209,7 +209,7 @@ def _build_manifest(collection_id: str, user_id: str, get_sync_session, Collecti
             select(Document).where(
                 and_(
                     Document.collection_id == collection_id,
-                    Document.status != DocumentStatus.DELETED,
+                    Document.status == DocumentStatus.COMPLETE,
                 )
             )
         )
