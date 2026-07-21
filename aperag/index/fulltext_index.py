@@ -289,48 +289,28 @@ class FulltextIndexer(BaseIndexer):
         self.es.index(index=index, id=chunk_id, document=doc)
 
     def get_document_chunks(self, index: str, document_id: str, page: int = 1, page_size: int = 20,
-                            search: str = "", after: str = None, before: str = None) -> dict:
-        """Query paginated chunks for a document from Elasticsearch, using search_after for deep pagination.
-
-        For first page: no after/before.
-        For next page: pass after=<last chunk_id of current page>.
-        For previous page: pass before=<first chunk_id of current page>.
-        """
+                            search: str = "") -> dict:
+        """Query paginated chunks for a document from Elasticsearch."""
         try:
             if not self.es.indices.exists(index=index).body:
                 return {"chunks": [], "total": 0, "page": page, "page_size": page_size}
             query = {"bool": {"must": [{"term": {"document_id": document_id}}]}}
             if search:
                 query["bool"]["must"].append({"match": {"content": search}})
-
-            sort = [{"chunk_id": "asc"}]
-            search_kwargs = {
-                "index": index,
-                "body": {"query": query, "sort": sort},
-                "size": page_size,
-                "track_total_hits": True,
-            }
-
-            if before:
-                # Reverse sort for going backward
-                search_kwargs["body"]["sort"] = [{"chunk_id": "desc"}]
-                search_kwargs["search_after"] = [before]
-            elif after:
-                search_kwargs["search_after"] = [after]
-            # else: first page, no search_after
-
-            resp = self.es.search(**search_kwargs)
+            from_val = (page - 1) * page_size
+            resp = self.es.search(
+                index=index,
+                body={"query": query, "sort": [{"chunk_id": "asc"}]},
+                from_=from_val,
+                size=page_size,
+                track_total_hits=True,
+            )
             total = resp["hits"]["total"]["value"]
-            hits = resp["hits"]["hits"]
-
-            if before:
-                hits = list(reversed(hits))  # flip back to asc order
-
             chunks = [{"chunk_id": h["_source"].get("chunk_id", ""),
                        "content": h["_source"].get("content", "")[:2000],
                        "title": h["_source"].get("title", ""),
                        "chunk_size": len(h["_source"].get("content", ""))}
-                      for h in hits]
+                      for h in resp["hits"]["hits"]]
             return {"chunks": chunks, "total": total, "page": page, "page_size": page_size}
         except Exception:
             return {"chunks": [], "total": 0, "page": page, "page_size": page_size}

@@ -41,43 +41,23 @@ export const ChunkList = ({
   const [jumpTo, setJumpTo] = useState('');
   const didInit = useRef(false);
 
-  const cursorRef = useRef<{ first: string; last: string; page: number }[]>([]);
-
   const load = useCallback(
-    async (p: number, ps: number, q: string, after?: string, before?: string) => {
+    async (p: number, ps: number, q: string) => {
       setLoading(true);
       try {
-        let url = `/api/v1/collections/${encodeURIComponent(collectionId)}/documents/${encodeURIComponent(documentId)}/chunks?page=${p}&page_size=${ps}&search=${encodeURIComponent(q)}`;
-        if (after) url += `&after=${encodeURIComponent(after)}`;
-        if (before) url += `&before=${encodeURIComponent(before)}`;
+        const url = `/api/v1/collections/${encodeURIComponent(collectionId)}/documents/${encodeURIComponent(documentId)}/chunks?page=${p}&page_size=${ps}&search=${encodeURIComponent(q)}`;
         const resp = await fetch(url);
         const data = await resp.json();
-        const items: Chunk[] = data.chunks || [];
-        setChunks(items);
+        setChunks(data.chunks || []);
         setTotal(data.total || 0);
         setPage(p);
         setPageSize(ps);
-        // Store cursor for this page
-        if (items.length > 0) {
-          const entry = { first: items[0].chunk_id, last: items[items.length - 1].chunk_id, page: p };
-          cursorRef.current[p] = entry;
-        }
       } catch { /* ignore */ } finally {
         setLoading(false);
       }
     },
     [collectionId, documentId],
   );
-
-  const goNext = () => {
-    const lastItem = chunks[chunks.length - 1];
-    if (lastItem) load(page + 1, pageSize, search, lastItem.chunk_id);
-  };
-
-  const goPrev = () => {
-    const firstItem = chunks[0];
-    if (firstItem) load(page - 1, pageSize, search, undefined, firstItem.chunk_id);
-  };
 
   useEffect(() => {
     if (!didInit.current) {
@@ -106,16 +86,7 @@ export const ChunkList = ({
 
   const handleJump = () => {
     const n = parseInt(jumpTo);
-    if (n >= 1 && n <= totalPages) {
-      // Use cached cursor for nearby pages, fallback to first page for distant jumps
-      const cached = cursorRef.current[n];
-      if (cached) {
-        load(n, pageSize, search, cached.last || undefined, n < page ? cached.first : undefined);
-      } else {
-        load(1, pageSize, search); // fallback to page 1
-      }
-      setJumpTo('');
-    }
+    if (n >= 1 && n <= totalPages) { load(n, pageSize, search); setJumpTo(''); }
   };
 
   return (
@@ -152,10 +123,10 @@ export const ChunkList = ({
         <span>{total} {page_collections('chunks_total')}</span>
         <div className="flex items-center gap-1">
           <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page <= 1}
-            onClick={goPrev}>‹</Button>
+            onClick={() => load(page - 1, pageSize, search)}>‹</Button>
           <span>{page}/{totalPages}</span>
           <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page >= totalPages}
-            onClick={goNext}>›</Button>
+            onClick={() => load(page + 1, pageSize, search)}>›</Button>
         </div>
       </div>
 

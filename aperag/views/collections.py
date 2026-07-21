@@ -342,7 +342,7 @@ async def get_document_chunks(
     search: str = "",
     user: User = Depends(required_user),
 ):
-    """Get paginated chunks for a document from Elasticsearch, with optional search filter."""
+    """Get paginated chunks for a document from Elasticsearch."""
     from aperag.index.fulltext_index import fulltext_indexer
 
     try:
