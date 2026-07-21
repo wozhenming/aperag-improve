@@ -1,0 +1,147 @@
+'use client';
+
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { LoaderCircle, Search, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { useCallback, useState } from 'react';
+
+interface Chunk {
+  chunk_id: string;
+  content: string;
+  title: string;
+  chunk_size: number;
+}
+
+const PAGE_SIZES = [10, 20, 50, 100];
+
+export const ChunkList = ({
+  collectionId,
+  documentId,
+}: {
+  collectionId: string;
+  documentId: string;
+}) => {
+  const page_collections = useTranslations('page_collections');
+  const [chunks, setChunks] = useState<Chunk[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [jumpTo, setJumpTo] = useState('');
+
+  const load = useCallback(async (p: number, ps: number, q: string) => {
+    setLoading(true);
+    try {
+      const resp = await fetch(
+        `/api/v1/collections/${collectionId}/documents/${documentId}/chunks?page=${p}&page_size=${ps}&search=${encodeURIComponent(q)}`
+      );
+      const data = await resp.json();
+      setChunks(data.chunks || []);
+      setTotal(data.total || 0);
+      setPage(p);
+      setPageSize(ps);
+    } catch { /* ignore */ } finally { setLoading(false); }
+  }, [collectionId, documentId]);
+
+  const handleSearch = () => { setSearch(searchInput); load(1, pageSize, searchInput); };
+
+  const handleDelete = async (chunkId: string) => {
+    if (!confirm(page_collections('chunk_delete_confirm'))) return;
+    try {
+      await fetch(`/api/v1/collections/${collectionId}/documents/${documentId}/chunks/${chunkId}`, { method: 'DELETE' });
+      load(page, pageSize, search);
+    } catch { /* ignore */ }
+  };
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  // Load on first mount
+  if (chunks.length === 0 && !loading) load(1, pageSize, search);
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Toolbar: search + page size + jump */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1 flex-1 min-w-[200px]">
+          <Input placeholder={page_collections('chunk_search')} value={searchInput}
+            className="h-8 text-sm"
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }} />
+          <Button variant="outline" size="sm" className="h-8" onClick={handleSearch}>
+            <Search className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <Select value={String(pageSize)} onValueChange={(v) => load(1, Number(v), search)}>
+          <SelectTrigger className="h-8 w-20 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {PAGE_SIZES.map((s) => (<SelectItem key={s} value={String(s)}>{s}</SelectItem>))}
+          </SelectContent>
+        </Select>
+        <div className="flex items-center gap-1">
+          <Input placeholder="#" value={jumpTo} className="h-8 w-14 text-xs text-center"
+            onChange={(e) => setJumpTo(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { const n = parseInt(jumpTo); if (n >= 1 && n <= totalPages) { load(n, pageSize, search); setJumpTo(''); } } }} />
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => {
+            const n = parseInt(jumpTo);
+            if (n >= 1 && n <= totalPages) { load(n, pageSize, search); setJumpTo(''); }
+          }}>{page_collections('chunk_jump')}</Button>
+        </div>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{total} {page_collections('chunks_total')}</span>
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page <= 1}
+            onClick={() => load(page - 1, pageSize, search)}>‹</Button>
+          <span>{page}/{totalPages}</span>
+          <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page >= totalPages}
+            onClick={() => load(page + 1, pageSize, search)}>›</Button>
+        </div>
+      </div>
+
+      {/* Loading */}
+      {loading && (
+        <div className="flex justify-center py-8">
+          <LoaderCircle className="size-8 animate-spin opacity-50" />
+        </div>
+      )}
+
+      {/* Chunk list */}
+      {!loading && chunks.length === 0 && (
+        <Card><CardContent className="py-8 text-center text-muted-foreground text-sm">{page_collections('no_chunks')}</CardContent></Card>
+      )}
+      {!loading && chunks.map((chunk, idx) => (
+        <Card key={chunk.chunk_id}>
+          <CardContent className="py-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-muted-foreground">
+                #{(page - 1) * pageSize + idx + 1} {chunk.chunk_id}
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">{chunk.chunk_size} {page_collections('chars')}</span>
+                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive"
+                  onClick={() => handleDelete(chunk.chunk_id)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+            {chunk.title && <p className="text-xs text-muted-foreground mb-1">{chunk.title}</p>}
+            <p className="text-sm whitespace-pre-wrap line-clamp-6">{chunk.content}</p>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+};

@@ -337,17 +337,42 @@ async def get_document_preview(
 async def get_document_chunks(
     collection_id: str,
     document_id: str,
+    page: int = 1,
+    page_size: int = 20,
+    search: str = "",
     user: User = Depends(required_user),
 ):
-    """Get chunks for a document from Elasticsearch."""
+    """Get paginated chunks for a document from Elasticsearch, with optional search filter."""
     from aperag.index.fulltext_index import fulltext_indexer
 
     try:
         index = str(collection_id)
-        chunks = fulltext_indexer.get_document_chunks(index, document_id)
-        return {"chunks": chunks}
+        result = fulltext_indexer.get_document_chunks(index, document_id, page, page_size, search)
+        return result
     except Exception:
-        return {"chunks": []}
+        return {"chunks": [], "total": 0, "page": page, "page_size": page_size}
+
+
+@router.delete(
+    "/collections/{collection_id}/documents/{document_id}/chunks/{chunk_id}",
+    tags=["documents"],
+    operation_id="delete_document_chunk",
+)
+async def delete_document_chunk(
+    collection_id: str,
+    document_id: str,
+    chunk_id: str,
+    user: User = Depends(required_user),
+):
+    """Delete a single chunk from Elasticsearch."""
+    from aperag.index.fulltext_index import fulltext_indexer
+
+    try:
+        index = str(collection_id)
+        fulltext_indexer.delete_chunk(index, chunk_id)
+        return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get(

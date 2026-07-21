@@ -288,22 +288,42 @@ class FulltextIndexer(BaseIndexer):
             doc["parent_content"] = parent_content
         self.es.index(index=index, id=chunk_id, document=doc)
 
-    def get_document_chunks(self, index: str, document_id: str) -> List[dict]:
-        """Query all chunks for a document from Elasticsearch."""
+    def get_document_chunks(self, index: str, document_id: str, page: int = 1, page_size: int = 20, search: str = "") -> dict:
+        """Query paginated chunks for a document from Elasticsearch, with optional search filter."""
         try:
             if not self.es.indices.exists(index=index).body:
-                return []
+                return {"chunks": [], "total": 0, "page": page, "page_size": page_size}
+            from_val = (page - 1) * page_size
+            query = {
+                "bool": {
+                    "must": [{"term": {"document_id": document_id}}],
+                }
+            }
+            if search:
+                query["bool"]["must"].append({"match": {"content": search}})
             resp = self.es.search(
                 index=index,
-                body={"query": {"term": {"document_id": document_id}}, "size": 500, "sort": [{"chunk_id": "asc"}]},
+                body={
+                    "query": query,
+                    "from": from_val,
+                    "size": page_size,
+                    "sort": [{"chunk_id": "asc"}],
+                    "track_total_hits": True,
+                },
             )
-            return [{"chunk_id": h["_source"].get("chunk_id", ""),
-                     "content": h["_source"].get("content", "")[:2000],
-                     "title": h["_source"].get("title", ""),
-                     "chunk_size": len(h["_source"].get("content", ""))}
-                    for h in resp["hits"]["hits"]]
+            total = resp["hits"]["total"]["value"]
+            chunks = [{"chunk_id": h["_source"].get("chunk_id", ""),
+                       "content": h["_source"].get("content", "")[:2000],
+                       "title": h["_source"].get("title", ""),
+                       "chunk_size": len(h["_source"].get("content", ""))}
+                      for h in resp["hits"]["hits"]]
+            return {"chunks": chunks, "total": total, "page": page, "page_size": page_size}
         except Exception:
-            return []
+            return {"chunks": [], "total": 0, "page": page, "page_size": page_size}
+
+    def delete_chunk(self, index: str, chunk_id: str):
+        """Delete a single chunk from Elasticsearch by chunk_id."""
+        self.es.delete(index=index, id=chunk_id)
 
     async def search_document(
         self, index: str, keywords: List[str], topk=3, chat_id: str = None
