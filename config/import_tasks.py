@@ -132,20 +132,27 @@ def import_collection_task(self, import_task_id, target_embedding_model="", targ
 
         logger.info(f"Import task {import_task_id}: created {len(doc_id_map)} documents")
 
-        # Copy source files to object store
+        # Copy source files to object store and set document object_path
         _update(progress=35, message="Import: copying source files...")
         source_dir = _os.path.join(temp_dir, "source")
         if _os.path.exists(source_dir):
             store = get_object_store()
-            prefix = f"user-{user_id}/{new_coll_id}/"
             file_count = 0
             for root, _dirs, files in _os.walk(source_dir):
                 for filename in files:
                     fp = _os.path.join(root, filename)
                     rel = _os.path.relpath(fp, source_dir)
-                    with open(fp, "rb") as sf:
-                        store.put(f"{prefix}{rel}", sf)
-                    file_count += 1
+                    # rel is like "{old_doc_id}/parsed.md"
+                    parts = rel.split("/", 1)
+                    old_doc = parts[0]
+                    subpath = parts[1] if len(parts) > 1 else filename
+                    if old_doc in doc_id_map:
+                        new_doc = doc_id_map[old_doc]
+                        obj_path = f"user-{user_id}/{new_coll_id}/{new_doc}/{subpath}"
+                        _update_doc_object_path(new_doc, obj_path, get_sync_session, Document)
+                        with open(fp, "rb") as sf:
+                            store.put(obj_path, sf)
+                        file_count += 1
             logger.info(f"Import task {import_task_id}: copied {file_count} source files")
 
         _update(progress=45, message="Import: creating index records...")
@@ -274,6 +281,15 @@ def _create_doc(collection_id, user_id, name, get_sync_session, Document, utc_no
                         status=DocumentStatus.PENDING, size=0, doc_metadata="{}"))
         s.commit()
     return did
+
+
+def _update_doc_object_path(doc_id, object_path, get_sync_session, Document):
+    """Set the object_path on a document so reconciler can find its files."""
+    from sqlalchemy import update as sql_update
+
+    for s in get_sync_session():
+        s.execute(sql_update(Document).where(Document.id == doc_id).values(object_path=object_path))
+        s.commit()
 
 
 def _create_indexes(doc_id_map, get_sync_session, DocumentIndex, DocumentIndexType, DocumentIndexStatus):
