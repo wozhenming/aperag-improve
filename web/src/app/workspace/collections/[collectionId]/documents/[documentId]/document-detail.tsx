@@ -138,7 +138,7 @@ export const DocumentDetail = ({
         )}
 
         <TabsContent value="chunks">
-          <ChunkList collectionId={collection.id} documentId={document.id} />
+          <ChunkList collectionId={collection.id || ''} documentId={document.id || ''} />
         </TabsContent>
       </Tabs>
     </>
