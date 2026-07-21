@@ -306,6 +306,7 @@
     "chunk_search": "Search chunks...",
     "chunk_jump": "Go",
     "chunk_delete_confirm": "Delete this chunk? This action cannot be undone.",
+    "page": "page",
     "kg_entity_types_title": "Entity Types",
     "kg_entity_types_desc": "Knowledge graph will extract entities of these types. Separate with commas.",
     "kg_entity_types_placeholder": "Enter entity types separated by commas, e.g. organization, person, geo",

@@ -6,6 +6,9 @@ import { Markdown } from '@/components/markdown';
 import { useCollectionContext } from '@/components/providers/collection-provider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
@@ -37,10 +40,22 @@ export const DocumentDetail = ({
   const { collection } = useCollectionContext();
   const page_collections = useTranslations('page_collections');
   const [numPages, setNumPages] = useState<number>(0);
+  const [mdPage, setMdPage] = useState(1);
+  const [mdPageSize, setMdPageSize] = useState(50000); // ~50KB per page
 
   const isPdf = useMemo(() => {
     return Boolean(documentPreview.doc_filename?.match(/\.pdf/));
   }, [documentPreview.doc_filename]);
+
+  const mdContent = documentPreview.markdown_content || '';
+  const mdTotalChars = mdContent.length;
+  const mdTotalPages = Math.max(1, Math.ceil(mdTotalChars / mdPageSize));
+  const mdCurrentContent = useMemo(() => {
+    const start = (mdPage - 1) * mdPageSize;
+    return mdContent.slice(start, start + mdPageSize);
+  }, [mdContent, mdPage, mdPageSize]);
+
+  useEffect(() => { setMdPage(1); }, [documentPreview]);
 
   useEffect(() => {
     const loadPDF = async () => {
@@ -105,7 +120,38 @@ export const DocumentDetail = ({
         <TabsContent value="markdown">
           <Card>
             <CardContent>
-              <Markdown>{documentPreview.markdown_content}</Markdown>
+              {mdTotalPages > 1 && (
+                <div className="flex items-center justify-between mb-3 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <span>{(mdTotalChars / 1000).toFixed(1)}K {page_collections('chars')}</span>
+                    <Select value={String(mdPageSize)} onValueChange={(v) => { setMdPageSize(Number(v)); setMdPage(1); }}>
+                      <SelectTrigger className="h-7 w-20 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[10000, 25000, 50000, 100000].map((s) => (
+                          <SelectItem key={s} value={String(s)}>{(s / 1000).toFixed(0)}K/{page_collections('page')}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="h-7 text-xs" disabled={mdPage <= 1}
+                      onClick={() => setMdPage(mdPage - 1)}>‹</Button>
+                    <span>{mdPage}/{mdTotalPages}</span>
+                    <Button variant="outline" size="sm" className="h-7 text-xs" disabled={mdPage >= mdTotalPages}
+                      onClick={() => setMdPage(mdPage + 1)}>›</Button>
+                  </div>
+                </div>
+              )}
+              <Markdown>{mdCurrentContent}</Markdown>
+              {mdTotalPages > 1 && (
+                <div className="flex items-center justify-center mt-4 text-xs text-muted-foreground gap-2">
+                  <Button variant="outline" size="sm" className="h-7 text-xs" disabled={mdPage <= 1}
+                    onClick={() => setMdPage(mdPage - 1)}>‹</Button>
+                  <span>{mdPage}/{mdTotalPages}</span>
+                  <Button variant="outline" size="sm" className="h-7 text-xs" disabled={mdPage >= mdTotalPages}
+                    onClick={() => setMdPage(mdPage + 1)}>›</Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
