@@ -296,6 +296,7 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
    */
   const enableKG = useWatch({ control: form.control, name: 'config.enable_knowledge_graph' });
   const watchPC = useWatch({ control: form.control, name: 'config.parent_child_enabled' });
+  const [entityTypesText, setEntityTypesText] = useState('');
   const embeddingModelName = useWatch({
     control: form.control,
     name: 'config.embedding.model',
@@ -484,24 +485,27 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
                 <FormField
                   control={form.control}
                   name="config.knowledge_graph_config.entity_types"
-                  render={({ field }) => (
-                    <FormItem>
+                  render={({ field }) => {
+                    if (!entityTypesText && field.value?.length) setEntityTypesText(field.value.join(', '));
+                    return <FormItem>
                       <FormControl>
                         <Textarea
                           className="h-24"
                           placeholder="organization, person, geo, event, product, technology, date, category"
-                          value={(field.value || []).join(', ')}
-                          onChange={(e) => {
-                            const types = e.target.value.split(',').map((s) => s.trim()).filter(Boolean);
+                          value={entityTypesText}
+                          onChange={(e) => setEntityTypesText(e.target.value)}
+                          onBlur={() => {
+                            const types = entityTypesText.split(',').map((s) => s.trim()).filter(Boolean);
                             field.onChange(types);
+                            setEntityTypesText(types.join(', '));
                           }}
                         />
                       </FormControl>
                       <FormDescription>
                         {page_collections('kg_entity_types_placeholder')}
                       </FormDescription>
-                    </FormItem>
-                  )}
+                    </FormItem>;
+                  }}
                 />
               </CardContent>
             </Card>
