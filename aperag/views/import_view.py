@@ -38,7 +38,11 @@ async def import_collection_view(
     file: UploadFile,
     collection_title: str = Form("Imported Collection"),
     target_embedding_model: str = Form(""),
+    target_embedding_provider: str = Form(""),
     target_completion_model: str = Form(""),
+    target_completion_provider: str = Form(""),
+    target_embedding_custom_provider: str = Form(""),
+    target_completion_custom_provider: str = Form(""),
     export_type: str = Form("basic"),
     user: User = Depends(required_user),
 ) -> view_models.ImportTaskResponse:
@@ -58,7 +62,9 @@ async def import_collection_view(
         raise ValueError("Failed to save uploaded file")
 
     return await import_service.create_import_task(
-        str(user.id), temp_path, collection_title, target_embedding_model, target_completion_model, export_type
+        str(user.id), temp_path, collection_title, target_embedding_model, target_completion_model, export_type,
+        target_embedding_provider, target_embedding_custom_provider,
+        target_completion_provider, target_completion_custom_provider
     )
 
 

@@ -35,6 +35,8 @@ class ImportService:
         self, user_id: str, zip_path: str, collection_title: str,
         target_embedding_model: str = "", target_completion_model: str = "",
         export_type: str = "basic",
+        target_embedding_provider: str = "", target_embedding_custom_provider: str = "",
+        target_completion_provider: str = "", target_completion_custom_provider: str = "",
     ) -> view_models.ImportTaskResponse:
         from sqlalchemy import func
 
@@ -72,7 +74,11 @@ class ImportService:
         import_collection_task.delay(
             import_task_id=str(task.id),
             target_embedding_model=target_embedding_model,
+            target_embedding_provider=target_embedding_provider,
+            target_embedding_custom_provider=target_embedding_custom_provider,
             target_completion_model=target_completion_model,
+            target_completion_provider=target_completion_provider,
+            target_completion_custom_provider=target_completion_custom_provider,
             export_type=export_type,
         )
 

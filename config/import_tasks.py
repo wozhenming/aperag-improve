@@ -16,7 +16,10 @@ logger = get_task_logger(__name__)
 
 
 @app.task(bind=True, soft_time_limit=55 * 60, time_limit=60 * 60)
-def import_collection_task(self, import_task_id, target_embedding_model="", target_completion_model="", export_type="basic"):
+def import_collection_task(self, import_task_id, target_embedding_model="", target_embedding_provider="",
+                           target_embedding_custom_provider="",
+                           target_completion_model="", target_completion_provider="",
+                           target_completion_custom_provider="", export_type="basic"):
     """Celery task: import a ZIP (basic or full export) and restore the knowledge base."""
     logger.info(f"Import task {import_task_id}: STARTING (type={export_type}, model={target_embedding_model})")
 
@@ -108,12 +111,36 @@ def import_collection_task(self, import_task_id, target_embedding_model="", targ
 
         _update(progress=15, message=f"Import: detected {detected_type} export, creating collection...")
 
-        # Create new collection with target models in config
-        config_dict = {"source": "system"}
+        # Build collection config — use exported config as base, override with target models
+        exported_config = manifest.get("collection_config", {})
+        config_dict = dict(exported_config) if exported_config else {}
+        # Ensure essential fields
+        config_dict.setdefault("source", "system")
+        config_dict.setdefault("enable_vector", True)
+        config_dict.setdefault("enable_fulltext", True)
+        config_dict.setdefault("enable_knowledge_graph", True)
+        config_dict.setdefault("enable_summary", False)
+        config_dict.setdefault("enable_vision", False)
+        config_dict.setdefault("language", "zh-CN")
+        config_dict.setdefault("knowledge_graph_config", {
+            "entity_types": [
+                "organization", "person", "geo", "event",
+                "product", "technology", "date", "category",
+            ]
+        })
+        # Override models with user-selected target models
         if target_embedding_model:
-            config_dict["embedding"] = {"model": target_embedding_model}
+            config_dict["embedding"] = {"model": target_embedding_model, "temperature": 0.1}
+            if target_embedding_provider:
+                config_dict["embedding"]["model_service_provider"] = target_embedding_provider
+            if target_embedding_custom_provider:
+                config_dict["embedding"]["custom_llm_provider"] = target_embedding_custom_provider
         if target_completion_model:
-            config_dict["completion"] = {"model": target_completion_model}
+            config_dict["completion"] = {"model": target_completion_model, "temperature": 0.1}
+            if target_completion_provider:
+                config_dict["completion"]["model_service_provider"] = target_completion_provider
+            if target_completion_custom_provider:
+                config_dict["completion"]["custom_llm_provider"] = target_completion_custom_provider
         coll_config = _json.dumps(config_dict)
         new_coll_id = _create_coll(user_id, collection_title, get_sync_session, Collection, utc_now, coll_config)
         old_coll_id = manifest.get("collection", {}).get("id", "")

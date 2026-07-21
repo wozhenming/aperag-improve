@@ -52,6 +52,7 @@ interface EmbeddingOption {
   name: string;
   model: string;
   provider: string;
+  custom_llm_provider?: string;
 }
 
 /** Parse ZIP's manifest.json to extract export info, returns null on failure. */
@@ -192,6 +193,7 @@ export const CollectionImport = () => {
             name: p.name,
             model: m.model || m.name,
             provider: p.name,
+            custom_llm_provider: m.custom_llm_provider || '',
           });
         });
       });
@@ -209,6 +211,7 @@ export const CollectionImport = () => {
             name: p.name,
             model: m.model || m.name,
             provider: p.name,
+            custom_llm_provider: m.custom_llm_provider || '',
           });
         });
       });
@@ -264,6 +267,14 @@ export const CollectionImport = () => {
       if (selectedModel) formData.append('target_embedding_model', selectedModel);
       if (selectedCompletionModel) formData.append('target_completion_model', selectedCompletionModel);
       if (manifest?.export_type) formData.append('export_type', manifest.export_type);
+
+      // Send provider names for model config
+      const embOpt = embeddingOptions.find(o => o.model === selectedModel);
+      const compOpt = completionOptions.find(o => o.model === selectedCompletionModel);
+      if (embOpt?.provider) formData.append('target_embedding_provider', embOpt.provider);
+      if (compOpt?.provider) formData.append('target_completion_provider', compOpt.provider);
+      if (embOpt?.custom_llm_provider) formData.append('target_embedding_custom_provider', embOpt.custom_llm_provider);
+      if (compOpt?.custom_llm_provider) formData.append('target_completion_custom_provider', compOpt.custom_llm_provider);
 
       const resp = await fetch('/api/v1/collections/import', { method: 'POST', body: formData });
       if (!resp.ok) {

@@ -125,7 +125,7 @@ def export_collection_task(self, export_task_id: str):
 
         # Phase 4: generate manifest.json from DB
         manifest = _build_manifest(collection_id, user_id, get_sync_session, Collection, Document)
-        # Add embedding model info
+        # Add full collection config for import reconstruction
         from aperag.schema.utils import parseCollectionConfig
         for session in get_sync_session():
             r = session.execute(select(Collection).where(Collection.id == collection_id))
@@ -136,6 +136,8 @@ def export_collection_task(self, export_task_id: str):
                     if cc.embedding and cc.embedding.model:
                         manifest["embedding_model"] = cc.embedding.model
                         manifest["embedding_provider"] = cc.embedding.model_service_provider or ""
+                    # Include full config (entity_types, language, enable_*, etc.)
+                    manifest["collection_config"] = json.loads(col.config)
                 except Exception:
                     pass
         manifest_path = os.path.join(temp_dir, "manifest.json")
@@ -347,6 +349,7 @@ def export_collection_full_task(self, export_task_id: str):
                     if cc.embedding and cc.embedding.model:
                         manifest["embedding_model"] = cc.embedding.model
                         manifest["embedding_provider"] = cc.embedding.model_service_provider or ""
+                    manifest["collection_config"] = json.loads(col.config)
                 except Exception:
                     pass
         with open(os.path.join(temp_dir, "manifest.json"), "w", encoding="utf-8") as f:
