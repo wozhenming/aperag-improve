@@ -35,7 +35,9 @@ class ExportService:
     def __init__(self):
         self.db_ops = async_db_ops
 
-    async def create_export_task(self, user_id: str, collection_id: str) -> view_models.ExportTaskResponse:
+    async def create_export_task(
+        self, user_id: str, collection_id: str, export_type: str = "basic"
+    ) -> view_models.ExportTaskResponse:
         async def _create(session):
             # Verify collection exists and user is owner
             result = await session.execute(
@@ -93,10 +95,15 @@ class ExportService:
 
         task = await self.db_ops._execute_query(_create)
 
-        # Trigger Celery task (import here to avoid circular imports)
-        from config.export_tasks import export_collection_task
+        # Trigger Celery task based on export type
+        if export_type == "full":
+            from config.export_tasks import export_collection_full_task
 
-        export_collection_task.delay(task.id)
+            export_collection_full_task.delay(task.id)
+        else:
+            from config.export_tasks import export_collection_task
+
+            export_collection_task.delay(task.id)
 
         return view_models.ExportTaskResponse(
             export_task_id=task.id,

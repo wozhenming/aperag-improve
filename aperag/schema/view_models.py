@@ -2848,6 +2848,14 @@ class AgentMessage(BaseModel):
     files: Optional[list[File]] = None
 
 
+class CreateExportRequest(BaseModel):
+    """Request body for creating an export task."""
+
+    export_type: Optional[str] = Field(
+        "basic", description="Export type: 'basic' for documents only, 'full' for complete index data"
+    )
+
+
 class ExportTaskResponse(BaseModel):
     export_task_id: str = Field(..., description='Unique ID of the export task')
     status: Literal['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'EXPIRED'] = Field(
