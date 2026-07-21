@@ -35,6 +35,8 @@ def parse_document_content(document, collection) -> Tuple[str, List[Any], Any]:
     source = get_source(parseCollectionConfig(collection.config))
     metadata = json.loads(document.doc_metadata or "{}")
     metadata["doc_id"] = document.id
+    if document.object_path:
+        metadata["object_path"] = document.object_path
     local_doc = source.prepare_document(name=document.name, metadata=metadata)
 
     try:

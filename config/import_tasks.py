@@ -282,7 +282,7 @@ def _create_doc(collection_id, user_id, name, get_sync_session, Document, utc_no
     did = f"doc{_uuid.uuid4().hex[:16]}"
     for s in get_sync_session():
         s.add(Document(id=did, collection_id=collection_id, user=user_id, name=name,
-                        status=DocumentStatus.PENDING, size=0, doc_metadata="{}"))
+                        status=DocumentStatus.PENDING, size=0, doc_metadata="{}", object_path=""))
         s.commit()
     return did
 
