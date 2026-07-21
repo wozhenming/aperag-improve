@@ -376,6 +376,23 @@
     "export_too_many_tasks": "已有导出任务进行中，请等待完成后重试。",
     "cancel": "取消",
     "back": "返回",
+    "import_knowledge_base": "导入知识库",
+    "import_title": "导入知识库",
+    "import_description": "上传从 ApeRAG 导出的 ZIP 文件，将知识库恢复到当前账号下。",
+    "import_drop_hint": "点击或拖放 ZIP 文件到此处",
+    "import_format_hint": "支持轻量导出和完整导出 ZIP",
+    "import_invalid_file": "请选择 .zip 文件",
+    "import_warning": "完整导出导入需要相同嵌入模型。轻量导出导入后会自动重新索引。",
+    "import_start": "开始导入",
+    "import_uploading_title": "正在上传文件...",
+    "import_uploading_desc": "正在将 ZIP 文件上传到服务器",
+    "import_processing_title": "正在导入中...",
+    "import_completed_title": "导入完成！",
+    "import_completed_desc": "知识库「{name}」已成功导入。",
+    "import_go_to_collection": "查看知识库",
+    "import_failed_title": "导入失败",
+    "import_failed": "导入过程中发生错误，请重试。",
+    "import_retry": "重新导入"
   },
   "page_docs": {
     "metadata": {

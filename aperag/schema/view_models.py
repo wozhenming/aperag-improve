@@ -2848,6 +2848,16 @@ class AgentMessage(BaseModel):
     files: Optional[list[File]] = None
 
 
+class ImportTaskResponse(BaseModel):
+    task_id: str = Field(..., description='Unique ID of the import task')
+    status: str = Field(..., description='Task status')
+    progress: Optional[int] = Field(None, description='Progress percentage')
+    message: Optional[str] = Field(None, description='Human-readable status message')
+    error_message: Optional[str] = Field(None, description='Error details if failed')
+    collection_id: Optional[str] = Field(None, description='ID of the created collection')
+    collection_title: Optional[str] = Field(None, description='Title of the created collection')
+
+
 class CreateExportRequest(BaseModel):
     """Request body for creating an export task."""
 

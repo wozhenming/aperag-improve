@@ -374,6 +374,23 @@
     "export_too_many_tasks": "An export task is already in progress. Please wait.",
     "cancel": "Cancel",
     "back": "Back",
+    "import_knowledge_base": "Import Knowledge Base",
+    "import_title": "Import Knowledge Base",
+    "import_description": "Upload a ZIP file exported from ApeRAG to restore the knowledge base to your account.",
+    "import_drop_hint": "Click or drag a ZIP file here",
+    "import_format_hint": "Supports basic and full export ZIPs",
+    "import_invalid_file": "Please select a .zip file",
+    "import_warning": "Full export imports require the same embedding model. Basic exports will be re-indexed automatically.",
+    "import_start": "Start Import",
+    "import_uploading_title": "Uploading file...",
+    "import_uploading_desc": "Uploading ZIP file to the server",
+    "import_processing_title": "Importing...",
+    "import_completed_title": "Import Complete!",
+    "import_completed_desc": "Knowledge base '{name}' has been imported successfully.",
+    "import_go_to_collection": "View Collection",
+    "import_failed_title": "Import Failed",
+    "import_failed": "An error occurred during import. Please try again.",
+    "import_retry": "Retry Import"
   },
   "page_docs": {
     "metadata": {

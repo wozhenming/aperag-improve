@@ -19,6 +19,7 @@ import { Calendar, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useState } from 'react';
+import { CollectionImport } from '@/components/collections/import-dialog';
 
 export const CollectionList = ({
   collections,
@@ -39,6 +40,7 @@ export const CollectionList = ({
           />
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <CollectionImport />
           <Button asChild>
             <Link href="/workspace/collections/new">
               <Plus /> {page_collection_new('metadata.title')}

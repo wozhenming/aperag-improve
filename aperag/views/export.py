@@ -35,11 +35,10 @@ router = APIRouter()
 async def create_export_task_view(
     request: Request,
     collection_id: str,
-    body: view_models.CreateExportRequest = None,
+    export_type: str = "basic",
     user: User = Depends(required_user),
 ) -> view_models.ExportTaskResponse:
     """Create an async export task to package all object-store files under the collection."""
-    export_type = body.export_type if body and body.export_type else "basic"
     return await export_service.create_export_task(str(user.id), collection_id, export_type)
 
 

@@ -1165,6 +1165,33 @@ class ExportTask(Base):
     gmt_expires = Column(DateTime(timezone=True), nullable=True)
 
 
+class ImportTaskStatus(str, Enum):
+    PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+class ImportTask(Base):
+    __tablename__ = "import_task"
+    __table_args__ = (
+        Index("idx_import_task_user_status", "user", "status"),
+    )
+
+    id = Column(String(32), primary_key=True)
+    user = Column(String(256), nullable=False, index=True)
+    zip_path = Column(Text, nullable=True)
+    collection_title = Column(String(256), nullable=True)
+    collection_id = Column(String(24), nullable=True)
+    status = Column(String(50), default=ImportTaskStatus.PENDING, nullable=False)
+    progress = Column(Integer, default=0)
+    message = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)
+    gmt_created = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    gmt_updated = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    gmt_completed = Column(DateTime(timezone=True), nullable=True)
+
+
 class PromptTemplate(Base):
     __tablename__ = "prompt_template"
 

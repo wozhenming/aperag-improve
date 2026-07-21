@@ -88,8 +88,7 @@ export const CollectionExport = ({
     try {
       const res = await apiClient.defaultApi.createExportTask({
         collectionId,
-        createExportRequest: { export_type: exportType },
-      });
+      }, { params: { export_type: exportType } });
       const data = res.data;
       setTaskStatus(data);
       setStep('processing');
