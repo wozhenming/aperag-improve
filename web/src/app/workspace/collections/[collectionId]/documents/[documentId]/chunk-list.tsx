@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/select';
 import { LoaderCircle, Search, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface Chunk {
   chunk_id: string;
@@ -39,39 +39,88 @@ export const ChunkList = ({
   const [searchInput, setSearchInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [jumpTo, setJumpTo] = useState('');
+  const didInit = useRef(false);
 
-  const load = useCallback(async (p: number, ps: number, q: string) => {
-    setLoading(true);
-    try {
-      const resp = await fetch(
-        `/api/v1/collections/${collectionId}/documents/${documentId}/chunks?page=${p}&page_size=${ps}&search=${encodeURIComponent(q)}`
-      );
-      const data = await resp.json();
-      setChunks(data.chunks || []);
-      setTotal(data.total || 0);
-      setPage(p);
-      setPageSize(ps);
-    } catch { /* ignore */ } finally { setLoading(false); }
-  }, [collectionId, documentId]);
+  const cursorRef = useRef<{ first: string; last: string; page: number }[]>([]);
 
-  const handleSearch = () => { setSearch(searchInput); load(1, pageSize, searchInput); };
+  const load = useCallback(
+    async (p: number, ps: number, q: string, after?: string, before?: string) => {
+      setLoading(true);
+      try {
+        let url = `/api/v1/collections/${encodeURIComponent(collectionId)}/documents/${encodeURIComponent(documentId)}/chunks?page=${p}&page_size=${ps}&search=${encodeURIComponent(q)}`;
+        if (after) url += `&after=${encodeURIComponent(after)}`;
+        if (before) url += `&before=${encodeURIComponent(before)}`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+        const items: Chunk[] = data.chunks || [];
+        setChunks(items);
+        setTotal(data.total || 0);
+        setPage(p);
+        setPageSize(ps);
+        // Store cursor for this page
+        if (items.length > 0) {
+          const entry = { first: items[0].chunk_id, last: items[items.length - 1].chunk_id, page: p };
+          cursorRef.current[p] = entry;
+        }
+      } catch { /* ignore */ } finally {
+        setLoading(false);
+      }
+    },
+    [collectionId, documentId],
+  );
+
+  const goNext = () => {
+    const lastItem = chunks[chunks.length - 1];
+    if (lastItem) load(page + 1, pageSize, search, lastItem.chunk_id);
+  };
+
+  const goPrev = () => {
+    const firstItem = chunks[0];
+    if (firstItem) load(page - 1, pageSize, search, undefined, firstItem.chunk_id);
+  };
+
+  useEffect(() => {
+    if (!didInit.current) {
+      didInit.current = true;
+      load(1, 20, '');
+    }
+  }, [load]);
+
+  const handleSearch = () => {
+    setSearch(searchInput);
+    load(1, pageSize, searchInput);
+  };
 
   const handleDelete = async (chunkId: string) => {
     if (!confirm(page_collections('chunk_delete_confirm'))) return;
     try {
-      await fetch(`/api/v1/collections/${collectionId}/documents/${documentId}/chunks/${chunkId}`, { method: 'DELETE' });
+      await fetch(
+        `/api/v1/collections/${encodeURIComponent(collectionId)}/documents/${encodeURIComponent(documentId)}/chunks/${encodeURIComponent(chunkId)}`,
+        { method: 'DELETE' },
+      );
       load(page, pageSize, search);
     } catch { /* ignore */ }
   };
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  // Load on first mount
-  if (chunks.length === 0 && !loading) load(1, pageSize, search);
+  const handleJump = () => {
+    const n = parseInt(jumpTo);
+    if (n >= 1 && n <= totalPages) {
+      // Use cached cursor for nearby pages, fallback to first page for distant jumps
+      const cached = cursorRef.current[n];
+      if (cached) {
+        load(n, pageSize, search, cached.last || undefined, n < page ? cached.first : undefined);
+      } else {
+        load(1, pageSize, search); // fallback to page 1
+      }
+      setJumpTo('');
+    }
+  };
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Toolbar: search + page size + jump */}
+      {/* Toolbar */}
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-1 flex-1 min-w-[200px]">
           <Input placeholder={page_collections('chunk_search')} value={searchInput}
@@ -91,11 +140,10 @@ export const ChunkList = ({
         <div className="flex items-center gap-1">
           <Input placeholder="#" value={jumpTo} className="h-8 w-14 text-xs text-center"
             onChange={(e) => setJumpTo(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { const n = parseInt(jumpTo); if (n >= 1 && n <= totalPages) { load(n, pageSize, search); setJumpTo(''); } } }} />
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => {
-            const n = parseInt(jumpTo);
-            if (n >= 1 && n <= totalPages) { load(n, pageSize, search); setJumpTo(''); }
-          }}>{page_collections('chunk_jump')}</Button>
+            onKeyDown={(e) => { if (e.key === 'Enter') handleJump(); }} />
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleJump}>
+            {page_collections('chunk_jump')}
+          </Button>
         </div>
       </div>
 
@@ -104,10 +152,10 @@ export const ChunkList = ({
         <span>{total} {page_collections('chunks_total')}</span>
         <div className="flex items-center gap-1">
           <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page <= 1}
-            onClick={() => load(page - 1, pageSize, search)}>‹</Button>
+            onClick={goPrev}>‹</Button>
           <span>{page}/{totalPages}</span>
           <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page >= totalPages}
-            onClick={() => load(page + 1, pageSize, search)}>›</Button>
+            onClick={goNext}>›</Button>
         </div>
       </div>
 
@@ -118,10 +166,12 @@ export const ChunkList = ({
         </div>
       )}
 
-      {/* Chunk list */}
+      {/* Empty state */}
       {!loading && chunks.length === 0 && (
         <Card><CardContent className="py-8 text-center text-muted-foreground text-sm">{page_collections('no_chunks')}</CardContent></Card>
       )}
+
+      {/* Chunk list */}
       {!loading && chunks.map((chunk, idx) => (
         <Card key={chunk.chunk_id}>
           <CardContent className="py-3">
