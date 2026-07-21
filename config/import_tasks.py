@@ -109,12 +109,12 @@ def import_collection_task(self, import_task_id, target_embedding_model="", targ
         _update(progress=15, message=f"Import: detected {detected_type} export, creating collection...")
 
         # Create new collection with target models in config
-        config_dict = {}
+        config_dict = {"source": "system"}
         if target_embedding_model:
             config_dict["embedding"] = {"model": target_embedding_model}
         if target_completion_model:
             config_dict["completion"] = {"model": target_completion_model}
-        coll_config = _json.dumps(config_dict) if config_dict else "{}"
+        coll_config = _json.dumps(config_dict)
         new_coll_id = _create_coll(user_id, collection_title, get_sync_session, Collection, utc_now, coll_config)
         old_coll_id = manifest.get("collection", {}).get("id", "")
 
