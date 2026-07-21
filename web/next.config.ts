@@ -39,13 +39,8 @@ const nextConfig: NextConfig = {
     middlewareClientMaxBodySize: 100 * 1024 * 1024, // 100MB
   },
 
-  // Allow large file uploads for import
-  bodySizeLimit: 100 * 1024 * 1024, // 100MB
-
   // Will only be available on the server side
-  serverRuntimeConfig: {
-    bodySizeLimit: '100mb',
-  },
+  serverRuntimeConfig: {},
   // Will be available on both server and client
   publicRuntimeConfig: {},
 
