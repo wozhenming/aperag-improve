@@ -10,7 +10,8 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import _ from 'lodash';
-import { ArrowLeft, LoaderCircle } from 'lucide-react';
+import { ArrowLeft, FileText, LoaderCircle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
@@ -33,7 +34,10 @@ export const DocumentDetail = ({
   documentPreview: DocumentPreview;
 }) => {
   const { collection } = useCollectionContext();
+  const page_collections = useTranslations('page_collections');
   const [numPages, setNumPages] = useState<number>(0);
+  const [chunks, setChunks] = useState<Array<{ chunk_id: string; content: string; title: string; chunk_size: number }>>([]);
+  const [loadingChunks, setLoadingChunks] = useState(false);
 
   const isPdf = useMemo(() => {
     return Boolean(documentPreview.doc_filename?.match(/\.pdf/));
@@ -91,6 +95,20 @@ export const DocumentDetail = ({
             <TabsList>
               <TabsTrigger value="markdown">Markdown</TabsTrigger>
               {isPdf && <TabsTrigger value="pdf">PDF</TabsTrigger>}
+              <TabsTrigger value="chunks" onClick={async () => {
+                if (chunks.length === 0) {
+                  setLoadingChunks(true);
+                  try {
+                    const resp = await fetch(`/api/v1/collections/${collection.id}/documents/${document.id}/chunks`);
+                    const data = await resp.json();
+                    setChunks(data.chunks || []);
+                  } catch { /* ignore */ }
+                  finally { setLoadingChunks(false); }
+                }
+              }}>
+                <FileText className="mr-1 h-4 w-4" />
+                {page_collections('chunks')} {chunks.length > 0 ? `(${chunks.length})` : ''}
+              </TabsTrigger>
             </TabsList>
           </div>
         </div>
@@ -129,6 +147,42 @@ export const DocumentDetail = ({
             </PDFDocument>
           </TabsContent>
         )}
+
+        <TabsContent value="chunks">
+          {loadingChunks ? (
+            <div className="flex flex-col py-8">
+              <LoaderCircle className="size-10 animate-spin self-center opacity-50" />
+            </div>
+          ) : chunks.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                {page_collections('no_chunks')}
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm text-muted-foreground">{chunks.length} {page_collections('chunks_total')}</p>
+              {chunks.map((chunk, idx) => (
+                <Card key={chunk.chunk_id || idx}>
+                  <CardContent className="py-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        #{idx + 1} {chunk.chunk_id}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {chunk.chunk_size} {page_collections('chars')}
+                      </span>
+                    </div>
+                    {chunk.title && (
+                      <p className="text-xs text-muted-foreground mb-1">{chunk.title}</p>
+                    )}
+                    <p className="text-sm whitespace-pre-wrap line-clamp-6">{chunk.content}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
     </>
   );

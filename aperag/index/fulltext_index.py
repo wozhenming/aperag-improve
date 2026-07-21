@@ -288,6 +288,23 @@ class FulltextIndexer(BaseIndexer):
             doc["parent_content"] = parent_content
         self.es.index(index=index, id=chunk_id, document=doc)
 
+    def get_document_chunks(self, index: str, document_id: str) -> List[dict]:
+        """Query all chunks for a document from Elasticsearch."""
+        try:
+            if not self.es.indices.exists(index=index).body:
+                return []
+            resp = self.es.search(
+                index=index,
+                body={"query": {"term": {"document_id": document_id}}, "size": 500, "sort": [{"chunk_id": "asc"}]},
+            )
+            return [{"chunk_id": h["_source"].get("chunk_id", ""),
+                     "content": h["_source"].get("content", "")[:2000],
+                     "title": h["_source"].get("title", ""),
+                     "chunk_size": len(h["_source"].get("content", ""))}
+                    for h in resp["hits"]["hits"]]
+        except Exception:
+            return []
+
     async def search_document(
         self, index: str, keywords: List[str], topk=3, chat_id: str = None
     ) -> List[DocumentWithScore]:

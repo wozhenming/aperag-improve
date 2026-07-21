@@ -330,6 +330,27 @@ async def get_document_preview(
 
 
 @router.get(
+    "/collections/{collection_id}/documents/{document_id}/chunks",
+    tags=["documents"],
+    operation_id="get_document_chunks",
+)
+async def get_document_chunks(
+    collection_id: str,
+    document_id: str,
+    user: User = Depends(required_user),
+):
+    """Get chunks for a document from Elasticsearch."""
+    from aperag.index.fulltext_index import fulltext_indexer
+
+    try:
+        index = str(collection_id)
+        chunks = fulltext_indexer.get_document_chunks(index, document_id)
+        return {"chunks": chunks}
+    except Exception:
+        return {"chunks": []}
+
+
+@router.get(
     "/collections/{collection_id}/documents/{document_id}/object",
     tags=["documents"],
     operation_id="get_document_object",
