@@ -185,6 +185,10 @@ def import_collection_task(self, import_task_id, target_embedding_model="", expo
         )
         logger.info(f"Import task {import_task_id}: COMPLETED, collection={new_coll_id}")
 
+        # Trigger immediate index reconciliation for the new collection
+        from config.celery_tasks import reconcile_indexes_task
+        reconcile_indexes_task.delay()
+
     except Exception as exc:
         logger.exception(f"Import task {import_task_id}: FAILED with exception: {exc}")
         _update(status=ImportTaskStatus.FAILED, error_message=str(exc))

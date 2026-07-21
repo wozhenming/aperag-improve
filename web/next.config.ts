@@ -35,10 +35,17 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: '100mb',
     },
+    // Allow large file uploads through middleware/rewrite
+    middlewareClientMaxBodySize: 100 * 1024 * 1024, // 100MB
   },
 
+  // Allow large file uploads for import
+  bodySizeLimit: 100 * 1024 * 1024, // 100MB
+
   // Will only be available on the server side
-  serverRuntimeConfig: {},
+  serverRuntimeConfig: {
+    bodySizeLimit: '100mb',
+  },
   // Will be available on both server and client
   publicRuntimeConfig: {},
 
