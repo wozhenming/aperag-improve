@@ -66,10 +66,10 @@ class ImportService:
 
         task = await self.db_ops._execute_query(_create)
 
-        from config.celery_tasks import import_collection_task
+        from config.import_tasks import import_collection_task
 
         import_collection_task.delay(
-            str(task.id),
+            import_task_id=str(task.id),
             target_embedding_model=target_embedding_model,
             export_type=export_type,
         )
@@ -131,7 +131,7 @@ class ImportService:
             )
 
         if action == "reindex":
-            from config.celery_tasks import import_collection_reindex_task
+            from config.import_tasks import import_collection_reindex_task
 
             async def _start(session):
                 t = await session.get(ImportTask, task.id)
@@ -142,7 +142,7 @@ class ImportService:
                     session.commit()
 
             await self.db_ops._execute_query(_start)
-            import_collection_reindex_task.delay(str(task.id))
+            import_collection_reindex_task.delay(import_task_id=str(task.id))
             return view_models.ImportTaskResponse(
                 task_id=str(task.id),
                 status="PROCESSING",

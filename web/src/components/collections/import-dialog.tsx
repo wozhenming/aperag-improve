@@ -391,8 +391,8 @@ export const CollectionImport = () => {
                 )}
               </div>
 
-              {/* Match/Mismatch indicator */}
-              {manifest?.embedding_model && selectedModel && (
+              {/* Match/Mismatch indicator — only for full export */}
+              {isFull && manifest?.embedding_model && selectedModel && (
                 <div className={[
                   'flex items-start gap-2 rounded-md p-3 text-sm',
                   modelMatch ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-800',
