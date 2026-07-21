@@ -183,6 +183,9 @@ def import_collection_task(self, import_task_id, target_embedding_model="", targ
                         _update_doc_object_path(new_doc, obj_path, get_sync_session, Document)
                         with open(fp, "rb") as sf:
                             store.put(obj_path, sf)
+                        # Update document size from the actual file
+                        file_sz = _os.path.getsize(fp)
+                        _update_doc_size(new_doc, file_sz, get_sync_session, Document)
                         file_count += 1
         logger.info(f"Import task {import_task_id}: copied {file_count} source files")
 
@@ -312,6 +315,14 @@ def _create_doc(collection_id, user_id, name, get_sync_session, Document, utc_no
                         status=DocumentStatus.PENDING, size=0, doc_metadata="{}", object_path=""))
         s.commit()
     return did
+
+
+def _update_doc_size(doc_id, size, get_sync_session, Document):
+    from sqlalchemy import update as sql_update
+
+    for s in get_sync_session():
+        s.execute(sql_update(Document).where(Document.id == doc_id).values(size=size))
+        s.commit()
 
 
 def _update_doc_object_path(doc_id, object_path, get_sync_session, Document):
