@@ -1123,7 +1123,7 @@ def _create_coll(user_id, title, get_sync_session, Collection, utc_now) -> str:
     from aperag.db.models import CollectionStatus
     cid = f"col{_uuid.uuid4().hex[:16]}"
     for s in get_sync_session():
-        s.add(Collection(id=cid, user=user_id, title=title, status=CollectionStatus.ACTIVE, config="{}"))
+        s.add(Collection(id=cid, user=user_id, title=title, type="document", status=CollectionStatus.ACTIVE, config="{}"))
         s.commit()
     return cid
 
