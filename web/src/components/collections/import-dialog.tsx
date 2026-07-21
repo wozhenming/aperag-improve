@@ -60,19 +60,63 @@ async function parseManifest(file: File): Promise<ManifestInfo | null> {
     const buf = await file.arrayBuffer();
     const view = new DataView(buf);
     const decoder = new TextDecoder();
-    let pos = 0;
-    while (pos < buf.byteLength - 30) {
+    const u8 = new Uint8Array(buf);
+
+    // Find end-of-central-directory record (EOCD) at end of file
+    // The EOCD signature is 0x06054b50
+    let eocdOffset = -1;
+    const maxSearch = Math.min(65557, buf.byteLength); // EOCD max size (65535 + 22)
+    for (let i = buf.byteLength - 22; i >= buf.byteLength - maxSearch && i >= 0; i--) {
+      if (view.getUint32(i, true) === 0x06054b50) {
+        eocdOffset = i;
+        break;
+      }
+    }
+    if (eocdOffset < 0) return null; // No valid ZIP
+
+    const cdOffset = view.getUint32(eocdOffset + 16, true); // central directory offset
+    const cdSize = view.getUint32(eocdOffset + 12, true);
+
+    // Scan central directory entries
+    let pos = cdOffset;
+    const cdEnd = cdOffset + cdSize;
+    while (pos + 46 <= cdEnd) {
       const sig = view.getUint32(pos, true);
-      if (sig !== 0x04034b50) { pos++; continue; }
-      const comp = view.getUint16(pos + 10, true);
-      view.getUint32(pos + 14, true);  // crc (unused)
-      const nameLen = view.getUint16(pos + 26, true);
-      const extraLen = view.getUint16(pos + 28, true);
-      const compSize = view.getUint32(pos + 18, true);
-      const name = decoder.decode(new Uint8Array(buf, pos + 30, nameLen));
-      const dataStart = pos + 30 + nameLen + extraLen;
-      if (name === 'manifest.json' && compSize < 100000 && comp === 0) {
-        const manifest = JSON.parse(decoder.decode(new Uint8Array(buf, dataStart, compSize)));
+      if (sig !== 0x02014b50) break;
+      const nameLen = view.getUint16(pos + 28, true);
+      const extraLen = view.getUint16(pos + 30, true);
+      const commentLen = view.getUint16(pos + 32, true);
+      const localOffset = view.getUint32(pos + 42, true);
+      const name = decoder.decode(u8.slice(pos + 46, pos + 46 + nameLen));
+
+      if (name === 'manifest.json') {
+        // Read from local file header
+        const lhNameLen = view.getUint16(localOffset + 26, true);
+        const lhExtraLen = view.getUint16(localOffset + 28, true);
+        const compSize = view.getUint32(localOffset + 18, true);
+        const compMethod = view.getUint16(localOffset + 8, true);
+        const dataStart = localOffset + 30 + lhNameLen + lhExtraLen;
+
+        if (compSize > 100000) return null; // Too large
+
+        let jsonBytes: Uint8Array;
+        if (compMethod === 0) {
+          // Stored (uncompressed)
+          jsonBytes = u8.slice(dataStart, dataStart + compSize);
+        } else if (compMethod === 8) {
+          // Deflate compressed — use browser API
+          const compressed = u8.slice(dataStart, dataStart + compSize);
+          const ds = new DecompressionStream('deflate-raw');
+          const writer = ds.writable.getWriter();
+          writer.write(compressed);
+          writer.close();
+          const decompressed = await new Response(ds.readable).arrayBuffer();
+          jsonBytes = new Uint8Array(decompressed);
+        } else {
+          return null; // Unknown compression method
+        }
+
+        const manifest = JSON.parse(decoder.decode(jsonBytes));
         return {
           export_type: manifest.export_type || 'basic',
           embedding_model: manifest.embedding_model,
@@ -82,7 +126,7 @@ async function parseManifest(file: File): Promise<ManifestInfo | null> {
           document_count: (manifest.documents || []).length,
         };
       }
-      pos = dataStart + compSize;
+      pos += 46 + nameLen + extraLen + commentLen;
     }
   } catch { /* ignore */ }
   return null;
