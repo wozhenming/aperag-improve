@@ -16,7 +16,7 @@ logger = get_task_logger(__name__)
 
 
 @app.task(bind=True, soft_time_limit=55 * 60, time_limit=60 * 60)
-def import_collection_task(self, import_task_id, target_embedding_model="", export_type="basic"):
+def import_collection_task(self, import_task_id, target_embedding_model="", target_completion_model="", export_type="basic"):
     """Celery task: import a ZIP (basic or full export) and restore the knowledge base."""
     logger.info(f"Import task {import_task_id}: STARTING (type={export_type}, model={target_embedding_model})")
 
@@ -108,10 +108,13 @@ def import_collection_task(self, import_task_id, target_embedding_model="", expo
 
         _update(progress=15, message=f"Import: detected {detected_type} export, creating collection...")
 
-        # Create new collection with target embedding model in config
-        coll_config = "{}"
+        # Create new collection with target models in config
+        config_dict = {}
         if target_embedding_model:
-            coll_config = _json.dumps({"embedding": {"model": target_embedding_model}})
+            config_dict["embedding"] = {"model": target_embedding_model}
+        if target_completion_model:
+            config_dict["completion"] = {"model": target_completion_model}
+        coll_config = _json.dumps(config_dict) if config_dict else "{}"
         new_coll_id = _create_coll(user_id, collection_title, get_sync_session, Collection, utc_now, coll_config)
         old_coll_id = manifest.get("collection", {}).get("id", "")
 

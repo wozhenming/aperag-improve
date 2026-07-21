@@ -403,8 +403,10 @@
     "import_doc_count": "Documents",
     "import_export_model": "Export Embedding Model",
     "import_target_model": "Target Embedding Model",
+    "import_target_completion_model": "Target Completion Model (LLM)",
     "import_loading_models": "Loading models...",
     "import_select_model": "Select embedding model",
+    "import_select_completion_model": "Select completion model",
     "import_model_match": "Models match! Vector data can be restored directly.",
     "import_model_mismatch": "Models do not match. Indexes will be rebuilt with the selected model.",
     "import_force_warning": "Risk: selecting a different embedding model will discard vector data and require full re-indexing. This consumes API quota."

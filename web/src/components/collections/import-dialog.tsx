@@ -141,7 +141,9 @@ export const CollectionImport = () => {
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [, setUploading] = useState(false);
   const [embeddingOptions, setEmbeddingOptions] = useState<EmbeddingOption[]>([]);
+  const [completionOptions, setCompletionOptions] = useState<EmbeddingOption[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
+  const [selectedCompletionModel, setSelectedCompletionModel] = useState('');
   const [loadingModels, setLoadingModels] = useState(false);
   const router = useRouter();
   const t = useTranslations('page_collections');
@@ -194,10 +196,26 @@ export const CollectionImport = () => {
         });
       });
       setEmbeddingOptions(opts);
-      // Auto-select default embedding model
       const def = opts.find((o: any) => o.model?.toLowerCase()?.includes('default'));
       if (!def && opts.length > 0) setSelectedModel(opts[0].model);
       else if (def) setSelectedModel(def.model);
+
+      // Also load completion models
+      const cOpts: EmbeddingOption[] = [];
+      items.forEach((p: any) => {
+        (p.completion || []).forEach((m: any) => {
+          cOpts.push({
+            label: `${p.label} / ${m.label || m.model}`,
+            name: p.name,
+            model: m.model || m.name,
+            provider: p.name,
+          });
+        });
+      });
+      setCompletionOptions(cOpts);
+      const cDef = cOpts.find((o: any) => o.model?.toLowerCase()?.includes('default'));
+      if (!cDef && cOpts.length > 0) setSelectedCompletionModel(cOpts[0].model);
+      else if (cDef) setSelectedCompletionModel(cDef.model);
     } catch { /* ignore */ }
     finally { setLoadingModels(false); }
   }, [embeddingOptions]);
@@ -244,6 +262,7 @@ export const CollectionImport = () => {
       formData.append('file', file);
       formData.append('collection_title', manifest?.collection_title || file.name.replace('.zip', ''));
       if (selectedModel) formData.append('target_embedding_model', selectedModel);
+      if (selectedCompletionModel) formData.append('target_completion_model', selectedCompletionModel);
       if (manifest?.export_type) formData.append('export_type', manifest.export_type);
 
       const resp = await fetch('/api/v1/collections/import', { method: 'POST', body: formData });
@@ -382,7 +401,30 @@ export const CollectionImport = () => {
                     </SelectTrigger>
                     <SelectContent>
                       {embeddingOptions.map((opt) => (
-                        <SelectItem key={`${opt.provider}/${opt.model}`} value={opt.model}>
+                        <SelectItem key={`emb-${opt.provider}/${opt.model}`} value={opt.model}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+
+              {/* Target completion model selection */}
+              <div className="flex flex-col gap-2">
+                <Label>{t('import_target_completion_model')}</Label>
+                {loadingModels ? (
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                    <LoaderCircle className="h-4 w-4 animate-spin" /> {t('import_loading_models')}
+                  </div>
+                ) : (
+                  <Select value={selectedCompletionModel} onValueChange={setSelectedCompletionModel}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={t('import_select_completion_model')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {completionOptions.map((opt) => (
+                        <SelectItem key={`comp-${opt.provider}/${opt.model}`} value={opt.model}>
                           {opt.label}
                         </SelectItem>
                       ))}

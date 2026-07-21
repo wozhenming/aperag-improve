@@ -33,7 +33,8 @@ class ImportService:
 
     async def create_import_task(
         self, user_id: str, zip_path: str, collection_title: str,
-        target_embedding_model: str = "", export_type: str = "basic",
+        target_embedding_model: str = "", target_completion_model: str = "",
+        export_type: str = "basic",
     ) -> view_models.ImportTaskResponse:
         from sqlalchemy import func
 
@@ -71,6 +72,7 @@ class ImportService:
         import_collection_task.delay(
             import_task_id=str(task.id),
             target_embedding_model=target_embedding_model,
+            target_completion_model=target_completion_model,
             export_type=export_type,
         )
 
