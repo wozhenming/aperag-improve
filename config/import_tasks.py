@@ -134,14 +134,18 @@ def import_collection_task(self, import_task_id, target_embedding_model="", targ
 
         # Copy source files to object store and set document object_path
         _update(progress=35, message="Import: copying source files...")
-        source_dir = _os.path.join(temp_dir, "source")
-        if _os.path.exists(source_dir):
-            store = get_object_store()
-            file_count = 0
-            for root, _dirs, files in _os.walk(source_dir):
+        store = get_object_store()
+        file_count = 0
+        # Source files may be at root (basic export) or under source/ (full export)
+        for search_root in [temp_dir, _os.path.join(temp_dir, "source")]:
+            if not _os.path.exists(search_root):
+                continue
+            for root, _dirs, files in _os.walk(search_root):
                 for filename in files:
+                    if filename in ("manifest.json", "README.txt"):
+                        continue
                     fp = _os.path.join(root, filename)
-                    rel = _os.path.relpath(fp, source_dir)
+                    rel = _os.path.relpath(fp, search_root)
                     # rel is like "{old_doc_id}/parsed.md"
                     parts = rel.split("/", 1)
                     old_doc = parts[0]
@@ -153,7 +157,7 @@ def import_collection_task(self, import_task_id, target_embedding_model="", targ
                         with open(fp, "rb") as sf:
                             store.put(obj_path, sf)
                         file_count += 1
-            logger.info(f"Import task {import_task_id}: copied {file_count} source files")
+        logger.info(f"Import task {import_task_id}: copied {file_count} source files")
 
         _update(progress=45, message="Import: creating index records...")
         _create_indexes(doc_id_map, get_sync_session, DocumentIndex, DocumentIndexType, DocumentIndexStatus)
