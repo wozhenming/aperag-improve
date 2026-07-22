@@ -309,7 +309,8 @@ class FulltextIndexer(BaseIndexer):
             chunks = [{"chunk_id": h["_source"].get("chunk_id", ""),
                        "content": h["_source"].get("content", "")[:2000],
                        "title": h["_source"].get("title", ""),
-                       "chunk_size": len(h["_source"].get("content", ""))}
+                       "chunk_size": len(h["_source"].get("content", "")),
+                       "enabled": h["_source"].get("enabled", True)}
                       for h in resp["hits"]["hits"]]
             return {"chunks": chunks, "total": total, "page": page, "page_size": page_size}
         except Exception:
@@ -318,6 +319,17 @@ class FulltextIndexer(BaseIndexer):
     def delete_chunk(self, index: str, chunk_id: str):
         """Delete a single chunk from Elasticsearch by chunk_id."""
         self.es.delete(index=index, id=chunk_id)
+
+    def toggle_chunk_enabled(self, index: str, chunk_id: str) -> bool:
+        """Toggle chunk enabled state. Returns the new enabled state."""
+        try:
+            doc = self.es.get(index=index, id=chunk_id)
+            current = doc["_source"].get("enabled", True)
+            new_val = not current
+            self.es.update(index=index, id=chunk_id, body={"doc": {"enabled": not current}})
+            return new_val
+        except Exception:
+            return True
 
     async def search_document(
         self, index: str, keywords: List[str], topk=3, chat_id: str = None

@@ -50,5 +50,11 @@ export interface CollectionUpdate {
      * @memberof CollectionUpdate
      */
     'source'?: CollectionSource;
+    /**
+     *
+     * @type {string}
+     * @memberof CollectionUpdate
+     */
+    'status'?: string;
 }
 

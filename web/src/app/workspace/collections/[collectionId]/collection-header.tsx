@@ -29,6 +29,8 @@ import {
   Calendar,
   Download,
   EllipsisVertical,
+  Eye,
+  EyeOff,
   Files,
   FlaskConical,
   History,
@@ -52,7 +54,7 @@ export const CollectionHeader = ({ className }: { className?: string }) => {
     INACTIVE: 'bg-red-500',
     DELETED: 'bg-gray-500',
   };
-  const { collection, share, loadShare } = useCollectionContext();
+  const { collection, share, loadShare, loadCollection } = useCollectionContext();
   const pathname = usePathname();
   const page_collections = useTranslations('page_collections');
   const page_documents = useTranslations('page_documents');
@@ -171,6 +173,21 @@ export const CollectionHeader = ({ className }: { className?: string }) => {
                   </>
                 )}
 
+                <DropdownMenuItem onClick={async () => {
+                  const newStatus = collection.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+                  await apiClient.defaultApi.collectionsCollectionIdPut({
+                    collectionId: collection.id || '',
+                    collectionUpdate: { status: newStatus },
+                  });
+                  loadCollection();
+                }}>
+                  {collection.status === 'ACTIVE' ? (
+                    <><EyeOff className="mr-2 h-4 w-4" /> {page_collections('disable_collection')}</>
+                  ) : (
+                    <><Eye className="mr-2 h-4 w-4" /> {page_collections('enable_collection')}</>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <CollectionDelete>
                   <DropdownMenuItem variant="destructive">
                     <Trash /> {page_collections('delete_collection')}

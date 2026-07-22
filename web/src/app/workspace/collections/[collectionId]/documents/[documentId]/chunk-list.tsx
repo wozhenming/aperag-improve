@@ -13,15 +13,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { LoaderCircle, Search, Trash2 } from 'lucide-react';
+import { Eye, EyeOff, LoaderCircle, Search, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 interface Chunk {
   chunk_id: string;
   content: string;
   title: string;
   chunk_size: number;
+  enabled?: boolean;
 }
 
 const PAGE_SIZES = [10, 20, 50, 100];
@@ -73,6 +74,17 @@ export const ChunkList = ({
   const handleSearch = () => {
     setSearch(searchInput);
     load(1, pageSize, searchInput);
+  };
+
+  const handleToggle = async (e: React.MouseEvent, chunkId: string) => {
+    e.stopPropagation();
+    try {
+      await fetch(
+        `/api/v1/collections/${encodeURIComponent(collectionId)}/documents/${encodeURIComponent(documentId)}/chunks/${encodeURIComponent(chunkId)}/toggle`,
+        { method: 'POST' },
+      );
+      load(page, pageSize, search);
+    } catch { /* ignore */ }
   };
 
   const handleDelete = async (chunkId: string) => {
@@ -157,6 +169,11 @@ export const ChunkList = ({
               </span>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">{chunk.chunk_size} {page_collections('chars')}</span>
+                <Button variant="ghost" size="sm" className="h-6 w-6 p-0"
+                  title={chunk.enabled === false ? page_collections('chunk_disabled') : page_collections('chunk_enabled')}
+                  onClick={(e) => handleToggle(e, chunk.chunk_id)}>
+                  {chunk.enabled === false ? <EyeOff className="h-3.5 w-3.5 text-muted-foreground" /> : <Eye className="h-3.5 w-3.5 text-green-600" />}
+                </Button>
                 <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive"
                   onClick={(e) => { e.stopPropagation(); handleDelete(chunk.chunk_id); }}>
                   <Trash2 className="h-3.5 w-3.5" />
@@ -171,13 +188,13 @@ export const ChunkList = ({
 
       {/* Chunk detail dialog */}
       <Dialog open={!!detailChunk} onOpenChange={() => setDetailChunk(null)}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
           <DialogHeader>
             <DialogTitle className="text-sm font-mono">{detailChunk?.chunk_id}</DialogTitle>
           </DialogHeader>
           <div className="text-sm space-y-2">
             {detailChunk?.title && <p className="text-muted-foreground">{detailChunk.title}</p>}
-            <div className="bg-muted rounded-md p-3 whitespace-pre-wrap break-words max-h-[60vh] overflow-auto">
+            <div className="bg-muted rounded-md p-4 whitespace-pre-wrap break-words max-h-[70vh] overflow-auto">
               {detailChunk?.content}
             </div>
             <p className="text-xs text-muted-foreground">{detailChunk?.chunk_size} {page_collections('chars')}</p>

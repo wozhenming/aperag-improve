@@ -375,6 +375,28 @@ async def delete_document_chunk(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post(
+    "/collections/{collection_id}/documents/{document_id}/chunks/{chunk_id}/toggle",
+    tags=["documents"],
+    operation_id="toggle_document_chunk",
+)
+async def toggle_document_chunk(
+    collection_id: str,
+    document_id: str,
+    chunk_id: str,
+    user: User = Depends(required_user),
+):
+    """Toggle the enabled state of a chunk in Elasticsearch."""
+    from aperag.index.fulltext_index import fulltext_indexer
+
+    try:
+        index = str(collection_id)
+        enabled = fulltext_indexer.toggle_chunk_enabled(index, chunk_id)
+        return {"success": True, "enabled": enabled}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get(
     "/collections/{collection_id}/documents/{document_id}/object",
     tags=["documents"],
