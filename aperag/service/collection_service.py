@@ -222,7 +222,7 @@ class CollectionService:
             raise CollectionNotFoundException(collection_id)
 
         # Direct call to repository method, which handles its own transaction
-        config_str = dumpCollectionConfig(collection.config)
+        config_str = dumpCollectionConfig(collection.config) if collection.config else None
 
         updated_instance = await self.db_ops.update_collection_by_id(
             user=user,
@@ -230,6 +230,7 @@ class CollectionService:
             title=collection.title,
             description=collection.description,
             config=config_str,
+            status=collection.status,
         )
 
         await collection_summary_service.trigger_collection_summary_generation(updated_instance)

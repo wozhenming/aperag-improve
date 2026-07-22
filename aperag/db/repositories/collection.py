@@ -67,7 +67,8 @@ class AsyncCollectionRepositoryMixin(AsyncRepositoryProtocol):
         return await self.execute_with_transaction(_operation)
 
     async def update_collection_by_id(
-        self, user: str, collection_id: str, title: str, description: str, config: str
+        self, user: str, collection_id: str, title: str = None, description: str = None,
+        config: str = None, status: str = None,
     ) -> Optional[Collection]:
         """Update collection by ID"""
 
@@ -79,9 +80,14 @@ class AsyncCollectionRepositoryMixin(AsyncRepositoryProtocol):
             instance = result.scalars().first()
 
             if instance:
-                instance.title = title
-                instance.description = description
-                instance.config = config
+                if title is not None:
+                    instance.title = title
+                if description is not None:
+                    instance.description = description
+                if config is not None:
+                    instance.config = config
+                if status is not None:
+                    instance.status = status
                 session.add(instance)
                 await session.flush()
                 await session.refresh(instance)

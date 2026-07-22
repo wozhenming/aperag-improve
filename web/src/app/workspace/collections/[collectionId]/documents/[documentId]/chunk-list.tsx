@@ -78,13 +78,17 @@ export const ChunkList = ({
 
   const handleToggle = async (e: React.MouseEvent, chunkId: string) => {
     e.stopPropagation();
+    // Optimistic UI update
+    setChunks((prev) => prev.map((c) => c.chunk_id === chunkId ? { ...c, enabled: !c.enabled } : c));
     try {
       await fetch(
         `/api/v1/collections/${encodeURIComponent(collectionId)}/documents/${encodeURIComponent(documentId)}/chunks/${encodeURIComponent(chunkId)}/toggle`,
         { method: 'POST' },
       );
-      load(page, pageSize, search);
-    } catch { /* ignore */ }
+    } catch {
+      // Revert on failure
+      setChunks((prev) => prev.map((c) => c.chunk_id === chunkId ? { ...c, enabled: !c.enabled } : c));
+    }
   };
 
   const handleDelete = async (chunkId: string) => {
@@ -188,7 +192,7 @@ export const ChunkList = ({
 
       {/* Chunk detail dialog */}
       <Dialog open={!!detailChunk} onOpenChange={() => setDetailChunk(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+        <DialogContent className="sm:max-w-[90vw] lg:max-w-[80vw] max-h-[90vh] overflow-auto">
           <DialogHeader>
             <DialogTitle className="text-sm font-mono">{detailChunk?.chunk_id}</DialogTitle>
           </DialogHeader>

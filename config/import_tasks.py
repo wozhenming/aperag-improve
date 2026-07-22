@@ -436,7 +436,7 @@ def _restore_es(jsonl_path, collection_id, doc_id_map):
     if not es.indices.exists(index=index_name).body:
         from aperag.index.fulltext_index import create_index as _create_es_idx
 
-        _create_es_idx(es, index_name)
+        _create_es_idx(index_name)
     actions = []
     count = 0
     with open(jsonl_path, "r", encoding="utf-8") as f:
