@@ -530,7 +530,10 @@ class ParentChildRechunker:
                                                        tokenizer=self.tokenizer)
             else:
                 child_rechunker = Rechunker(self.child_chunk_size, self.child_chunk_overlap, self.tokenizer)
-                wrapper_parts = [Part(content=parent_content, metadata=parent_part.metadata.copy())]
+                # Strip cached "tokens" from parent metadata — it was counted with
+                # parent_chunk_size context and will mislead the child rechunker
+                child_meta = {k: v for k, v in parent_part.metadata.items() if k != "tokens"}
+                wrapper_parts = [Part(content=parent_content, metadata=child_meta)]
                 child_parts = child_rechunker._to_groups(wrapper_parts)
                 child_parts = child_rechunker._merge_consecutive_title_groups(child_parts)
                 child_parts = child_rechunker._rechunk(child_parts)
@@ -576,7 +579,9 @@ class ParentChildRechunker:
             # If the segment is too large for the embedding model, further split it
             if max_chunk_size > 0 and tokenizer is not None and len(tokenizer(segment)) > max_chunk_size:
                 sub_rechunker = Rechunker(max_chunk_size, chunk_overlap, tokenizer)
-                wrapper = [Part(content=segment, metadata=metadata)]
+                # Strip cached token count to avoid misleading the sub-rechunker
+                sub_meta = {k: v for k, v in metadata.items() if k != "tokens"}
+                wrapper = [Part(content=segment, metadata=sub_meta)]
                 sub_groups = sub_rechunker._to_groups(wrapper)
                 sub_groups = sub_rechunker._merge_consecutive_title_groups(sub_groups)
                 sub_parts = sub_rechunker._rechunk(sub_groups)

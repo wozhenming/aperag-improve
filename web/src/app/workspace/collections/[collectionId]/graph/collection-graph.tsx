@@ -371,6 +371,8 @@ export const CollectionGraph = ({
             const isActive = activeEntities.includes(key);
             //@ts-expect-error entity error
             const title = page_graph(`entity_${key}`);
+            // Fallback: if no translation exists, show the type name directly
+            const displayTitle = title.startsWith('entity_') ? key : title;
             return (
               <Badge
                 key={key}
@@ -392,7 +394,7 @@ export const CollectionGraph = ({
                   })
                 }
               >
-                {title} ({item.length})
+                {displayTitle} ({item.length})
               </Badge>
             );
           })}

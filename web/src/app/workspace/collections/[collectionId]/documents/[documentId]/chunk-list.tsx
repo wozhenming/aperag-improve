@@ -2,6 +2,9 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -39,6 +42,7 @@ export const ChunkList = ({
   const [searchInput, setSearchInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [jumpTo, setJumpTo] = useState('');
+  const [detailChunk, setDetailChunk] = useState<Chunk | null>(null);
   const didInit = useRef(false);
 
   const load = useCallback(
@@ -144,16 +148,17 @@ export const ChunkList = ({
 
       {/* Chunk list */}
       {!loading && chunks.map((chunk, idx) => (
-        <Card key={chunk.chunk_id}>
+        <Card key={chunk.chunk_id} className="cursor-pointer hover:bg-accent/30 transition-colors"
+          onClick={() => setDetailChunk(chunk)}>
           <CardContent className="py-3">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-muted-foreground">
+              <span className="text-xs font-medium text-muted-foreground" onClick={(e) => e.stopPropagation()}>
                 #{(page - 1) * pageSize + idx + 1} {chunk.chunk_id}
               </span>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">{chunk.chunk_size} {page_collections('chars')}</span>
                 <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive"
-                  onClick={() => handleDelete(chunk.chunk_id)}>
+                  onClick={(e) => { e.stopPropagation(); handleDelete(chunk.chunk_id); }}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -163,6 +168,22 @@ export const ChunkList = ({
           </CardContent>
         </Card>
       ))}
+
+      {/* Chunk detail dialog */}
+      <Dialog open={!!detailChunk} onOpenChange={() => setDetailChunk(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-mono">{detailChunk?.chunk_id}</DialogTitle>
+          </DialogHeader>
+          <div className="text-sm space-y-2">
+            {detailChunk?.title && <p className="text-muted-foreground">{detailChunk.title}</p>}
+            <div className="bg-muted rounded-md p-3 whitespace-pre-wrap break-words max-h-[60vh] overflow-auto">
+              {detailChunk?.content}
+            </div>
+            <p className="text-xs text-muted-foreground">{detailChunk?.chunk_size} {page_collections('chars')}</p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
