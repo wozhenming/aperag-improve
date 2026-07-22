@@ -808,6 +808,7 @@ class CollectionUpdate(BaseModel):
     description: Optional[str] = None
     config: Optional[CollectionConfig] = None
     source: Optional[CollectionSource] = None
+    status: Optional[str] = None
 
 
 class DocumentList(PaginatedResponse):
