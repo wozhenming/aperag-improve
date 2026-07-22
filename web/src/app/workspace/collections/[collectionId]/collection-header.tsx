@@ -41,7 +41,7 @@ import {
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { CollectionDelete } from './collection-delete';
@@ -54,8 +54,9 @@ export const CollectionHeader = ({ className }: { className?: string }) => {
     INACTIVE: 'bg-red-500',
     DELETED: 'bg-gray-500',
   };
-  const { collection, share, loadShare, loadCollection } = useCollectionContext();
+  const { collection, share, loadShare } = useCollectionContext();
   const pathname = usePathname();
+  const router = useRouter();
   const page_collections = useTranslations('page_collections');
   const page_documents = useTranslations('page_documents');
   const page_graph = useTranslations('page_graph');
@@ -179,7 +180,7 @@ export const CollectionHeader = ({ className }: { className?: string }) => {
                     collectionId: collection.id || '',
                     collectionUpdate: { status: newStatus },
                   });
-                  loadCollection();
+                  router.refresh();
                 }}>
                   {collection.status === 'ACTIVE' ? (
                     <><EyeOff className="mr-2 h-4 w-4" /> {page_collections('disable_collection')}</>
