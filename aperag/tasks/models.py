@@ -30,6 +30,7 @@ class TaskStatus(Enum):
     FAILED = "failed"
     RETRY = "retry"
     PARTIAL_SUCCESS = "partial_success"
+    SKIPPED = "skipped"
 
 
 @dataclass
