@@ -258,7 +258,15 @@ def create_index_task(self, document_id: str, index_type: str, parsed_data_dict:
         # Double-check: verify task is still valid
         skip_reason = _validate_task_relevance(document_id, index_type, target_version, DocumentIndexStatus.CREATING)
         if skip_reason:
-            return skip_reason
+            return {
+                "document_id": document_id,
+                "index_type": index_type,
+                "status": "skipped",
+                "success": True,
+                "data": None,
+                "error": None,
+                "message": skip_reason.get("reason", "Task skipped"),
+            }
 
         # Convert dict back to structured data
         parsed_data = ParsedDocumentData.from_dict(parsed_data_dict)
@@ -384,7 +392,15 @@ def update_index_task(self, document_id: str, index_type: str, parsed_data_dict:
         # Double-check: verify task is still valid
         skip_reason = _validate_task_relevance(document_id, index_type, target_version, DocumentIndexStatus.CREATING)
         if skip_reason:
-            return skip_reason
+            return {
+                "document_id": document_id,
+                "index_type": index_type,
+                "status": "skipped",
+                "success": True,
+                "data": None,
+                "error": None,
+                "message": skip_reason.get("reason", "Task skipped"),
+            }
 
         # Convert dict back to structured data
         parsed_data = ParsedDocumentData.from_dict(parsed_data_dict)
