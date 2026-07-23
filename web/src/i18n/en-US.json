@@ -424,6 +424,8 @@
     "import_incompatible_desc": "The embedding model in the ZIP does not match the current instance. Vectors cannot be restored directly.",
     "import_incompatible_hint": "You can either 'Re-index' to rebuild all indexes with the current embedding model (consumes API quota), or 'Cancel' the import.",
     "import_reindex_action": "Re-index",
+    "import_force_action": "Force Import",
+    "import_force_warning_short": "Force import will restore original vectors, but retrieval may be inaccurate due to model mismatch.",
     "import_continue": "Continue",
     "import_confirm_title": "Confirm Import",
     "import_confirm_desc": "Review import details and select a target embedding model.",

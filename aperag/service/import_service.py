@@ -158,6 +158,26 @@ class ImportService:
                 message="Re-indexing with target model...",
             )
 
+        if action == "force":
+            from config.import_tasks import import_collection_force_continue_task
+
+            async def _start(session):
+                t = await session.get(ImportTask, task.id)
+                if t:
+                    t.status = ImportTaskStatus.PROCESSING
+                    t.message = "Import: force importing with mismatched vectors..."
+                    t.progress = 55
+                    session.commit()
+
+            await self.db_ops._execute_query(_start)
+            import_collection_force_continue_task.delay(import_task_id=str(task.id))
+            return view_models.ImportTaskResponse(
+                task_id=str(task.id),
+                status="PROCESSING",
+                progress=55,
+                message="Force importing with original vectors (may not work correctly)...",
+            )
+
         raise HTTPException(status_code=400, detail=f"Unknown action: {action}")
 
 

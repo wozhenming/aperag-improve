@@ -293,7 +293,7 @@ export const CollectionImport = () => {
     }
   }, [file, manifest, selectedModel, startPolling, t]);
 
-  const handleContinue = useCallback(async (action: 'reindex' | 'cancel') => {
+  const handleContinue = useCallback(async (action: 'reindex' | 'cancel' | 'force') => {
     if (!status?.task_id) return;
     if (action === 'cancel') { setOpen(false); return; }
     setStep('processing');
@@ -511,9 +511,15 @@ export const CollectionImport = () => {
                 <DialogDescription>{status?.message || t('import_incompatible_desc')}</DialogDescription>
               </DialogHeader>
               <div className="bg-amber-50 rounded-md p-3 text-sm text-amber-800">{t('import_incompatible_hint')}</div>
-              <DialogFooter className="flex-col sm:flex-row gap-2">
-                <Button variant="outline" onClick={() => handleContinue('cancel')}>{t('cancel')}</Button>
-                <Button onClick={() => handleContinue('reindex')}>{t('import_reindex_action')}</Button>
+              <DialogFooter className="flex-col gap-2">
+                <div className="flex flex-row gap-2 justify-end">
+                  <Button variant="outline" onClick={() => handleContinue('cancel')}>{t('cancel')}</Button>
+                  <Button variant="destructive" onClick={() => handleContinue('force')}>{t('import_force_action')}</Button>
+                  <Button onClick={() => handleContinue('reindex')}>{t('import_reindex_action')}</Button>
+                </div>
+                <p className="text-xs text-muted-foreground text-right">
+                  {t('import_force_warning_short')}
+                </p>
               </DialogFooter>
             </>
           )}

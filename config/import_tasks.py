@@ -247,6 +247,65 @@ def import_collection_task(self, import_task_id, target_embedding_model="", targ
 
 
 @app.task(bind=True, soft_time_limit=55 * 60, time_limit=60 * 60)
+def import_collection_force_continue_task(self, import_task_id):
+    """Celery task: continue a paused import by force-restoring vectors as-is."""
+    logger.info(f"Force continue task {import_task_id}: STARTING")
+
+    from aperag.config import get_sync_session
+    from aperag.db.models import ImportTask, ImportTaskStatus
+    from aperag.utils.utils import utc_now
+
+    for session in get_sync_session():
+        r = session.execute(select(ImportTask).where(ImportTask.id == import_task_id))
+        t = r.scalars().first()
+        if not t:
+            return
+        zip_path = t.zip_path
+        collection_id = t.collection_id
+        t.status = ImportTaskStatus.PROCESSING
+        t.progress = 55
+        t.message = "Import: force restoring vectors..."
+        t.gmt_updated = utc_now()
+        session.commit()
+
+    if zip_path and _os.path.exists(zip_path):
+        temp_dir = _tempfile.mkdtemp(prefix=f"import_force_{import_task_id}_")
+        try:
+            with _zipfile.ZipFile(zip_path, "r") as zf:
+                zf.extractall(temp_dir)
+
+            # Restore Qdrant vectors as-is (ignoring embedding mismatch)
+            qf = _os.path.join(temp_dir, "qdrant.jsonl")
+            if _os.path.exists(qf):
+                _restore_qdrant(qf, collection_id)
+
+            # Restore ES documents
+            ef = _os.path.join(temp_dir, "es.jsonl")
+            if _os.path.exists(ef):
+                doc_id_map = {}  # We don't have this in the force path, skip ES restore
+                _restore_es(ef, collection_id, doc_id_map)
+
+            # Restore PG graph data
+            pg_dir = _os.path.join(temp_dir, "pg")
+            if _os.path.exists(pg_dir):
+                _restore_pg(pg_dir, collection_id, "")
+
+        finally:
+            _shutil.rmtree(temp_dir, ignore_errors=True)
+
+    for session in get_sync_session():
+        r = session.execute(select(ImportTask).where(ImportTask.id == import_task_id))
+        t = r.scalars().first()
+        if t:
+            t.status = ImportTaskStatus.COMPLETED
+            t.progress = 100
+            t.message = "Import complete (vectors force-restored, may not work correctly)."
+            t.gmt_completed = utc_now()
+            t.collection_id = collection_id
+            session.commit()
+
+
+@app.task(bind=True, soft_time_limit=55 * 60, time_limit=60 * 60)
 def import_collection_reindex_task(self, import_task_id):
     """Celery task: continue a paused import by triggering re-index."""
     logger.info(f"Reindex task {import_task_id}: STARTING")
