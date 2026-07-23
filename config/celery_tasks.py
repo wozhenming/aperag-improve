@@ -253,6 +253,13 @@ def create_index_task(self, document_id: str, index_type: str, parsed_data_dict:
     target_version = context.get(f'{index_type}_version')
 
     try:
+        # Check if indexing is paused globally
+        from aperag.service.setting_service import setting_service as _svc
+        if _svc.get_pause_indexing_sync():
+            logger.info(f"Indexing paused — skipping {index_type} for {document_id}")
+            return {"document_id": document_id, "index_type": index_type,
+                    "status": "skipped", "success": True, "data": None, "error": None,
+                    "message": "Indexing paused"}
         logger.info(f"Starting to create {index_type} index for document {document_id} (v{target_version})")
 
         # Double-check: verify task is still valid
@@ -387,6 +394,12 @@ def update_index_task(self, document_id: str, index_type: str, parsed_data_dict:
     target_version = context.get(f'{index_type}_version')
 
     try:
+        from aperag.service.setting_service import setting_service as _svc
+        if _svc.get_pause_indexing_sync():
+            logger.info(f"Indexing paused — skipping update {index_type} for {document_id}")
+            return {"document_id": document_id, "index_type": index_type,
+                    "status": "skipped", "success": True, "data": None, "error": None,
+                    "message": "Indexing paused"}
         logger.info(f"Starting to update {index_type} index for document {document_id} (v{target_version})")
 
         # Double-check: verify task is still valid

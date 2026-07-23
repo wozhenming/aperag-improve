@@ -27,6 +27,8 @@ router = APIRouter()
 @router.get("/settings", tags=["Settings"])
 async def get_settings(user: dict = Depends(required_user)):
     settings = await setting_service.get_all_settings()
+    # Always include pause status
+    settings["pause_indexing"] = await setting_service.get_pause_indexing()
     return settings
 
 
@@ -37,6 +39,20 @@ async def update_settings(
 ):
     await setting_service.update_settings(settings.model_dump())
     return Response(status_code=204)
+
+
+@router.post("/settings/toggle_pause_indexing", tags=["Settings"])
+async def toggle_pause_indexing(
+    user: dict = Depends(required_user),
+):
+    """Toggle pause/resume for document index building."""
+    current = await setting_service.get_pause_indexing()
+    await setting_service.set_pause_indexing(not current)
+    # When resuming, trigger reconciler immediately
+    if current:
+        from config.celery_tasks import reconcile_indexes_task
+        reconcile_indexes_task.delay()
+    return {"paused": not current}
 
 
 @router.post("/settings/test_mineru_token", tags=["Settings"])

@@ -313,6 +313,7 @@
     "page": "页",
     "enable_collection": "启用知识库",
     "disable_collection": "禁用知识库",
+    "toggle_pause_indexing": "暂停/恢复索引构建",
     "kg_entity_types_title": "实体类型",
     "kg_entity_types_desc": "知识图谱将提取这些类型的实体。用英文逗号分隔。",
     "kg_entity_types_placeholder": "输入实体类型，用英文逗号分隔，如：organization, person, geo",

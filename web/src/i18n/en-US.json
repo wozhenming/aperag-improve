@@ -309,6 +309,7 @@
     "page": "page",
     "enable_collection": "Enable Collection",
     "disable_collection": "Disable Collection",
+    "toggle_pause_indexing": "Pause/Resume Indexing",
     "chunk_enabled": "Enabled",
     "chunk_disabled": "Disabled",
     "kg_entity_types_title": "Entity Types",

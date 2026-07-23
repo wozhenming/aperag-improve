@@ -32,6 +32,7 @@ import {
   Eye,
   EyeOff,
   Files,
+  Pause,
   FlaskConical,
   History,
   MailQuestionMark,
@@ -187,6 +188,12 @@ export const CollectionHeader = ({ className }: { className?: string }) => {
                   ) : (
                     <><Eye className="mr-2 h-4 w-4" /> {page_collections('enable_collection')}</>
                   )}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={async () => {
+                  await fetch('/api/v1/settings/toggle_pause_indexing', { method: 'POST' });
+                  router.refresh();
+                }}>
+                  <Pause className="mr-2 h-4 w-4" /> {page_collections('toggle_pause_indexing')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <CollectionDelete>

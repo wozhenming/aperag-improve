@@ -244,6 +244,19 @@ class SettingService:
         val = self.get_all_settings_sync().get("preprocess_remove_urls_emails")
         return val if val is not None else False
 
+    # ── Pause indexing ──────────────────────────────────────────────────
+
+    async def get_pause_indexing(self) -> bool:
+        val = await self.get_setting("pause_indexing")
+        return bool(val) if val is not None else False
+
+    def get_pause_indexing_sync(self) -> bool:
+        val = self.get_all_settings_sync().get("pause_indexing")
+        return bool(val) if val is not None else False
+
+    async def set_pause_indexing(self, paused: bool):
+        await self.update_setting("pause_indexing", paused)
+
     # ── Bulk operations ──────────────────────────────────────────────────
 
     async def get_all_settings(self) -> dict:
