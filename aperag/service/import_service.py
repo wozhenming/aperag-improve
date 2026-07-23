@@ -126,6 +126,19 @@ class ImportService:
         if action == "cancel":
             async def _cancel(session):
                 t = await session.get(ImportTask, task.id)
+                if t and t.collection_id:
+                    # Clean up the partially created collection
+                    from sqlalchemy import delete
+
+                    from aperag.db.models import Collection, Document, DocumentIndex
+
+                    cid = t.collection_id
+                    await session.execute(delete(DocumentIndex).where(DocumentIndex.document_id.in_(
+                        select(Document.id).where(Document.collection_id == cid)
+                    )))
+                    await session.execute(delete(Document).where(Document.collection_id == cid))
+                    await session.execute(delete(Collection).where(Collection.id == cid))
+                    t.collection_id = None
                 if t:
                     t.status = ImportTaskStatus.FAILED
                     t.message = "Import cancelled by user."
