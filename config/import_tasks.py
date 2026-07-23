@@ -193,7 +193,7 @@ def import_collection_task(self, import_task_id, target_embedding_model="", targ
         _create_indexes(doc_id_map, get_sync_session, DocumentIndex, DocumentIndexType, DocumentIndexStatus)
 
         if detected_type == "full":
-            ok = _check_embedding_match(manifest)
+            ok = _check_embedding_match(manifest, target_embedding_model)
             if not ok:
                 logger.warning(f"Import task {import_task_id}: embedding mismatch, pausing")
                 exp_model = manifest.get("embedding_model", "?")
@@ -421,32 +421,36 @@ def _trigger_reindex(doc_id_map, get_sync_session):
         s.commit()
 
 
-def _check_embedding_match(manifest):
+def _check_embedding_match(manifest, target_model=""):
+    """Check if target embedding model matches the export model."""
+    export_model = manifest.get("embedding_model", "")
     export_dim = manifest.get("embedding_dim", 0)
-    if not export_dim:
-        return True
 
+    if not export_model or not export_dim:
+        return True  # No model info, assume compatible
+
+    # Compare model names directly
+    if target_model and target_model != export_model:
+        logger.warning(f"Model mismatch: export={export_model} vs target={target_model}")
+        return False
+
+    # Same name — also verify dimension via Qdrant
     try:
         import qdrant_client as qc
 
         from aperag.config import settings
 
         ctx = _json.loads(settings.vector_db_context)
-        client = qc.QdrantClient(
-            url=ctx.get("url", "http://localhost"),
-            port=ctx.get("port", 6333), timeout=5,
-        )
+        client = qc.QdrantClient(url=ctx.get("url","http://localhost"), port=ctx.get("port",6333), timeout=5)
         for c in client.get_collections().collections:
             try:
-                info = client.get_collection(c.name)
-                if info.config.params.vectors.size == export_dim:
+                if client.get_collection(c.name).config.params.vectors.size == export_dim:
                     return True
             except Exception:
                 pass
-        logger.warning(f"Embedding dim mismatch: export={export_dim}, no matching collection found")
         return False
     except Exception as e:
-        logger.warning(f"Could not verify embedding compatibility: {e}, assuming compatible")
+        logger.warning(f"Could not verify dim: {e}, assuming compatible")
         return True
 
 

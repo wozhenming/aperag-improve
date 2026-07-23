@@ -1067,7 +1067,7 @@ def import_collection_task(self, import_task_id: str, target_embedding_model: st
 
         if export_type == "full":
             # Check embedding model compatibility before restoring vectors
-            full_ok = _check_embedding_match(manifest)
+            full_ok = _check_embedding_match(manifest, target_embedding_model)
             if not full_ok:
                 logger.warning(
                     f"Import {import_task_id}: embedding model mismatch, "
@@ -1304,46 +1304,31 @@ def import_collection_reindex_task(self, import_task_id: str):
         session.commit()
 
 
-def _check_embedding_match(manifest: dict) -> bool:
-    """Check if the target instance's embedding model matches the export.
-
-    Returns True if vectors can be restored directly, False if re-index is needed.
-    """
+def _check_embedding_match(manifest: dict, target_model: str = "") -> bool:
+    """Check if target embedding model matches the export. Compares model names."""
+    export_model = manifest.get("embedding_model", "")
     export_dim = manifest.get("embedding_dim", 0)
-    if not export_dim:
-        return True  # No dimension info, assume compatible
-
+    if not export_model or not export_dim:
+        return True
+    if target_model and target_model != export_model:
+        logger.warning(f"Model mismatch: export={export_model} vs target={target_model}")
+        return False
+    # Same name — verify dimension in Qdrant
     try:
         import json as _json
 
-        from aperag.config import settings
-
-        ctx = _json.loads(settings.vector_db_context)
-        # Get target vector dimension by creating a test collection
         import qdrant_client as qc
 
-        client = qc.QdrantClient(
-            url=ctx.get("url", "http://localhost"),
-            port=ctx.get("port", 6333),
-            timeout=5,
-        )
-        # Check existing collections to find one with matching dim
-        collections = client.get_collections().collections
-        for c in collections:
+        from aperag.config import settings
+        ctx = _json.loads(settings.vector_db_context)
+        client = qc.QdrantClient(url=ctx.get("url","http://localhost"), port=ctx.get("port",6333), timeout=5)
+        for c in client.get_collections().collections:
             try:
-                info = client.get_collection(c.name)
-                target_dim = info.config.params.vectors.size
-                if target_dim == export_dim:
-                    return True  # Same dimension, vectors are compatible
+                if client.get_collection(c.name).config.params.vectors.size == export_dim:
+                    return True
             except Exception:
                 pass
-
-        # No matching collection found — different embedding model likely
-        logger.warning(
-            f"Embedding dimension mismatch: export={export_dim}, "
-            f"no matching collection found on target. Falling back to re-index."
-        )
         return False
     except Exception as e:
-        logger.warning(f"Could not verify embedding compatibility: {e}, assuming compatible")
-        return True  # If we can't check, assume it's OK
+        logger.warning(f"Could not verify dim: {e}, assuming compatible")
+        return True
