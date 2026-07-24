@@ -107,6 +107,7 @@ export const CollectionGraph = ({
       const res = await apiClient.graphApi.collectionsCollectionIdGraphsGet(
         {
           collectionId: params.collectionId,
+          maxNodes: 10000,
         },
         {
           timeout: 1000 * 20,

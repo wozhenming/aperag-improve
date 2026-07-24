@@ -560,8 +560,11 @@ async def _merge_nodes_and_edges_impl(
 
     # Process entities with fine-grained locking
     entity_count = 0
+    total_entities = len(all_nodes)
 
-    for entity_name, entities in all_nodes.items():
+    lightrag_logger.info(f"Merging {total_entities} entities...")
+
+    for i, (entity_name, entities) in enumerate(all_nodes.items()):
         # Create lock for this specific entity
         entity_lock = get_or_create_lock(f"entity:{entity_name}:{workspace}")
 
@@ -595,11 +598,16 @@ async def _merge_nodes_and_edges_impl(
                 await entity_vdb.upsert(vdb_data)
 
             entity_count += 1
+            if entity_count % 100 == 0 or entity_count == total_entities:
+                lightrag_logger.info(f"Entities merged: {entity_count}/{total_entities}")
 
     # Process relationships with fine-grained locking
     relation_count = 0
+    total_relations = len(all_edges)
 
-    for edge_key, edges in all_edges.items():
+    lightrag_logger.info(f"Merging {total_relations} relations...")
+
+    for i, (edge_key, edges) in enumerate(all_edges.items()):
         # Create lock for this specific relationship
         # Sort edge key to ensure consistent lock naming
         sorted_edge_key = tuple(sorted(edge_key))
@@ -638,6 +646,8 @@ async def _merge_nodes_and_edges_impl(
 
             if edge_data is not None:
                 relation_count += 1
+                if relation_count % 100 == 0 or relation_count == total_relations:
+                    lightrag_logger.info(f"Relations merged: {relation_count}/{total_relations}")
 
     return {"entity_count": entity_count, "relation_count": relation_count}
 

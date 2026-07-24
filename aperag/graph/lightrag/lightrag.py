@@ -528,7 +528,7 @@ class LightRAG:
 
         async def _process_component_with_semaphore(task_data):
             async with semaphore:
-                self.lightrag_logger.debug(
+                self.lightrag_logger.info(
                     f"Processing component {task_data['index'] + 1}/{task_data['total_components']} "
                     f"with {len(task_data['component'])} entities"
                 )
