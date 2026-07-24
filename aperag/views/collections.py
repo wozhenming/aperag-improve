@@ -24,6 +24,7 @@ from aperag.service.collection_service import collection_service
 from aperag.service.collection_summary_service import collection_summary_service
 from aperag.service.document_service import document_service
 from aperag.service.marketplace_service import marketplace_service
+from aperag.service.setting_service import setting_service
 from aperag.utils.audit_decorator import audit
 from aperag.views.auth import required_user
 
@@ -507,12 +508,16 @@ async def get_knowledge_graph_view(
     request: Request,
     collection_id: str,
     label: str = "*",
-    max_nodes: int = 1000,
+    max_nodes: int = Query(None, description="Maximum number of nodes to return, uses setting if not specified"),
     max_depth: int = 3,
     user: User = Depends(required_user),
 ):
     """Get knowledge graph - overview mode or subgraph mode"""
     from aperag.service.graph_service import graph_service
+
+    # Use setting as default if not specified by client
+    if max_nodes is None:
+        max_nodes = await setting_service.get_max_graph_nodes()
 
     # Validate parameters
     if not (1 <= max_nodes <= 10000):

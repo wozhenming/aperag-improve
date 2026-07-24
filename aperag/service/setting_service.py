@@ -173,6 +173,14 @@ class SettingService:
     def get_kg_entity_types_sync(self) -> list[str] | None:
         return self.get_all_settings_sync().get("kg_entity_types")
 
+    async def get_max_graph_nodes(self) -> int:
+        val = await self.get_setting("max_graph_nodes")
+        return val if val is not None else 1000
+
+    def get_max_graph_nodes_sync(self) -> int:
+        val = self.get_all_settings_sync().get("max_graph_nodes")
+        return val if val is not None else 1000
+
     # ── Cache configuration ──────────────────────────────────────────────
 
     async def get_cache_enabled(self) -> bool:

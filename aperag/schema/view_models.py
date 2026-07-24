@@ -1087,6 +1087,9 @@ class Settings(BaseModel):
     kg_entity_types: Optional[list[str]] = Field(
         None, description='Custom entity types for knowledge graph extraction'
     )
+    max_graph_nodes: Optional[int] = Field(
+        None, description='Maximum number of graph nodes to display (1-10000)'
+    )
     # Cache configuration
     cache_enabled: Optional[bool] = Field(None, description='Whether LLM cache is enabled')
     cache_ttl: Optional[int] = Field(None, description='Cache TTL in seconds')

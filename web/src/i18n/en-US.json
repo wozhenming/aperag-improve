@@ -38,6 +38,8 @@
     "kg_force_llm_summary_on_merge": "Force LLM Summary on Merge Threshold",
     "kg_entity_types": "Entity Types",
     "kg_entity_types_placeholder": "Enter entity type and press Enter to add",
+    "max_graph_nodes": "Max Display Nodes",
+    "hint_max_graph_nodes": "Maximum number of nodes displayed in the knowledge graph visualization. Higher values show more nodes but may degrade rendering performance. Range 1-10000",
 
     "parent_child_chunking": "Parent-Child Chunking",
     "parent_child_chunking_description": "When enabled, documents are split into large parent chunks (preserving context) and small child chunks (for precise matching). When a child chunk is matched during retrieval, the full parent chunk is returned as context.",

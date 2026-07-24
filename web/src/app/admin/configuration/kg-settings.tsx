@@ -55,6 +55,7 @@ const defaults = {
   kg_summary_max_tokens: 2000,
   kg_force_llm_summary_on_merge: 10,
   kg_entity_types: defaultEntityTypes,
+  max_graph_nodes: 1000,
 };
 
 export const KgSettings = ({
@@ -146,6 +147,11 @@ export const KgSettings = ({
             <HintLabel text={admin_config('kg_force_llm_summary_on_merge')} hint={admin_config('hint_kg_force_llm_summary_on_merge')} />
             <Input type="number" min={1} max={100} value={data.kg_force_llm_summary_on_merge}
               onChange={(e) => setData({ ...data, kg_force_llm_summary_on_merge: Number(e.currentTarget.value) })} />
+          </div>
+          <div className="flex flex-col gap-2">
+            <HintLabel text={admin_config('max_graph_nodes')} hint={admin_config('hint_max_graph_nodes')} />
+            <Input type="number" min={1} max={10000} value={data.max_graph_nodes}
+              onChange={(e) => setData({ ...data, max_graph_nodes: Number(e.currentTarget.value) })} />
           </div>
         </div>
 

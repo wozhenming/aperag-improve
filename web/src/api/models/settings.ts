@@ -123,6 +123,12 @@ export interface Settings {
      */
     'kg_entity_types'?: Array<string>;
     /**
+     * Maximum number of graph nodes to display (1-10000)
+     * @type {number}
+     * @memberof Settings
+     */
+    'max_graph_nodes'?: number;
+    /**
      * Whether LLM cache is enabled
      * @type {boolean}
      * @memberof Settings

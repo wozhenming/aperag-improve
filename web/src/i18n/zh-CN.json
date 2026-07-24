@@ -38,6 +38,8 @@
     "kg_force_llm_summary_on_merge": "合并时强制 LLM 摘要阈值",
     "kg_entity_types": "实体类型",
     "kg_entity_types_placeholder": "输入实体类型后按回车添加",
+    "max_graph_nodes": "图谱最大展示节点数",
+    "hint_max_graph_nodes": "前端知识图谱可视化时最多展示的节点数量。设置为更大值可看到更多节点，但渲染性能会下降。范围 1-10000",
 
     "parent_child_chunking": "父子分段",
     "parent_child_chunking_description": "启用后将文档切分为父块（大块保留上下文）和子块（小块精准匹配）。检索命中子块时返回完整父块内容作为上下文。",
