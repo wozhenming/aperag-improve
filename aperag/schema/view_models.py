@@ -832,6 +832,12 @@ class RebuildIndexesRequest(BaseModel):
     )
 
 
+class RebuildFailedIndexesRequest(BaseModel):
+    index_types: Optional[list[str]] = Field(
+        None, description='Types of indexes to rebuild. None = all types.'
+    )
+
+
 class VisionChunk(BaseModel):
     id: Optional[str] = None
     asset_id: Optional[str] = None

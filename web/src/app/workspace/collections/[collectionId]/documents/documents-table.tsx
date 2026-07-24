@@ -51,6 +51,7 @@ import { DocumentDelete } from './document-delete';
 import { DocumentIndexStatus } from './document-index-status';
 import { DocumentReBuildFailedIndex } from './document-rebuild-failed-index';
 import { DocumentReBuildIndex } from './document-rebuild-index';
+import { DocumentReBuildMulti } from './document-rebuild-multi';
 
 export function DocumentsTable({
   data,
@@ -371,6 +372,11 @@ export function DocumentsTable({
                   <FolderSync /> {page_documents('index_rebuild_failed')}
                 </DropdownMenuItem>
               </DocumentReBuildFailedIndex>
+              <DocumentReBuildMulti documents={data}>
+                <DropdownMenuItem>
+                  <FolderSync /> {page_documents('index_rebuild_multi')}
+                </DropdownMenuItem>
+              </DocumentReBuildMulti>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

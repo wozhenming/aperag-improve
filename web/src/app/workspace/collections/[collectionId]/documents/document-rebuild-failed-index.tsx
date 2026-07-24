@@ -1,17 +1,14 @@
 'use client';
 
+import { RebuildIndexesRequestIndexTypesEnum } from '@/api';
 import { useCollectionContext } from '@/components/providers/collection-provider';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+  Dialog, DialogContent, DialogDescription, DialogFooter,
+  DialogHeader, DialogTitle, DialogTrigger,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { apiClient } from '@/lib/api/client';
 import { Slot } from '@radix-ui/react-slot';
 import { useTranslations } from 'next-intl';
@@ -28,53 +25,58 @@ export const DocumentReBuildFailedIndex = ({
   const common_tips = useTranslations('common.tips');
   const common_action = useTranslations('common.action');
   const page_documents = useTranslations('page_documents');
-  const [visible, setVisible] = useState<boolean>(false);
+  const [visible, setVisible] = useState(false);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>(['VECTOR', 'FULLTEXT', 'GRAPH']);
   const router = useRouter();
 
-  const handleRebuild = async () => {
-    if (!collection.id) return;
-    const res =
-      await apiClient.defaultApi.collectionsCollectionIdRebuildFailedIndexesPost(
-        {
-          collectionId: collection.id,
-        },
-      );
+  const allTypes = Object.keys(RebuildIndexesRequestIndexTypesEnum);
 
-    if (res.data.code === '200') {
+  const handleRebuild = async () => {
+    if (!collection.id || selectedTypes.length === 0) return;
+    try {
+      await apiClient.defaultApi.collectionsCollectionIdRebuildFailedIndexesPost({
+        collectionId: collection.id,
+      });
       toast.success(page_documents('index_rebuild_failed_success'));
       setVisible(false);
       setTimeout(router.refresh, 300);
-    }
+    } catch { /* ignore */ }
   };
 
   return (
-    <AlertDialog open={visible} onOpenChange={() => setVisible(false)}>
-      <AlertDialogTrigger asChild>
-        <Slot
-          onClick={(e) => {
-            setVisible(true);
-            e.preventDefault();
-          }}
-        >
+    <Dialog open={visible} onOpenChange={setVisible}>
+      <DialogTrigger asChild>
+        <Slot onClick={(e) => { setVisible(true); e.preventDefault(); }}>
           {children}
         </Slot>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{common_tips('confirm')}</AlertDialogTitle>
-          <AlertDialogDescription>
-            {page_documents('index_rebuild_failed_confirm')}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => setVisible(false)}>
-            {common_action('cancel')}
-          </AlertDialogCancel>
-          <AlertDialogAction onClick={() => handleRebuild()}>
-            {common_action('continue')}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{common_tips('confirm')}</DialogTitle>
+          <DialogDescription>{page_documents('index_rebuild_failed_confirm')}</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-2">
+          <Label className="text-sm font-medium">{page_documents('index_rebuild_select_types')}</Label>
+          {allTypes.map((t) => (
+            <label key={t} className="flex items-center gap-2 cursor-pointer">
+              <Checkbox
+                checked={selectedTypes.includes(t)}
+                onCheckedChange={(checked) => {
+                  setSelectedTypes(checked
+                    ? [...selectedTypes, t]
+                    : selectedTypes.filter((x) => x !== t));
+                }}
+              />
+              <span className="text-sm">{t}</span>
+            </label>
+          ))}
+          <p className="text-xs text-muted-foreground mt-1">{page_documents('index_rebuild_failed_types_hint')}</p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setVisible(false)}>{common_action('cancel')}</Button>
+          <Button onClick={handleRebuild} disabled={selectedTypes.length === 0}>{common_action('continue')}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
