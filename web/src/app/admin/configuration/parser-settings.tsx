@@ -168,6 +168,29 @@ export const ParserSettings = ({
           </div>
         </CardHeader>
       </Card>
+
+      {/* ── PaddleOCR & Whisper card ── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{admin_config('ocr_asr_settings')}</CardTitle>
+          <CardDescription>{admin_config('ocr_asr_settings_description')}</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <HintLabel text={admin_config('paddleocr_host')} hint={admin_config('hint_paddleocr_host')} />
+            <Input placeholder="http://paddleocr:8866" value={data.paddleocr_host || ''}
+              onChange={(e) => setData({ ...data, paddleocr_host: e.currentTarget.value })} />
+          </div>
+          <div className="flex flex-col gap-2">
+            <HintLabel text={admin_config('whisper_host')} hint={admin_config('hint_whisper_host')} />
+            <Input placeholder="http://whisper:9000" value={data.whisper_host || ''}
+              onChange={(e) => setData({ ...data, whisper_host: e.currentTarget.value })} />
+          </div>
+        </CardContent>
+        <CardFooter className="justify-end">
+          <Button onClick={handleSave}>{common_action('save')}</Button>
+        </CardFooter>
+      </Card>
     </>
   );
 };

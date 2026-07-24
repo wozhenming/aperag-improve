@@ -41,15 +41,18 @@ class ImageParser(BaseParser):
         return SUPPORTED_EXTENSIONS
 
     def parse_file(self, path: Path, metadata: dict[str, Any] = {}, **kwargs) -> list[Part]:
-        if not settings.paddleocr_host:
+        from aperag.service.setting_service import setting_service
+        host = setting_service.get_paddleocr_host_sync() or settings.paddleocr_host
+        if not host:
             raise FallbackError("PADDLEOCR_HOST is not set")
 
-        content = self.read_image_text(path)
+        content = self.read_image_text(path, host)
         metadata = metadata.copy()
         metadata["md_source_map"] = [0, content.count("\n") + 1]
         return [TextPart(content=content, metadata=metadata)]
 
-    def read_image_text(self, path: Path) -> str:
+    def read_image_text(self, path: Path, host: str = None) -> str:
+        paddle_host = host or settings.paddleocr_host
         def image_to_base64(image_path: str):
             with Image.open(image_path) as image:
                 if image.mode == "RGBA":
@@ -62,7 +65,7 @@ class ImageParser(BaseParser):
 
         data = {"images": [image_to_base64(str(path))]}
         headers = {"Content-type": "application/json"}
-        url = settings.paddleocr_host + "/predict/ocr_system"
+        url = paddle_host + "/predict/ocr_system"
         r = requests.post(url=url, headers=headers, data=json.dumps(data))
         data = json.loads(r.text)
 

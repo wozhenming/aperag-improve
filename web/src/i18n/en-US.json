@@ -77,6 +77,12 @@
     "hint_mineru_api_token": "Official MinerU API token, valid for 14 days. Replace before expiry",
     "hint_use_doc_ray": "When enabled, use DocRay for document parsing with locally deployed advanced parsing service",
     "hint_use_markitdown": "When enabled, use MarkItDown to convert Word/Excel files to Markdown",
+    "ocr_asr_settings": "OCR / Speech Recognition",
+    "ocr_asr_settings_description": "Configure OCR and speech-to-text service URLs",
+    "paddleocr_host": "PaddleOCR Service URL",
+    "hint_paddleocr_host": "PaddleOCR service URL for image text extraction. Leave empty to skip OCR.",
+    "whisper_host": "Whisper Service URL",
+    "hint_whisper_host": "Whisper service URL for audio transcription. Leave empty to skip speech recognition.",
 
     "hint_max_bot_count": "Maximum number of bots a user can create",
     "hint_max_collection_count": "Maximum number of knowledge base collections a user can create",

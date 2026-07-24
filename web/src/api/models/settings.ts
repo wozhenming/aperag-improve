@@ -45,6 +45,18 @@ export interface Settings {
      */
     'use_markitdown'?: boolean;
     /**
+     * PaddleOCR service URL
+     * @type {string}
+     * @memberof Settings
+     */
+    'paddleocr_host'?: string;
+    /**
+     * Whisper service URL
+     * @type {string}
+     * @memberof Settings
+     */
+    'whisper_host'?: string;
+    /**
      * Chunk size for document parsing
      * @type {number}
      * @memberof Settings

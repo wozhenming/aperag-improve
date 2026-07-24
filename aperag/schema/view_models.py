@@ -1044,6 +1044,8 @@ class Settings(BaseModel):
     use_markitdown: Optional[bool] = Field(
         None, description='Whether to use MarkItDown'
     )
+    paddleocr_host: Optional[str] = Field(None, description='PaddleOCR service URL')
+    whisper_host: Optional[str] = Field(None, description='Whisper service URL')
     # Core chunking configuration
     chunk_size: Optional[int] = Field(
         None, description='Chunk size for document parsing'

@@ -40,15 +40,17 @@ class AudioParser(BaseParser):
         return SUPPORTED_EXTENSIONS
 
     def parse_file(self, path: Path, metadata: dict[str, Any] = {}, **kwargs) -> list[Part]:
-        if not settings.whisper_host:
+        from aperag.service.setting_service import setting_service
+        host = setting_service.get_whisper_host_sync() or settings.whisper_host
+        if not host:
             raise FallbackError("WHISPER_HOST is not set")
 
-        content = self.recognize_speech(path)
+        content = self.recognize_speech(path, host)
         metadata = metadata.copy()
         metadata["md_source_map"] = [0, content.count("\n") + 1]
         return [TextPart(content=content, metadata=metadata)]
 
-    def recognize_speech(self, path: Path) -> str:
+    def recognize_speech(self, path: Path, host: str = None) -> str:
         params = {
             "encode": "true",
             "task": "transcribe",
@@ -66,5 +68,5 @@ class AudioParser(BaseParser):
         # TODO: extract media metadata by using exiftool
 
         # Server: https://github.com/ahmetoner/whisper-asr-webservice
-        response = requests.post(settings.whisper_host + "/asr", params=params, files=files, headers=headers)
+        response = requests.post((host or settings.whisper_host) + "/asr", params=params, files=files, headers=headers)
         return response.text

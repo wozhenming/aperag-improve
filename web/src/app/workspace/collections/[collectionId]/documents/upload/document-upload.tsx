@@ -499,7 +499,7 @@ export const DocumentUpload = () => {
         maxFiles={1000}
         maxSize={100 * 1024 * 1024}
         className="w-full gap-4"
-        accept=".pdf,.doc,.docx,.txt,.md,.ppt,.pptx,.xls,.xlsx"
+        accept=".pdf,.doc,.docx,.txt,.md,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.bmp,.tiff,.tif,.mp3,.wav,.m4a,.flac,.ogg"
         value={realFiles}
         onValueChange={(files) => {
           const newDocs: DocumentsWithFile[] = [];

@@ -62,7 +62,24 @@ class SettingService:
         return await self.get_setting("use_markitdown") or True
 
     async def update_use_markitdown(self, use_markitdown: bool):
+
         await self.update_setting("use_markitdown", use_markitdown)
+
+    async def get_paddleocr_host(self) -> str:
+        val = await self.get_setting("paddleocr_host")
+        return val or ""
+
+    def get_paddleocr_host_sync(self) -> str:
+        val = self.get_all_settings_sync().get("paddleocr_host")
+        return val or ""
+
+    async def get_whisper_host(self) -> str:
+        val = await self.get_setting("whisper_host")
+        return val or ""
+
+    def get_whisper_host_sync(self) -> str:
+        val = self.get_all_settings_sync().get("whisper_host")
+        return val or ""
 
     # ── Core chunking configuration ──────────────────────────────────────
 

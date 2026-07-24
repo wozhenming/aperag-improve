@@ -79,6 +79,12 @@
     "hint_mineru_api_token": "MinerU 官方 API 令牌，有效期 14 天，到期前需更换",
     "hint_use_doc_ray": "开启后使用 DocRay 进行文档解析，支持本地部署的高级文档解析服务",
     "hint_use_markitdown": "开启后使用 MarkItDown 将 Word/Excel 等格式转为 Markdown",
+    "ocr_asr_settings": "OCR / 语音识别",
+    "ocr_asr_settings_description": "配置图片 OCR 和音频转文字服务地址",
+    "paddleocr_host": "PaddleOCR 服务地址",
+    "hint_paddleocr_host": "用于图片文字识别的 PaddleOCR 服务 URL。留空则不上传图片文件时不做 OCR 文字提取",
+    "whisper_host": "Whisper 服务地址",
+    "hint_whisper_host": "用于音频转文字的 Whisper 服务 URL。留空则不上传音频文件时不做语音识别",
 
     "hint_max_bot_count": "每个用户允许创建的机器人数量上限",
     "hint_max_collection_count": "每个用户允许创建的知识库集合数量上限",
