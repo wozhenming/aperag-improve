@@ -266,6 +266,8 @@ def _run_in_new_loop(coro: Awaitable) -> Any:
     loop = asyncio.new_event_loop()
     try:
         asyncio.set_event_loop(loop)
+        # Suppress LiteLLM logging worker queue errors when event loops change
+        loop.set_exception_handler(lambda _loop, _ctx: None)
         return loop.run_until_complete(coro)
     finally:
         try:
