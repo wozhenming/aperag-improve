@@ -184,6 +184,12 @@
     "duration": "持续时间",
     "start_time": "开始时间"
   },
+  "page_tasks": {
+    "metadata": {
+      "title": "任务监控",
+      "description": "查看 Celery 任务执行状态、Worker 信息以及各类索引进度"
+    }
+  },
   "page_auth": {
     "account": "我的账号",
     "administrator": "系统管理",
@@ -477,7 +483,10 @@
     "index_rebuild_select_all": "全选",
     "index_rebuild_deselect_all": "取消全选",
     "no_documents_found": "无文档",
-    "index_rebuild_tips": "您可以在“设置”中配置索引类型。",
+    "index_rebuild_tips": "您可以在\"设置\"中配置索引类型。",
+    "index_logs": "索引进度",
+    "no_index_logs": "暂无索引进度日志，上传文档并等待索引开始后查看",
+    "load_more": "加载更多",
     "index_rebuild_with": "已启动以下索引类型的重建：{types}",
     "delete_document": "删除文档",
     "delete_document_confirm": "此操作不可撤销。文件将被永久删除，相关数据将从我们的服务器中彻底移除。",

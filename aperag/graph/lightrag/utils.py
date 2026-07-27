@@ -664,7 +664,7 @@ class LightRAGLogger:
     def log_extraction_progress(self, current_chunk: int, total_chunks: int, entities_count: int, relations_count: int):
         """Log chunk extraction progress."""
         message = f"Chunk {current_chunk} of {total_chunks} extracted {entities_count} Ent + {relations_count} Rel"
-        self.debug(message)
+        self.info(message)
 
     def log_entity_merge(
         self, entity_name: str, total_fragments: int, new_fragments: int, is_llm_summary: bool = False

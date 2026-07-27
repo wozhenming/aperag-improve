@@ -51,6 +51,7 @@ from aperag.views.flow import router as flow_router
 from aperag.views.graph import router as graph_router
 from aperag.views.import_view import router as import_router
 from aperag.views.llm import router as llm_router
+from aperag.views.logs import router as logs_router
 from aperag.views.main import router as main_router
 from aperag.views.marketplace import router as marketplace_router
 from aperag.views.marketplace_collections import router as marketplace_collections_router
@@ -105,6 +106,7 @@ app.include_router(api_key_router, prefix="/api/v1")
 app.include_router(audit_router, prefix="/api/v1")  # Add audit router
 app.include_router(flow_router, prefix="/api/v1")
 app.include_router(llm_router, prefix="/api/v1")
+app.include_router(logs_router, prefix="/api/v1")
 app.include_router(graph_router, prefix="/api/v1")
 app.include_router(import_router, prefix="/api/v1")
 app.include_router(marketplace_router, prefix="/api/v1")  # Add marketplace router

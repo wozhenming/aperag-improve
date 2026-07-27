@@ -8,7 +8,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { BatteryMedium, Logs, MonitorCog, Package } from 'lucide-react';
+import { BatteryMedium, Logs, MonitorCog, Package, ServerCog } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -20,6 +20,7 @@ export const AdminSideBarMenu = () => {
   const admin_config = useTranslations('admin_config');
   const page_models = useTranslations('page_models');
   const page_audit_logs = useTranslations('page_audit_logs');
+  const page_tasks = useTranslations('page_tasks');
 
   return (
     <SidebarGroup>
@@ -66,6 +67,17 @@ export const AdminSideBarMenu = () => {
             >
               <Link href="/admin/configuration">
                 <MonitorCog /> {admin_config('metadata.title')}
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={pathname.match('/admin/tasks') !== null}
+            >
+              <Link href="/admin/tasks">
+                <ServerCog /> {page_tasks('metadata.title')}
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

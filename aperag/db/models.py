@@ -1192,6 +1192,24 @@ class ImportTask(Base):
     gmt_completed = Column(DateTime(timezone=True), nullable=True)
 
 
+class TaskLog(Base):
+    """Task execution log for Celery index tasks, persists to DB for frontend viewing."""
+
+    __tablename__ = "task_log"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    collection_id = Column(String(24), nullable=True, index=True)
+    document_id = Column(String(24), nullable=True, index=True)
+    index_type = Column(String(32), nullable=True)
+    level = Column(String(16), nullable=False)
+    message = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False, index=True)
+
+    __table_args__ = (
+        Index("idx_tasklog_coll_doc", "collection_id", "document_id"),
+    )
+
+
 class PromptTemplate(Base):
     __tablename__ = "prompt_template"
 
