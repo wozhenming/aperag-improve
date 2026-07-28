@@ -527,7 +527,8 @@ class ParentChildRechunker:
                 child_parts = self._split_by_separator(parent_content, self.child_separator,
                                                        max_chunk_size=self.child_chunk_size,
                                                        chunk_overlap=self.child_chunk_overlap,
-                                                       tokenizer=self.tokenizer)
+                                                       tokenizer=self.tokenizer,
+                                                       original_parts=[parent_part])
             else:
                 child_rechunker = Rechunker(self.child_chunk_size, self.child_chunk_overlap, self.tokenizer)
                 # Strip cached "tokens" from parent metadata — it was counted with
