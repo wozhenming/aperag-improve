@@ -547,6 +547,8 @@ async def get_chunk_preview(
     Designed for external projects to open via window.open() when users
     click citation markers like [1] [2].
     """
+    import json
+
     from fastapi.responses import HTMLResponse
 
     from aperag.db.ops import async_db_ops
@@ -561,7 +563,6 @@ async def get_chunk_preview(
 
     # 2. Try to find the chunk via ES (fulltext) or Qdrant (vector)
     chunk_content = ""
-    chunk_title = ""
     neighbor_chunks: list = []
 
     try:
@@ -575,7 +576,6 @@ async def get_chunk_preview(
         for i, ch in enumerate(chunks):
             if ch.get("chunk_id") == chunk_id:
                 chunk_content = ch.get("content", "")
-                chunk_title = ch.get("title", "")
                 # Get up to 2 chunks before and after for context
                 start = max(0, i - 2)
                 end = min(len(chunks), i + 3)
@@ -589,37 +589,53 @@ async def get_chunk_preview(
         pass
 
     # 3. Render HTML
-    title_html = f"<h3>{doc_name}</h3>" if not chunk_title else f"<h3>{doc_name} — {chunk_title}</h3>"
-    context_html = ""
-    if not neighbor_chunks and chunk_content:
-        context_html = f"<div style='margin:12px 0;padding:8px;border-radius:4px;background:#fef3c7;border-left:3px solid #f59e0b;font-size:14px;line-height:1.7;'>{chunk_content[:3000]}</div>"
+    import html as html_mod
+
+    # Build chunk data as JSON for client-side markdown rendering
+    chunks_json = []
     for nc in neighbor_chunks:
-        highlight = "background:#fef3c7;border-left:3px solid #f59e0b;padding-left:8px;" if nc["is_match"] else "opacity:0.7;"
-        context_html += f"<div style='margin:12px 0;padding:8px;border-radius:4px;{highlight}font-size:14px;line-height:1.7;'>{nc['content']}</div>"
+        chunks_json.append({
+            "is_match": nc["is_match"],
+            "content": nc["content"],
+        })
+    if not neighbor_chunks and chunk_content:
+        chunks_json.append({"is_match": True, "content": chunk_content})
+    chunks_json_str = json.dumps(chunks_json, ensure_ascii=False)
 
     html = f"""<!DOCTYPE html>
 <html lang="zh">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>引用原文 — {doc_name}</title>
+<title>引用原文 — {html_mod.escape(doc_name)}</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
   body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 860px; margin: 24px auto; padding: 0 20px; background: #fff; color: #1a1a1a; }}
   .meta {{ color: #6b7280; font-size: 13px; margin-bottom: 16px; }}
-  .meta code {{ background: #f3f4f6; padding: 1px 6px; border-radius: 3px; font-size: 12px; }}
   hr {{ border: none; border-top: 1px solid #e5e7eb; margin: 20px 0; }}
   .footer {{ color: #9ca3af; font-size: 12px; margin-top: 24px; }}
+  .chunk {{ margin:12px 0; padding:8px; border-radius:4px; font-size:14px; line-height:1.7; opacity:0.7; }}
+  .chunk.match {{ background:#fef3c7; border-left:3px solid #f59e0b; opacity:1; }}
+  .chunk h1,.chunk h2,.chunk h3 {{ font-size:1.1em; margin:0.5em 0 0.3em; }}
+  .chunk p {{ margin:0.3em 0; }}
+  .chunk ul,.chunk ol {{ margin:0.3em 0; padding-left:1.5em; }}
 </style>
 </head>
 <body>
-  {title_html}
-  <div class="meta">
-    <div>文档名：<strong>{doc_name}</strong></div>
-  </div>
+  <h3>{html_mod.escape(doc_name)}</h3>
+  <div class="meta"><div>文档名：<strong>{html_mod.escape(doc_name)}</strong></div></div>
   <hr>
-  {context_html if context_html else "<p style='color:#6b7280;'>未找到该 chunk 的原文内容</p>"}
-  <hr>
-  <div class="footer">Powered by ApeRAG</div>
+  <div id="chunks">{"" if chunks_json else '<p style="color:#6b7280;">未找到该 chunk 的原文内容</p>'}</div>
+  <script>
+  const chunks = {chunks_json_str};
+  const container = document.getElementById('chunks');
+  chunks.forEach(c => {{
+    const div = document.createElement('div');
+    div.className = 'chunk' + (c.is_match ? ' match' : '');
+    div.innerHTML = marked.parse(c.content);
+    container.appendChild(div);
+  }});
+  </script>
 </body>
 </html>"""
     return HTMLResponse(content=html)

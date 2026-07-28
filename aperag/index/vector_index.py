@@ -72,7 +72,6 @@ class VectorIndexer(BaseIndexer):
                 part.metadata["indexer"] = "vector"
                 part.metadata["document_id"] = document_id
                 part.metadata["collection_id"] = collection.id
-            logger.info(f"CITATION-DEBUG set doc={document_id} col={collection.id} on {len(doc_parts)} parts")
 
             # Determine chunking mode: parent-child or traditional flat
             use_parent_child = (
@@ -202,7 +201,6 @@ class VectorIndexer(BaseIndexer):
                 part.metadata["indexer"] = "vector"
                 part.metadata["document_id"] = document_id
                 part.metadata["collection_id"] = collection.id
-            logger.info(f"CITATION-DEBUG set doc={document_id} col={collection.id} on {len(doc_parts)} parts")
 
             # Determine chunking mode: parent-child or traditional flat
             use_parent_child = (

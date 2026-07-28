@@ -114,11 +114,6 @@ def create_embeddings_and_store(
             metadata["chunk_id"] = f"{metadata['document_id']}_{idx}"
         # 2.4 Create TextNode
         nodes.append(TextNode(text=text, metadata=metadata))
-        if idx == 0:
-            logger.info(
-                f"CITATION-DEBUG first node: doc={metadata.get('document_id')} "
-                f"col={metadata.get('collection_id')} chunk={metadata.get('chunk_id')}"
-            )
 
     # 3. Generate embeddings for text chunks
     texts = [node.get_content() for node in nodes]
