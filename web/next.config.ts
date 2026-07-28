@@ -33,10 +33,10 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   experimental: {
     serverActions: {
-      bodySizeLimit: '100mb',
+      bodySizeLimit: '5gb',
     },
     // Allow large file uploads through middleware/rewrite
-    middlewareClientMaxBodySize: 100 * 1024 * 1024, // 100MB
+    middlewareClientMaxBodySize: 5 * 1024 * 1024 * 1024, // 5GB
   },
 
   // Will only be available on the server side
