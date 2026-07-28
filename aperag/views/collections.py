@@ -543,14 +543,9 @@ async def get_chunk_preview(
     user: User = Depends(required_user),
 ):
     """
-    Return a simple HTML page showing a chunk's content in context.
-    Designed for external projects to open via window.open() when users
-    click citation markers like [1] [2].
+    Return JSON with the chunk's document name and raw content.
+    Designed for external projects to display when users click citation markers.
     """
-    import json
-
-    from fastapi.responses import HTMLResponse
-
     from aperag.db.ops import async_db_ops
     from aperag.index.fulltext_index import fulltext_indexer
 
@@ -559,83 +554,18 @@ async def get_chunk_preview(
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    doc_name = document.name
-
-    # 2. Try to find the chunk via ES (fulltext) or Qdrant (vector)
+    # 2. Try to find the chunk content via ES (fulltext)
     chunk_content = ""
-    neighbor_chunks: list = []
-
     try:
-        # Try ES fulltext index
         index_name = str(collection_id)
         all_chunks = fulltext_indexer.get_document_chunks(
             index_name, document_id, page=1, page_size=10000
         )
-        chunks = all_chunks.get("chunks", [])
-        # Find matching chunk_id and its neighbors
-        for i, ch in enumerate(chunks):
+        for ch in all_chunks.get("chunks", []):
             if ch.get("chunk_id") == chunk_id:
                 chunk_content = ch.get("content", "")
-                # Get up to 2 chunks before and after for context
-                start = max(0, i - 2)
-                end = min(len(chunks), i + 3)
-                neighbor_chunks = [
-                    {"idx": j, "content": chunks[j].get("content", "")[:1500],
-                     "is_match": j == i}
-                    for j in range(start, end)
-                ]
                 break
     except Exception:
         pass
 
-    # 3. Render HTML
-    import html as html_mod
-
-    # Build chunk data as JSON for client-side markdown rendering
-    chunks_json = []
-    for nc in neighbor_chunks:
-        chunks_json.append({
-            "is_match": nc["is_match"],
-            "content": nc["content"],
-        })
-    if not neighbor_chunks and chunk_content:
-        chunks_json.append({"is_match": True, "content": chunk_content})
-    chunks_json_str = json.dumps(chunks_json, ensure_ascii=False)
-
-    html = f"""<!DOCTYPE html>
-<html lang="zh">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>引用原文 — {html_mod.escape(doc_name)}</title>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<style>
-  body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 860px; margin: 24px auto; padding: 0 20px; background: #fff; color: #1a1a1a; }}
-  .meta {{ color: #6b7280; font-size: 13px; margin-bottom: 16px; }}
-  hr {{ border: none; border-top: 1px solid #e5e7eb; margin: 20px 0; }}
-  .footer {{ color: #9ca3af; font-size: 12px; margin-top: 24px; }}
-  .chunk {{ margin:12px 0; padding:8px; border-radius:4px; font-size:14px; line-height:1.7; opacity:0.7; }}
-  .chunk.match {{ background:#fef3c7; border-left:3px solid #f59e0b; opacity:1; }}
-  .chunk h1,.chunk h2,.chunk h3 {{ font-size:1.1em; margin:0.5em 0 0.3em; }}
-  .chunk p {{ margin:0.3em 0; }}
-  .chunk ul,.chunk ol {{ margin:0.3em 0; padding-left:1.5em; }}
-</style>
-</head>
-<body>
-  <h3>{html_mod.escape(doc_name)}</h3>
-  <div class="meta"><div>文档名：<strong>{html_mod.escape(doc_name)}</strong></div></div>
-  <hr>
-  <div id="chunks">{"" if chunks_json else '<p style="color:#6b7280;">未找到该 chunk 的原文内容</p>'}</div>
-  <script>
-  const chunks = {chunks_json_str};
-  const container = document.getElementById('chunks');
-  chunks.forEach(c => {{
-    const div = document.createElement('div');
-    div.className = 'chunk' + (c.is_match ? ' match' : '');
-    div.innerHTML = marked.parse(c.content);
-    container.appendChild(div);
-  }});
-  </script>
-</body>
-</html>"""
-    return HTMLResponse(content=html)
+    return {"document_name": document.name, "chunk_content": chunk_content}
