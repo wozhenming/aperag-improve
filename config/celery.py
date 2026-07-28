@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 from logging.config import dictConfig
 
 from celery import Celery
@@ -129,26 +128,10 @@ def setup_worker(**kwargs):
     # Configure logging for this worker process
     dictConfig(CELERY_LOGGING_CONFIG)
 
-    # Register DB-backed log handler so task logs are visible in frontend
-    try:
-        from aperag.tasks.log_handler import task_log_handler
-
-        # Attach to aperag logger and root logger
-        logging.getLogger("aperag").addHandler(task_log_handler)
-        logging.getLogger().addHandler(task_log_handler)
-    except Exception:
-        pass
-
 @worker_process_shutdown.connect
 def shutdown_worker(**kwargs):
     """Additional worker cleanup if needed"""
-    # Flush and close the DB log handler
-    try:
-        from aperag.tasks.log_handler import task_log_handler
-
-        task_log_handler.close()
-    except Exception:
-        pass
+    pass
 
 if __name__ == "__main__":
     app.start()

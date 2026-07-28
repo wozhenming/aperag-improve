@@ -68,18 +68,6 @@ class DocumentIndexTask:
         """
         logger.info(f"Creating {index_type} index for document {document_id}")
 
-        # Set log handler context so Celery logs are tagged with doc/collection info
-        try:
-            from aperag.tasks.log_handler import task_log_handler
-
-            task_log_handler.set_context(
-                collection_id=parsed_data.collection_id,
-                document_id=document_id,
-                index_type=index_type,
-            )
-        except Exception:
-            pass
-
         # Get collection
         from aperag.tasks.utils import get_document_and_collection
 
@@ -186,12 +174,6 @@ class DocumentIndexTask:
             error_msg = f"Failed to create {index_type} index: {str(e)}"
             logger.error(f"Document {document_id}: {error_msg}")
             return IndexTaskResult.failed_result(index_type=index_type, document_id=document_id, error=error_msg)
-        finally:
-            try:
-                from aperag.tasks.log_handler import task_log_handler
-                task_log_handler.clear_context()
-            except Exception:
-                pass
 
     def delete_index(self, document_id: str, index_type: str) -> IndexTaskResult:
         """

@@ -13,10 +13,9 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import _ from 'lodash';
-import { ArrowLeft, FileText, LoaderCircle, ScrollText } from 'lucide-react';
+import { ArrowLeft, FileText, LoaderCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { ChunkList } from './chunk-list';
-import { DocumentLogViewer } from './document-log-viewer';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
@@ -40,7 +39,6 @@ export const DocumentDetail = ({
 }) => {
   const { collection } = useCollectionContext();
   const page_collections = useTranslations('page_collections');
-  const page_documents = useTranslations('page_documents');
   const [numPages, setNumPages] = useState<number>(0);
   const [mdPage, setMdPage] = useState(1);
   const [mdPageSize, setMdPageSize] = useState(50000); // ~50KB per page
@@ -115,10 +113,6 @@ export const DocumentDetail = ({
                 <FileText className="mr-1 h-4 w-4" />
                 {page_collections('chunks')}
               </TabsTrigger>
-              <TabsTrigger value="logs">
-                <ScrollText className="mr-1 h-4 w-4" />
-                {page_documents('index_logs')}
-              </TabsTrigger>
             </TabsList>
           </div>
         </div>
@@ -191,10 +185,6 @@ export const DocumentDetail = ({
 
         <TabsContent value="chunks">
           <ChunkList collectionId={collection.id || ''} documentId={document.id || ''} />
-        </TabsContent>
-
-        <TabsContent value="logs">
-          <DocumentLogViewer collectionId={collection.id || ''} documentId={document.id || ''} />
         </TabsContent>
       </Tabs>
     </>

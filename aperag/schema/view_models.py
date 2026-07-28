@@ -1120,24 +1120,6 @@ class Settings(BaseModel):
     )
 
 
-class TaskLogResponse(BaseModel):
-    """A single task log entry."""
-    id: int
-    collection_id: str | None = None
-    document_id: str | None = None
-    index_type: str | None = None
-    level: str
-    message: str
-    created_at: str  # ISO datetime
-
-
-class TaskLogListResponse(BaseModel):
-    """Paginated list of task log entries."""
-    logs: list[TaskLogResponse]
-    total: int
-    has_more: bool
-
-
 class PromptDetail(BaseModel):
     """
     Detailed prompt information with source and customization status

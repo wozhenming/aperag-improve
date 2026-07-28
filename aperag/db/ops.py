@@ -45,7 +45,6 @@ from aperag.db.repositories.setting import (
     SettingRepositoryMixin,
 )
 from aperag.db.repositories.system import AsyncSystemRepositoryMixin
-from aperag.db.repositories.task_log import TaskLogRepositoryMixin
 from aperag.db.repositories.user import AsyncUserRepositoryMixin
 
 logger = logging.getLogger(__name__)
@@ -59,7 +58,6 @@ class DatabaseOps(
     LightragRepositoryMixin,
     GraphRepositoryMixin,
     SettingRepositoryMixin,
-    TaskLogRepositoryMixin,
 ):
     pass
 

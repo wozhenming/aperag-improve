@@ -182,12 +182,6 @@
     "duration": "Duration",
     "start_time": "Start Time"
   },
-  "page_tasks": {
-    "metadata": {
-      "title": "Task Monitor",
-      "description": "Monitor Celery task execution status, worker info, and indexing progress"
-    }
-  },
   "page_auth": {
     "account": "Account",
     "administrator": "Administrator",
@@ -482,9 +476,6 @@
     "index_rebuild_deselect_all": "Deselect all",
     "no_documents_found": "No documents",
     "index_rebuild_tips": "You can configure the index types in Settings.",
-    "index_logs": "Index Logs",
-    "no_index_logs": "No indexing logs yet. Upload a document and wait for indexing to start.",
-    "load_more": "Load more",
     "index_rebuild_with": "Index rebuild initiated for types: {types}",
     "delete_document": "Delete document",
     "delete_document_confirm": "This action cannot be undone. This will permanently delete file and remove your data from our servers.",
