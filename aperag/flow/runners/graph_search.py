@@ -88,7 +88,7 @@ class GraphSearchService:
             text=context,
             metadata={
                 "recall_type": "graph_search",
-                "source": collection.name,
+                "source": collection.title,
                 "collection_id": collection.id,
             },
         )]
