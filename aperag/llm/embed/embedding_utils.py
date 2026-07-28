@@ -108,7 +108,7 @@ def create_embeddings_and_store(
             text = part.content
         # 2.3 Prepare metadata for the node
         metadata = part.metadata.copy()
-        metadata["source"] = metadata.get("name", "")
+        metadata["source"] = metadata.get("name") or metadata.get("document_name") or metadata.get("document_id", "")
         # Assign chunk_id if not already present (e.g. from parent-child rechunker)
         if "chunk_id" not in metadata and "document_id" in metadata:
             metadata["chunk_id"] = f"{metadata['document_id']}_{idx}"

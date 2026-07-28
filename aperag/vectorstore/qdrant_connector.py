@@ -78,8 +78,8 @@ class QdrantVectorStoreConnector(VectorStoreConnector):
             payload = scored_point.payload or {}
             text = scored_point.payload.get("text") or json.loads(payload["_node_content"]).get("text")
             metadata = payload.get("metadata") or json.loads(payload["_node_content"]).get("metadata")
-            # Try relationships fallback only if source is missing in metadata
-            if metadata.get("source") is None:
+            # Try relationships fallback if source is missing or empty (covers old index data)
+            if not metadata.get("source"):
                 try:
                     relationships = json.loads(payload["_node_content"]).get("relationships")
                     if relationships and relationships.get("1"):
