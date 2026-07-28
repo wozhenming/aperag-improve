@@ -532,3 +532,94 @@ async def get_knowledge_graph_view(
         raise HTTPException(status_code=404, detail="Collection not found")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/collections/{collection_id}/documents/{document_id}/chunk-preview", tags=["documents"])
+async def get_chunk_preview(
+    request: Request,
+    collection_id: str,
+    document_id: str,
+    chunk_id: str,
+    user: User = Depends(required_user),
+):
+    """
+    Return a simple HTML page showing a chunk's content in context.
+    Designed for external projects to open via window.open() when users
+    click citation markers like [1] [2].
+    """
+    from fastapi.responses import HTMLResponse
+
+    from aperag.db.ops import async_db_ops
+    from aperag.index.fulltext_index import fulltext_indexer
+
+    # 1. Get document info
+    document = await async_db_ops.query_document(str(user.id), collection_id, document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    doc_name = document.name
+
+    # 2. Try to find the chunk via ES (fulltext) or Qdrant (vector)
+    chunk_content = ""
+    chunk_title = ""
+    neighbor_chunks: list = []
+
+    try:
+        # Try ES fulltext index
+        index_name = str(collection_id)
+        all_chunks = fulltext_indexer.get_document_chunks(
+            index_name, document_id, page=1, page_size=10000
+        )
+        chunks = all_chunks.get("chunks", [])
+        # Find matching chunk_id and its neighbors
+        for i, ch in enumerate(chunks):
+            if ch.get("chunk_id") == chunk_id:
+                chunk_content = ch.get("content", "")
+                chunk_title = ch.get("title", "")
+                # Get up to 2 chunks before and after for context
+                start = max(0, i - 2)
+                end = min(len(chunks), i + 3)
+                neighbor_chunks = [
+                    {"idx": j, "content": chunks[j].get("content", "")[:1500],
+                     "is_match": j == i}
+                    for j in range(start, end)
+                ]
+                break
+    except Exception:
+        pass
+
+    # 3. Render HTML
+    title_html = f"<h3>{doc_name}</h3>" if not chunk_title else f"<h3>{doc_name} — {chunk_title}</h3>"
+    context_html = ""
+    if not neighbor_chunks and chunk_content:
+        context_html = f"<div style='margin:12px 0;padding:8px;border-radius:4px;background:#fef3c7;border-left:3px solid #f59e0b;font-size:14px;line-height:1.7;'>{chunk_content[:3000]}</div>"
+    for nc in neighbor_chunks:
+        highlight = "background:#fef3c7;border-left:3px solid #f59e0b;padding-left:8px;" if nc["is_match"] else "opacity:0.7;"
+        context_html += f"<div style='margin:12px 0;padding:8px;border-radius:4px;{highlight}font-size:14px;line-height:1.7;'>{nc['content']}</div>"
+
+    html = f"""<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>引用原文 — {doc_name}</title>
+<style>
+  body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 860px; margin: 24px auto; padding: 0 20px; background: #fff; color: #1a1a1a; }}
+  .meta {{ color: #6b7280; font-size: 13px; margin-bottom: 16px; }}
+  .meta code {{ background: #f3f4f6; padding: 1px 6px; border-radius: 3px; font-size: 12px; }}
+  hr {{ border: none; border-top: 1px solid #e5e7eb; margin: 20px 0; }}
+  .footer {{ color: #9ca3af; font-size: 12px; margin-top: 24px; }}
+</style>
+</head>
+<body>
+  {title_html}
+  <div class="meta">
+    <div>文档名：<strong>{doc_name}</strong></div>
+  </div>
+  <hr>
+  {context_html if context_html else "<p style='color:#6b7280;'>未找到该 chunk 的原文内容</p>"}
+  <hr>
+  <div class="footer">Powered by ApeRAG</div>
+</body>
+</html>"""
+    return HTMLResponse(content=html)

@@ -124,6 +124,7 @@ class FulltextIndexer(BaseIndexer):
             self._insert_chunk(
                 index_name, chunk_id, document_id, document_name, chunk_content, title_text, chunk_metadata,
                 parent_content=parent_content,
+                collection_id=collection.id,
             )
             chunk_count += 1
             total_content_length += len(chunk_content)
@@ -270,6 +271,7 @@ class FulltextIndexer(BaseIndexer):
         title_text: str = "",
         metadata: Dict[str, Any] = None,
         parent_content: str = None,
+        collection_id: str = None,
     ):
         """Insert a document chunk into the fulltext index"""
         if not self.es.indices.exists(index=index).body:
@@ -284,6 +286,8 @@ class FulltextIndexer(BaseIndexer):
             "title": title_text,
             "metadata": metadata or {},
         }
+        if collection_id:
+            doc["collection_id"] = collection_id
         if parent_content:
             doc["parent_content"] = parent_content
         self.es.index(index=index, id=chunk_id, document=doc)
@@ -364,6 +368,7 @@ class FulltextIndexer(BaseIndexer):
                     "source": source.get("name", ""),
                     "document_id": source.get("document_id"),
                     "chunk_id": source.get("chunk_id"),
+                    "collection_id": source.get("collection_id", ""),
                 }
 
                 # Add title if available

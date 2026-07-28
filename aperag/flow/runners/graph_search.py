@@ -84,7 +84,14 @@ class GraphSearchService:
             return []
 
         # Return documents with graph search metadata
-        return [DocumentWithScore(text=context, metadata={"recall_type": "graph_search"})]
+        return [DocumentWithScore(
+            text=context,
+            metadata={
+                "recall_type": "graph_search",
+                "source": collection.name,
+                "collection_id": collection.id,
+            },
+        )]
 
 
 @register_node_runner(

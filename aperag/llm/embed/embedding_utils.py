@@ -76,7 +76,7 @@ def create_embeddings_and_store(
         chunked_parts = rechunk(parts, chunk_size, chunk_overlap, tokenizer)
 
     # 2. Process each text chunk
-    for part in chunked_parts:
+    for idx, part in enumerate(chunked_parts):
         if not part.content:
             continue
 
@@ -109,6 +109,9 @@ def create_embeddings_and_store(
         # 2.3 Prepare metadata for the node
         metadata = part.metadata.copy()
         metadata["source"] = metadata.get("name", "")
+        # Assign chunk_id if not already present (e.g. from parent-child rechunker)
+        if "chunk_id" not in metadata and "document_id" in metadata:
+            metadata["chunk_id"] = f"{metadata['document_id']}_{idx}"
         # 2.4 Create TextNode
         nodes.append(TextNode(text=text, metadata=metadata))
 

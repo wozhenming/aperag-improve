@@ -65,11 +65,13 @@ class VectorIndexer(BaseIndexer):
             # Filter out non-text parts
             doc_parts = [part for part in doc_parts if hasattr(part, "content") and part.content]
 
-            # Add indexer metadata to parts for proper identification
+            # Add indexer and document identifiers to part metadata
             for part in doc_parts:
                 if not hasattr(part, "metadata"):
                     part.metadata = {}
                 part.metadata["indexer"] = "vector"
+                part.metadata["document_id"] = document_id
+                part.metadata["collection_id"] = collection.id
 
             # Determine chunking mode: parent-child or traditional flat
             use_parent_child = (
@@ -192,11 +194,13 @@ class VectorIndexer(BaseIndexer):
             # Filter out non-text parts
             doc_parts = [part for part in doc_parts if hasattr(part, "content") and part.content]
 
-            # Add indexer metadata to parts for proper identification
+            # Add indexer and document identifiers to part metadata
             for part in doc_parts:
                 if not hasattr(part, "metadata"):
                     part.metadata = {}
                 part.metadata["indexer"] = "vector"
+                part.metadata["document_id"] = document_id
+                part.metadata["collection_id"] = collection.id
 
             # Determine chunking mode: parent-child or traditional flat
             use_parent_child = (

@@ -78,11 +78,16 @@ class QdrantVectorStoreConnector(VectorStoreConnector):
             payload = scored_point.payload or {}
             text = scored_point.payload.get("text") or json.loads(payload["_node_content"]).get("text")
             metadata = payload.get("metadata") or json.loads(payload["_node_content"]).get("metadata")
-            # todo source phrase
-            relationships = json.loads(payload["_node_content"]).get("relationships")
-            if relationships is not None and metadata.get("source") is None:
-                source = relationships.get("1").get("metadata").get("source")
-                metadata["source"] = os.path.basename(source)
+            # Try relationships fallback only if source is missing in metadata
+            if metadata.get("source") is None:
+                try:
+                    relationships = json.loads(payload["_node_content"]).get("relationships")
+                    if relationships and relationships.get("1"):
+                        source = relationships["1"].get("metadata", {}).get("source")
+                        if source:
+                            metadata["source"] = os.path.basename(source)
+                except Exception:
+                    pass  # safe fallback, don't drop the result
 
             # When parent-child chunking is active, return the full parent content
             # for richer LLM context instead of the matched child chunk

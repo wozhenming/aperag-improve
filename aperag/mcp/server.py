@@ -201,6 +201,21 @@ async def search_collection(
                             if item.rank is not None:
                                 item.rank = i + 1
 
+                    # Inject citation HTML into each item's metadata so the LLM
+                    # can directly copy pre-built citation spans into its answer.
+                    if search_result.items:
+                        for item in search_result.items:
+                            if item.metadata is None:
+                                item.metadata = {}
+                            col_id = item.metadata.get("collection_id", "")
+                            doc_id = item.metadata.get("document_id", "")
+                            ck_id = item.metadata.get("chunk_id", "")
+                            r = item.rank or 0
+                            item.metadata["citation"] = (
+                                f'<span class="citation" data-collection="{col_id}" '
+                                f'data-document="{doc_id}" data-chunk="{ck_id}">{r}</span>'
+                            )
+
                     return search_result.model_dump()
                 except Exception as e:
                     logger.error(f"Failed to parse search response: {e}")
@@ -299,6 +314,21 @@ async def search_chat_files(
                         for i, item in enumerate(search_result.items):
                             if item.rank is not None:
                                 item.rank = i + 1
+
+                    # Inject citation HTML into each item's metadata so the LLM
+                    # can directly copy pre-built citation spans into its answer.
+                    if search_result.items:
+                        for item in search_result.items:
+                            if item.metadata is None:
+                                item.metadata = {}
+                            col_id = item.metadata.get("collection_id", "")
+                            doc_id = item.metadata.get("document_id", "")
+                            ck_id = item.metadata.get("chunk_id", "")
+                            r = item.rank or 0
+                            item.metadata["citation"] = (
+                                f'<span class="citation" data-collection="{col_id}" '
+                                f'data-document="{doc_id}" data-chunk="{ck_id}">{r}</span>'
+                            )
 
                     return search_result.model_dump()
                 except Exception as e:
