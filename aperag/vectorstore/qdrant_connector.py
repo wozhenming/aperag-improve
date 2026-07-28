@@ -78,6 +78,10 @@ class QdrantVectorStoreConnector(VectorStoreConnector):
             payload = scored_point.payload or {}
             text = scored_point.payload.get("text") or json.loads(payload["_node_content"]).get("text")
             metadata = payload.get("metadata") or json.loads(payload["_node_content"]).get("metadata")
+            # llama_index promotes some fields to top-level payload; merge them back
+            for key in ("document_id", "collection_id", "chunk_id"):
+                if key not in metadata and payload.get(key):
+                    metadata[key] = payload[key]
             # Try relationships fallback if source is missing or empty (covers old index data)
             if not metadata.get("source"):
                 try:
