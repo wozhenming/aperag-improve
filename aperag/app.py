@@ -14,6 +14,8 @@
 
 import os
 
+from fastapi.middleware.cors import CORSMiddleware
+
 from aperag.config import settings
 
 # Initialize OpenTelemetry FIRST - before any other imports
@@ -86,6 +88,15 @@ app = FastAPI(
 
 # Register global exception handlers
 register_exception_handlers(app)
+
+# CORS — allow external projects to call ApeRAG APIs
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 register_custom_llm_track()
 
