@@ -58,6 +58,14 @@ except ImportError:
 logging.getLogger("neo4j").setLevel(logging.ERROR)
 
 
+def _node_props(node: dict) -> dict:
+    """Extract node properties, including OWL structured data."""
+    props = dict(node)
+    if node.get("owl_properties"):
+        props["properties"] = node["owl_properties"]
+    return props
+
+
 @final
 @dataclass
 class Neo4JSyncStorage(BaseGraphStorage):
@@ -488,7 +496,7 @@ class Neo4JSyncStorage(BaseGraphStorage):
                                 KnowledgeGraphNode(
                                     id=node_id,
                                     labels=[entity_type] if entity_type else [node_id],
-                                    properties=dict(node),
+                                    properties=_node_props(node),
                                 )
                             )
                             seen_nodes.add(internal_id)
@@ -546,7 +554,7 @@ class Neo4JSyncStorage(BaseGraphStorage):
                                         KnowledgeGraphNode(
                                             id=node_id,
                                             labels=[entity_type] if entity_type else [node_id],
-                                            properties=dict(node),
+                                            properties=_node_props(node),
                                         )
                                     )
                                     seen_nodes.add(internal_id)

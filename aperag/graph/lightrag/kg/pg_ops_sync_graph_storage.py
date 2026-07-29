@@ -328,6 +328,10 @@ class PGOpsSyncGraphStorage(BaseGraphStorage):
                     if "entity_name" in node_data and node_data["entity_name"] != entity_id:
                         properties["entity_name"] = node_data["entity_name"]
 
+                    # Include OWL structured properties if present
+                    if node_data.get("owl_properties"):
+                        properties["properties"] = node_data["owl_properties"]
+
                     # Remove None values for cleaner output
                     properties = {k: v for k, v in properties.items() if v is not None}
 

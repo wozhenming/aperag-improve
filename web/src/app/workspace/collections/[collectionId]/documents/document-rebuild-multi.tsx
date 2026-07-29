@@ -100,7 +100,7 @@ export const DocumentReBuildMulti = ({
         </div>
 
         {/* File selection */}
-        <div>
+        <div className="w-full overflow-hidden">
           <Label className="text-sm font-medium flex items-center justify-between">
             {page_documents('index_rebuild_select_files')} ({selectedDocs.size}/{documents.length})
             <button className="text-xs underline" onClick={toggleAll}>

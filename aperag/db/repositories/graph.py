@@ -364,7 +364,7 @@ class GraphRepositoryMixin:
                     "description": node.description,
                     "source_id": node.source_id,
                     "file_path": node.file_path,
-                    "properties": node.properties,
+                    "owl_properties": node.properties,  # renamed to avoid clash with LightRAG's built-in "properties"
                     "created_at": int(node.createtime.timestamp()) if node.createtime else None,
                 }
 

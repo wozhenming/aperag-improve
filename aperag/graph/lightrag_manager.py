@@ -98,7 +98,12 @@ class LightRAGConfig:
 
 def _load_owl_schema(kg_config, collection_id: str):
     """Load and parse OWL ontology file if configured."""
-    if not kg_config or not kg_config.owl_file_path:
+    log = logging.getLogger(__name__)
+    if not kg_config:
+        log.info(f"OWL-DEBUG {collection_id}: kg_config is None")
+        return None
+    if not kg_config.owl_file_path:
+        log.info(f"OWL-DEBUG {collection_id}: owl_file_path is None/empty, kg_config keys={list(kg_config.model_dump().keys()) if hasattr(kg_config, 'model_dump') else 'N/A'}")
         return None
     try:
         import os
