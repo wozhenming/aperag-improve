@@ -8,7 +8,7 @@ volumes:
 
 services:
   # ==============================================
-  # Application Services (Default startup, excluded from infra)
+  # Application Services
   # ==============================================
   api: &api
     build:
@@ -34,14 +34,14 @@ services:
     environment:
       - DOCRAY_HOST=${DOCRAY_HOST}
     ports:
-      - "8000:8000"
+      - "8010:8000"  # 改为8010
     command: ["/app/scripts/entrypoint.sh", "/app/scripts/start-api.sh"]
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/health || curl -f http://localhost:8000/docs || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 12  # 12 * 10s = 120s (2 minutes)
-      start_period: 30s  # Give API time to start up before first check
+      retries: 12
+      start_period: 30s
 
   frontend:
     build:
@@ -58,7 +58,7 @@ services:
       - API_SERVER_ENDPOINT=http://api:8000
       - API_SERVER_BASE_PATH=/api/v1
     ports:
-      - "3000:3000"
+      - "3010:3000"  # 改为3010
 
   celeryworker:
     image: ${REGISTRY:-docker.io}/apecloud/aperag:${VERSION:-v0.0.0-nightly}
@@ -122,13 +122,13 @@ services:
       - .env
       - envs/docker.env.overrides
     ports:
-      - "5555:5555"
+      - "5556:5555"  # 改为5556
     environment:
       - NODE_IP=aperag-flower
     command: ["/app/scripts/entrypoint.sh", "/app/scripts/start-celery-flower.sh"]
 
   # ==============================================
-  # Infrastructure Services (always available)
+  # Infrastructure Services
   # ==============================================
   postgres:
     image: ${REGISTRY:-docker.io}/apecloud/pgvector:pg16
@@ -136,7 +136,7 @@ services:
     volumes:
       - aperag-postgres-data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5434:5432"  # 改为5434
     environment:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_USER=postgres
@@ -154,7 +154,7 @@ services:
     volumes:
       - aperag-redis-data:/data
     ports:
-      - "6379:6379"
+      - "6380:6379"  # 改为6380
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
       interval: 10s
@@ -168,7 +168,7 @@ services:
     volumes:
       - aperag-qdrant-data:/qdrant/storage
     ports:
-      - "6333:6333"
+      - "6334:6333"  # 改为6334
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 6333 || timeout 3 bash -c '</dev/tcp/localhost/6333' || exit 1"]
       interval: 10s
@@ -180,10 +180,10 @@ services:
     image: ${REGISTRY:-docker.io}/apecloud/elasticsearch:8.8.2
     container_name: aperag-es
     ports:
-      - "9200:9200"
+      - "9205:9200"  # 改为9205
     environment:
       - "discovery.type=single-node"
-      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - "ES_JAVA_OPTS=-Xms5g -Xmx5g"
       - "xpack.security.enabled=false"
     volumes:
       - aperag-es-data:/usr/share/elasticsearch/data
@@ -192,8 +192,8 @@ services:
       test: ["CMD-SHELL", "bash /usr/share/elasticsearch/bin/init-es.sh check"]
       interval: 10s
       timeout: 5s
-      retries: 12 # 12 * 10s = 120s (2 minutes)
-      start_period: 10s # Give ES some time to start up before first check
+      retries: 12
+      start_period: 10s
     command: bash /usr/share/elasticsearch/bin/init-es.sh
     restart: on-failure
 
@@ -202,10 +202,10 @@ services:
     container_name: aperag-jaeger
     ports:
       - "16686:16686"  # Jaeger UI
-      - "14268:14268"  # HTTP collector
-      - "14250:14250"  # gRPC collector
-      - "6831:6831/udp"  # UDP agent
-      - "6832:6832/udp"  # UDP agent
+      - "14269:14268"  # HTTP collector
+      - "14251:14250"  # gRPC collector
+      - "6831:6831/udp"
+      - "6832:6832/udp"
     environment:
       - COLLECTOR_OTLP_ENABLED=true
       - LOG_LEVEL=info
@@ -219,8 +219,8 @@ services:
     image: neo4j:5.26.5-enterprise
     container_name: aperag-neo4j
     ports:
-      - "7474:7474"  # HTTP
-      - "7687:7687"  # Bolt
+      - "7475:7474"  # HTTP
+      - "7688:7687"  # Bolt
     environment:
       - NEO4J_AUTH=neo4j/password
       - NEO4J_PLUGINS=["apoc"]
@@ -231,14 +231,14 @@ services:
     profiles: ["neo4j"]
 
   # ==============================================
-  # DocRay Services (existing profiles)
+  # DocRay Services
   # ==============================================
   docray:
     image: ${REGISTRY:-docker.io}/apecloud/doc-ray:${DOCRAY_VERSION:-v0.2.0}
     container_name: aperag-docray
     ports:
-      - "8265:8265"
-      - "8639:8639"
+      - "8266:8265"  # 改为8266
+      - "8640:8639"  # 改为8640
     profiles: ["docray"]
     environment:
       - STANDALONE_MODE=true
@@ -251,8 +251,8 @@ services:
     image: ${REGISTRY:-docker.io}/apecloud/doc-ray:${DOCRAY_VERSION:-v0.2.0}
     container_name: aperag-docray-gpu
     ports:
-      - "8265:8265"
-      - "8639:8639"
+      - "8267:8265"  # 改为8267
+      - "8641:8639"  # 改为8641
     profiles: ["docray-gpu"]
     environment:
       - STANDALONE_MODE=true

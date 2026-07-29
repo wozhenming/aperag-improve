@@ -1,0 +1,61 @@
+# 测试环境覆盖 — 与生产环境并存，端口与 .env.test 一致
+# 使用: docker compose -p aperag-test --env-file .env.test \
+#          -f docker-compose.yml -f docker-compose.test.yml up -d --build
+
+services:
+  api:
+    container_name: aperag-test-api
+    ports:
+      - "8001:8000"
+    env_file:
+      - .env.test
+      - envs/docker.env.test.overrides
+
+  frontend:
+    container_name: aperag-test-frontend
+    ports:
+      - "3001:3000"
+    env_file:
+      - web/deploy/env.test.local.template
+
+  celeryworker:
+    container_name: aperag-test-celeryworker
+    env_file:
+      - .env.test
+      - envs/docker.env.test.overrides
+
+  celerybeat:
+    container_name: aperag-test-celerybeat
+    env_file:
+      - .env.test
+      - envs/docker.env.test.overrides
+
+  flower:
+    container_name: aperag-test-flower
+    ports:
+      - "5556:5555"
+    env_file:
+      - .env.test
+      - envs/docker.env.test.overrides
+
+  postgres:
+    container_name: aperag-test-postgres
+    ports:
+      - "5435:5432"
+
+  redis:
+    container_name: aperag-test-redis
+    ports:
+      - "6381:6379"
+
+  qdrant:
+    container_name: aperag-test-qdrant
+    ports:
+      - "6335:6333"
+
+  es:
+    container_name: aperag-test-es
+    ports:
+      - "9206:9200"
+    environment:
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"  # 测试环境减半内存
