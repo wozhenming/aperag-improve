@@ -115,13 +115,6 @@ def parse_owl(file_path: str) -> OntologySchema:
                 ranges = _get_property_ranges(prop)
                 range_str = ranges[0] if ranges else "string"
 
-                # Deduplicate by (domain, name) pair
-                domain_key = tuple(sorted(domains)) if domains else ("*",)
-                dedup_key = (domain_key, prop_name)
-                if dedup_key in seen_data_props:
-                    continue
-                seen_data_props.add(dedup_key)
-
                 # Check if functional (single value)
                 is_func = False
                 try:
@@ -133,14 +126,25 @@ def parse_owl(file_path: str) -> OntologySchema:
 
                 if domains:
                     for domain_cls in domains:
+                        # Deduplicate by (class, name) pair
+                        dedup_key = (domain_cls, prop_name)
+                        if dedup_key in seen_data_props:
+                            continue
+                        seen_data_props.add(dedup_key)
+
                         if domain_cls not in schema.data_properties:
                             schema.data_properties[domain_cls] = []
                         schema.data_properties[domain_cls].append(dp)
                         if is_func:
                             if domain_cls not in schema.functional_properties:
                                 schema.functional_properties[domain_cls] = []
-                            schema.functional_properties[domain_cls].append(prop_name)
+                            if prop_name not in schema.functional_properties[domain_cls]:
+                                schema.functional_properties[domain_cls].append(prop_name)
                 else:
+                    dedup_key = ("*", prop_name)
+                    if dedup_key in seen_data_props:
+                        continue
+                    seen_data_props.add(dedup_key)
                     if "*" not in schema.data_properties:
                         schema.data_properties["*"] = []
                     schema.data_properties["*"].append(dp)

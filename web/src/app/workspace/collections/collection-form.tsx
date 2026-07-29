@@ -859,7 +859,17 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
                     <div key={cls} className="ml-2 mb-2">
                       <span className="font-medium text-xs">{cls}:</span>
                       <p className="text-muted-foreground text-xs">
-                        {props.map((p: { name: string; range: string }) => `${p.name}(${p.range})`).join(', ')}
+                        {(() => {
+                          const seen = new Set<string>();
+                          return props
+                            .filter((p: { name: string; range: string }) => {
+                              const k = `${p.name}|${p.range}`;
+                              if (seen.has(k)) return false;
+                              seen.add(k); return true;
+                            })
+                            .map((p: { name: string; range: string }) => `${p.name}(${p.range})`)
+                            .join(', ');
+                        })()}
                       </p>
                     </div>
                   ))}
