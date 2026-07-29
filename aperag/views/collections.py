@@ -618,7 +618,7 @@ async def get_owl_info(
                 content = content.decode("utf-8")
             # Strip &ontology; XML entities that owlready2 can't resolve
             content = content.replace("&ontology;", "")
-            with tempfile.NamedTemporaryFile(suffix=".owl", delete=False) as tmp:
+            with tempfile.NamedTemporaryFile(suffix=".owl", delete=False, mode="w", encoding="utf-8") as tmp:
                 tmp.write(content)
                 tmp.flush()
                 schema = parse_owl(tmp.name)

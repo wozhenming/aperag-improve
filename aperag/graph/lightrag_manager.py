@@ -109,19 +109,19 @@ def _load_owl_schema(kg_config, collection_id: str):
 
         store = get_object_store()
         owl_path = kg_config.owl_file_path
-        with tempfile.NamedTemporaryFile(suffix=".owl", delete=False) as tmp:
-            content = store.get(owl_path)
-            if hasattr(content, "read"):
-                content = content.read()
-            if isinstance(content, bytes):
-                content = content.decode("utf-8")
-            # Strip &ontology; XML entities
-            content = content.replace("&ontology;", "")
-            tmp.write(content.encode("utf-8"))
+        content = store.get(owl_path)
+        if hasattr(content, "read"):
+            content = content.read()
+        if isinstance(content, bytes):
+            content = content.decode("utf-8")
+        # Strip &ontology; XML entities
+        content = content.replace("&ontology;", "")
+        with tempfile.NamedTemporaryFile(suffix=".owl", delete=False, mode="w", encoding="utf-8") as tmp:
+            tmp.write(content)
             tmp.flush()
             schema = parse_owl(tmp.name)
-            os.unlink(tmp.name)
-            return schema if not schema.is_empty() else None
+        os.unlink(tmp.name)
+        return schema if not schema.is_empty() else None
     except Exception:
         logger = logging.getLogger(__name__)
         logger.warning(f"Failed to load OWL schema for collection {collection_id}", exc_info=True)
