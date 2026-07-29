@@ -78,7 +78,7 @@ export const DocumentReBuildMulti = ({
           {children}
         </Slot>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="sm:max-w-3xl max-w-[calc(100%-2rem)]">
         <DialogHeader>
           <DialogTitle>{page_documents('index_rebuild_multi_title')}</DialogTitle>
           <DialogDescription>{page_documents('index_rebuild_multi_desc')}</DialogDescription>
