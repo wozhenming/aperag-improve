@@ -607,10 +607,10 @@ async def get_owl_info(
             import os
             import tempfile
 
-            from aperag.objectstore.base import get_sync_object_store
+            from aperag.objectstore.base import get_object_store
             from aperag.ontology.parser import parse_owl
 
-            store = get_sync_object_store()
+            store = get_object_store()
             content = store.get(owl_path)
             if hasattr(content, "read"):
                 content = content.read()

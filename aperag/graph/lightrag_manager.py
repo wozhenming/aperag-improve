@@ -104,10 +104,10 @@ def _load_owl_schema(kg_config, collection_id: str):
         import os
         import tempfile
 
-        from aperag.objectstore.base import get_sync_object_store
+        from aperag.objectstore.base import get_object_store
         from aperag.ontology.parser import parse_owl
 
-        store = get_sync_object_store()
+        store = get_object_store()
         owl_path = kg_config.owl_file_path
         with tempfile.NamedTemporaryFile(suffix=".owl", delete=False) as tmp:
             content = store.get(owl_path)

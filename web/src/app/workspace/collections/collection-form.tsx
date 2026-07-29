@@ -42,8 +42,11 @@ import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
-import { FileText, Trash2 } from 'lucide-react';
+import { FileText, Trash2, Eye } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from '@/components/ui/dialog';
 import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 import * as z from 'zod';
@@ -308,6 +311,7 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
     data_properties_count: number;
     data_properties: Record<string, { name: string; range: string }[]>;
   } | null>(null);
+  const [owlDialogOpen, setOwlDialogOpen] = useState(false);
   const embeddingModelName = useWatch({
     control: form.control,
     name: 'config.embedding.model',
@@ -597,11 +601,10 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
                     </div>
                     <p className="text-xs text-muted-foreground">{page_collections('owl_override_hint')}</p>
                     {owlPreview && (
-                      <div className="grid gap-1 text-xs text-muted-foreground p-2 bg-muted rounded">
-                        <span>{page_collections('owl_classes')}: {owlPreview.classes_count} ({owlPreview.classes.slice(0, 8).join(', ')}{owlPreview.classes.length > 8 ? '...' : ''})</span>
-                        <span>{page_collections('owl_obj_props')}: {owlPreview.object_properties_count} ({owlPreview.object_properties.slice(0, 8).join(', ')}{owlPreview.object_properties.length > 8 ? '...' : ''})</span>
-                        <span>{page_collections('owl_data_props')}: {owlPreview.data_properties_count}</span>
-                      </div>
+                      <Button variant="outline" size="sm" type="button"
+                        onClick={() => setOwlDialogOpen(true)}>
+                        <Eye className="h-3 w-3 mr-1" /> {page_collections('owl_view_structure')}
+                      </Button>
                     )}
                   </>
                 ) : (
@@ -831,6 +834,41 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
           </div>
         </form>
       </Form>
+
+      {/* OWL Structure Dialog */}
+      <Dialog open={owlDialogOpen} onOpenChange={setOwlDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>{page_collections('owl_view_structure')}</DialogTitle>
+            <DialogDescription>{owlInfo}</DialogDescription>
+          </DialogHeader>
+          {owlPreview && (
+            <div className="flex flex-col gap-4 text-sm">
+              <div>
+                <h4 className="font-medium mb-1">{page_collections('owl_classes')} ({owlPreview.classes_count})</h4>
+                <p className="text-muted-foreground">{owlPreview.classes.join(', ')}</p>
+              </div>
+              <div>
+                <h4 className="font-medium mb-1">{page_collections('owl_obj_props')} ({owlPreview.object_properties_count})</h4>
+                <p className="text-muted-foreground">{owlPreview.object_properties.join(', ')}</p>
+              </div>
+              {Object.keys(owlPreview.data_properties).length > 0 && (
+                <div>
+                  <h4 className="font-medium mb-1">{page_collections('owl_data_props')} ({owlPreview.data_properties_count})</h4>
+                  {Object.entries(owlPreview.data_properties).map(([cls, props]) => (
+                    <div key={cls} className="ml-2 mb-2">
+                      <span className="font-medium text-xs">{cls}:</span>
+                      <p className="text-muted-foreground text-xs">
+                        {props.map((p: { name: string; range: string }) => `${p.name}(${p.range})`).join(', ')}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
