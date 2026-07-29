@@ -619,6 +619,9 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
                           form.setValue('config.knowledge_graph_config.owl_file_path', data.owl_file_path);
                           setOwlInfo(data.filename || f.name);
                           toast.success(page_collections('owl_upload_success'));
+                          // Fetch structure preview
+                          const prevRes = await axios.get(`${basePath}/api/v1/collections/${collection.id}/owl`);
+                          if (prevRes.data.preview) setOwlPreview(prevRes.data.preview);
                         } catch { toast.error(page_collections('owl_upload_error')); }
                       }}
                     />
