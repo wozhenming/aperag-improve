@@ -11,7 +11,6 @@ import {
 import { Label } from '@/components/ui/label';
 import { apiClient } from '@/lib/api/client';
 import { Slot } from '@radix-ui/react-slot';
-import { FolderSync } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -63,10 +62,10 @@ export const DocumentReBuildMulti = ({
       } catch { fail++; }
     }
     setRebuilding(false);
-    toast.success(  page_documents('index_rebuild_multi_done', {
-    ok: String(ok),
-    fail: String(fail)
-  }));
+    toast.success(page_documents('index_rebuild_multi_done', {
+      ok: String(ok),
+      fail: String(fail)
+    }));
     setVisible(false);
     setTimeout(router.refresh, 500);
   };
@@ -90,8 +89,10 @@ export const DocumentReBuildMulti = ({
           <div className="flex gap-4 mt-1">
             {allTypes.map((t) => (
               <label key={t} className="flex items-center gap-1.5 cursor-pointer text-sm">
-                <Checkbox checked={selectedTypes.includes(t)}
-                  onCheckedChange={(c) => setSelectedTypes(c ? [...selectedTypes, t] : selectedTypes.filter((x) => x !== t))} />
+                <Checkbox
+                  checked={selectedTypes.includes(t)}
+                  onCheckedChange={(c) => setSelectedTypes(c ? [...selectedTypes, t] : selectedTypes.filter((x) => x !== t))}
+                />
                 {t}
               </label>
             ))}
@@ -113,10 +114,15 @@ export const DocumentReBuildMulti = ({
               <p className="text-muted-foreground text-sm p-3">{page_documents('no_documents_found')}</p>
             )}
             {documents.map((doc) => (
-              <label key={doc.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-accent cursor-pointer text-sm border-b last:border-0 overflow-hidden">
-                <Checkbox checked={selectedDocs.has(doc.id || '')}
+              <label
+                key={doc.id}
+                className="flex items-center gap-2 px-3 py-1.5 hover:bg-accent cursor-pointer text-sm border-b last:border-0 overflow-hidden w-full"
+              >
+                <Checkbox
+                  checked={selectedDocs.has(doc.id || '')}
                   onCheckedChange={() => toggleDoc(doc.id || '')}
-                  className="shrink-0" />
+                  className="shrink-0"
+                />
                 <span className="truncate min-w-0 flex-1">{doc.name}</span>
                 <span className="text-muted-foreground text-xs shrink-0">{doc.id}</span>
               </label>
