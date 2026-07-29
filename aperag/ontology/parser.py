@@ -50,8 +50,12 @@ def parse_owl(file_path: str) -> OntologySchema:
     try:
         from owlready2 import Thing, get_ontology
 
-        # Pre-process OWL content to resolve XML entities not defined in a DTD
-        _resolve_owl_entities(file_path)
+        # Pre-process OWL content to resolve XML entities
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        content = _resolve_owl_entities(content)
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(content)
 
         onto = get_ontology(f"file://{file_path}").load()
 
@@ -149,19 +153,13 @@ def parse_owl(file_path: str) -> OntologySchema:
     return schema
 
 
-def _resolve_owl_entities(file_path: str):
+def _resolve_owl_entities(content: str) -> str:
     """
-    Pre-process an OWL file to resolve ALL XML entity references (&xxx;)
+    Pre-process OWL XML content to resolve ALL XML entity references (&xxx;)
     using their xmlns:xxx namespace declarations.
-
-    Protégé exports sometimes use entity references instead of namespace
-    prefixes. owlready2 can't resolve these without a DTD, so we inline
-    them here.
+    Returns the modified content string.
     """
     import re
-
-    with open(file_path, "r", encoding="utf-8") as f:
-        content = f.read()
 
     # Collect all xmlns:prefix="url" declarations
     ns_map: dict[str, str] = {}
@@ -176,15 +174,11 @@ def _resolve_owl_entities(file_path: str):
     # Find all &xxx; entity references
     entity_refs = set(re.findall(r"&([a-zA-Z_]\w*);", content))
 
-    changed = False
     for entity in entity_refs:
         if entity in ns_map:
             content = content.replace(f"&{entity};", ns_map[entity])
-            changed = True
 
-    if changed:
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(content)
+    return content
 
 
 def _get_property_domains(prop) -> list[str]:
