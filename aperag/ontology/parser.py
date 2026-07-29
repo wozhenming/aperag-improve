@@ -143,31 +143,38 @@ def parse_owl(file_path: str) -> OntologySchema:
 
 def _resolve_owl_entities(file_path: str):
     """
-    Pre-process an OWL file to resolve XML entity references like &ontology;
-    that are not backed by a DTD. Reads xmlns from the file and replaces
-    entity references with the expanded namespace.
+    Pre-process an OWL file to resolve ALL XML entity references (&xxx;)
+    using their xmlns:xxx namespace declarations.
+
+    Protégé exports sometimes use entity references instead of namespace
+    prefixes. owlready2 can't resolve these without a DTD, so we inline
+    them here.
     """
     import re
 
     with open(file_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    # Extract the default namespace from xmlns="..."
-    ns_match = re.search(r'xmlns="([^"]+)"', content)
-    if not ns_match:
-        return
-    base_ns = ns_match.group(1)  # e.g. http://www.工程造价知识库.org/ontology#
+    # Collect all xmlns:prefix="url" declarations
+    ns_map: dict[str, str] = {}
+    for m in re.finditer(r'xmlns:(\w+)="([^"]+)"', content):
+        ns_map[m.group(1)] = m.group(2)
 
-    # Find entity references like &xxx; that aren't standard XML entities
+    # The default xmlns is used for <rdf:about="&ontology;xxx">
+    default_ns = re.search(r'xmlns="([^"]+)"', content)
+    if default_ns:
+        ns_map["ontology"] = default_ns.group(1)
+
+    # Find all &xxx; entity references
     entity_refs = set(re.findall(r"&([a-zA-Z_]\w*);", content))
-    standard = {"lt", "gt", "amp", "quot", "apos", "rdf", "rdfs", "owl", "xsd", "swrl", "sqwrl"}
-    custom = entity_refs - standard
 
-    # Replace each custom entity with the base namespace
-    for entity in custom:
-        content = content.replace(f"&{entity};", base_ns)
+    changed = False
+    for entity in entity_refs:
+        if entity in ns_map:
+            content = content.replace(f"&{entity};", ns_map[entity])
+            changed = True
 
-    if custom:
+    if changed:
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
 
