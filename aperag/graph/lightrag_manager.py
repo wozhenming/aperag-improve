@@ -119,7 +119,10 @@ def _load_owl_schema(kg_config, collection_id: str):
             tmp.flush()
             schema = parse_owl(tmp.name)
         os.unlink(tmp.name)
-        return schema if not schema.is_empty() else None
+        if not schema.is_empty():
+            logger = logging.getLogger(__name__)
+            logger.info(f"OWL schema loaded for {collection_id}: {len(schema.classes)} classes, {len(schema.object_properties)} obj props")
+            return schema
     except Exception:
         logger = logging.getLogger(__name__)
         logger.warning(f"Failed to load OWL schema for collection {collection_id}", exc_info=True)

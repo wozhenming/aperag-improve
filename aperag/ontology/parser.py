@@ -104,11 +104,19 @@ def parse_owl(file_path: str) -> OntologySchema:
                         schema.object_properties.append((domain_cls, prop_name, range_cls))
 
             # ----- Data properties + functional -----
+            seen_data_props: set = set()
             for prop in onto.data_properties():
                 prop_name = prop.name.replace("_", " ")
                 domains = _get_property_domains(prop)
                 ranges = _get_property_ranges(prop)
                 range_str = ranges[0] if ranges else "string"
+
+                # Deduplicate by (domain, name) pair
+                domain_key = tuple(sorted(domains)) if domains else ("*",)
+                dedup_key = (domain_key, prop_name)
+                if dedup_key in seen_data_props:
+                    continue
+                seen_data_props.add(dedup_key)
 
                 # Check if functional (single value)
                 is_func = False
