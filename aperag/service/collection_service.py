@@ -678,7 +678,7 @@ class CollectionService:
             config.knowledge_graph_config = KnowledgeGraphConfig()
         config.knowledge_graph_config.owl_file_path = owl_obj_path
         await self.db_ops.update_collection_by_id(
-            collection_id, config=dumpCollectionConfig(config)
+            user_id, collection_id, config=dumpCollectionConfig(config)
         )
         return {"owl_file_path": owl_obj_path, "filename": owl_file_name}
 

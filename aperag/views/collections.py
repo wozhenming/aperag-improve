@@ -654,6 +654,6 @@ async def delete_owl(
     if config.knowledge_graph_config:
         config.knowledge_graph_config.owl_file_path = None
     await async_db_ops.update_collection_by_id(
-        collection_id, config=dumpCollectionConfig(config)
+        str(user.id), collection_id, config=dumpCollectionConfig(config)
     )
     return {"success": True}
