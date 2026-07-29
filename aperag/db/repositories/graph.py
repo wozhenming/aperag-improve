@@ -37,6 +37,7 @@ class GraphRepositoryMixin:
             description = node_data.get("description")
             source_id = node_data.get("source_id")
             file_path = node_data.get("file_path")
+            properties = node_data.get("properties")
 
             # Use PostgreSQL ON CONFLICT for true upsert
             stmt = insert(LightRAGGraphNode).values(
@@ -47,6 +48,7 @@ class GraphRepositoryMixin:
                 description=description,
                 source_id=source_id,
                 file_path=file_path,
+                properties=properties,
             )
 
             # ON CONFLICT DO UPDATE
@@ -58,6 +60,7 @@ class GraphRepositoryMixin:
                     description=stmt.excluded.description,
                     source_id=stmt.excluded.source_id,
                     file_path=stmt.excluded.file_path,
+                    properties=stmt.excluded.properties,
                     updatetime=func.now(),
                 ),
             )
@@ -361,6 +364,7 @@ class GraphRepositoryMixin:
                     "description": node.description,
                     "source_id": node.source_id,
                     "file_path": node.file_path,
+                    "properties": node.properties,
                     "created_at": int(node.createtime.timestamp()) if node.createtime else None,
                 }
 
@@ -584,6 +588,7 @@ class GraphRepositoryMixin:
                         "description": node_data.get("description"),
                         "source_id": node_data.get("source_id"),
                         "file_path": node_data.get("file_path"),
+                        "properties": node_data.get("properties"),
                     }
                 )
 
@@ -599,6 +604,7 @@ class GraphRepositoryMixin:
                     description=stmt.excluded.description,
                     source_id=stmt.excluded.source_id,
                     file_path=stmt.excluded.file_path,
+                    properties=stmt.excluded.properties,
                     updatetime=func.now(),
                 ),
             )

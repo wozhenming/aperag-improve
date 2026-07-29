@@ -569,3 +569,91 @@ async def get_chunk_preview(
         pass
 
     return {"document_name": document.name, "chunk_content": chunk_content}
+
+
+@router.post("/collections/{collection_id}/owl", tags=["documents"])
+async def upload_owl(
+    request: Request,
+    collection_id: str,
+    file: UploadFile = File(...),
+    user: User = Depends(required_user),
+):
+    """Upload an OWL ontology file for this collection's KG extraction."""
+    from aperag.service.collection_service import collection_service as cs
+    return await cs.upload_owl(str(user.id), collection_id, file)
+
+
+@router.get("/collections/{collection_id}/owl", tags=["documents"])
+async def get_owl_info(
+    request: Request,
+    collection_id: str,
+    user: User = Depends(required_user),
+):
+    """Get the OWL file path and preview for this collection."""
+    from aperag.db.ops import async_db_ops
+    from aperag.schema.utils import parseCollectionConfig
+
+    collection = await async_db_ops.query_collection(str(user.id), collection_id)
+    if not collection:
+        raise HTTPException(status_code=404, detail="Collection not found")
+    config = parseCollectionConfig(collection.config)
+    kg = config.knowledge_graph_config
+    owl_path = kg.owl_file_path if kg else None
+
+    # Parse OWL structure for preview
+    preview = None
+    if owl_path:
+        try:
+            import os
+            import tempfile
+
+            from aperag.objectstore.base import get_sync_object_store
+            from aperag.ontology.parser import parse_owl
+
+            store = get_sync_object_store()
+            content = store.get(owl_path)
+            if hasattr(content, "read"):
+                content = content.read()
+            with tempfile.NamedTemporaryFile(suffix=".owl", delete=False) as tmp:
+                tmp.write(content)
+                tmp.flush()
+                schema = parse_owl(tmp.name)
+                os.unlink(tmp.name)
+            if schema and not schema.is_empty():
+                preview = {
+                    "classes_count": len(schema.classes),
+                    "classes": schema.classes[:20],  # first 20
+                    "object_properties_count": len(set(name for _, name, _ in schema.object_properties)),
+                    "object_properties": list(set(name for _, name, _ in schema.object_properties))[:20],
+                    "data_properties_count": sum(len(v) for v in schema.data_properties.values()),
+                    "data_properties": {
+                        cls: [{"name": p.name, "range": p.range_} for p in props[:10]]
+                        for cls, props in list(schema.data_properties.items())[:10]
+                    },
+                }
+        except Exception:
+            pass
+
+    return {"owl_file_path": owl_path, "preview": preview}
+
+
+@router.delete("/collections/{collection_id}/owl", tags=["documents"])
+async def delete_owl(
+    request: Request,
+    collection_id: str,
+    user: User = Depends(required_user),
+):
+    """Delete the OWL ontology file for this collection."""
+    from aperag.db.ops import async_db_ops
+    from aperag.schema.utils import dumpCollectionConfig, parseCollectionConfig
+
+    collection = await async_db_ops.query_collection(str(user.id), collection_id)
+    if not collection:
+        raise HTTPException(status_code=404, detail="Collection not found")
+    config = parseCollectionConfig(collection.config)
+    if config.knowledge_graph_config:
+        config.knowledge_graph_config.owl_file_path = None
+    await async_db_ops.update_collection_by_id(
+        collection_id, config=dumpCollectionConfig(config)
+    )
+    return {"success": True}

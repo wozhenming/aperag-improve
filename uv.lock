@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.11.12, <3.13"
 resolution-markers = [
     "python_full_version >= '3.12.4'",
@@ -308,6 +308,7 @@ dependencies = [
     { name = "opentelemetry-sdk" },
     { name = "opik" },
     { name = "oss2" },
+    { name = "owlready2" },
     { name = "pgvector" },
     { name = "pikepdf" },
     { name = "pillow" },
@@ -433,6 +434,7 @@ requires-dist = [
     { name = "opentelemetry-sdk", specifier = ">=1.20.0" },
     { name = "opik", specifier = ">=1.7.34" },
     { name = "oss2", specifier = ">=2.18.0,<3.0.0" },
+    { name = "owlready2", specifier = ">=0.47" },
     { name = "pgvector", specifier = ">=0.3.6" },
     { name = "pikepdf", specifier = ">=9.9.0" },
     { name = "pillow", specifier = ">=10.0.0,<11.0.0" },
@@ -4228,6 +4230,12 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/df/b5/f2cb1950dda46ac2284d6c950489fdacd0e743c2d79a347924d3cc44b86f/oss2-2.19.1.tar.gz", hash = "sha256:a8ab9ee7eb99e88a7e1382edc6ea641d219d585a7e074e3776e9dec9473e59c1", size = 298845, upload-time = "2024-10-25T11:37:46.638Z" }
 
 [[package]]
+name = "owlready2"
+version = "0.51"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c5/46/27a21b73ab3cf85ed8b09fdfeda1cc6abcee715d3435eca543495ef79539/owlready2-0.51.tar.gz", hash = "sha256:65adebc79ff6abdd2a0bde8d3aac21c6beed8699bf1e7c849d30eba9c513795e", size = 27435504, upload-time = "2026-06-22T10:51:38.882Z" }
+
+[[package]]
 name = "packaging"
 version = "24.2"
 source = { registry = "https://pypi.org/simple" }
@@ -5920,6 +5928,9 @@ wheels = [
 name = "terminal"
 version = "0.4.0"
 source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama" },
+]
 sdist = { url = "https://files.pythonhosted.org/packages/1d/33/063e9da9aca3fd67f9e9176483195cba970e320e7dc660018025ef4457de/terminal-0.4.0.tar.gz", hash = "sha256:29a1696ed4696a9c3e501076245c85a3789548db708bb2bd174dcc49f2b585c2", size = 11958, upload-time = "2013-12-20T09:24:45.904Z" }
 
 [[package]]

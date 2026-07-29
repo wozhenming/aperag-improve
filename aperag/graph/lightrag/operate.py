@@ -187,10 +187,22 @@ async def _handle_single_entity_extraction(
         logger.warning(f"Entity extraction error: empty description for entity '{entity_name}' of type '{entity_type}'")
         return None
 
+    # Parse structured properties if present (5th field from OWL ontology extraction)
+    properties = {}
+    if len(record_attributes) >= 5:
+        props_str = clean_str(record_attributes[4])
+        if props_str and props_str.startswith("{"):
+            try:
+                import json
+                properties = json.loads(props_str)
+            except (json.JSONDecodeError, TypeError):
+                pass  # Not valid JSON, ignore
+
     return dict(
         entity_name=entity_name,
         entity_type=entity_type,
         description=entity_description,
+        properties=properties if properties else None,
         source_id=chunk_key,
         file_path=file_path,
     )
@@ -316,6 +328,19 @@ async def _merge_nodes_then_upsert(
     # 3.4. Merge file paths, deduplicated
     file_path = GRAPH_FIELD_SEP.join(set([dp["file_path"] for dp in nodes_data] + already_file_paths))
 
+    # 3.5. Merge structured properties — first non-empty value per key wins
+    merged_properties: dict = {}
+    if already_node and already_node.get("properties"):
+        if isinstance(already_node["properties"], dict):
+            merged_properties.update(already_node["properties"])
+    for dp in nodes_data:
+        if "properties" in dp and dp["properties"]:
+            props = dp["properties"]
+            if isinstance(props, dict):
+                for k, v in props.items():
+                    if v:  # non-empty value — replace, don't merge
+                        merged_properties[k] = v
+
     # 4. Calculate description fragment counts for summarization decision
     num_fragment = description.count(GRAPH_FIELD_SEP) + 1  # Total description fragments
     num_new_fragment = len(set([dp["description"] for dp in nodes_data]))  # New unique descriptions
@@ -349,6 +374,7 @@ async def _merge_nodes_then_upsert(
         description=description,
         source_id=source_id,
         file_path=file_path,
+        properties=merged_properties if merged_properties else None,
         created_at=int(time.time()),
     )
 
@@ -663,6 +689,7 @@ async def extract_entities(
     example_number: int | None,
     llm_model_max_async: int,
     lightrag_logger: LightRAGLogger,
+    ontology_schema=None,
 ) -> list:
     ordered_chunks = list(chunks.items())
     if example_number and example_number < len(PROMPTS["entity_extraction_examples"]):
@@ -684,12 +711,23 @@ async def extract_entities(
     relation_hint = ""
     if relation_types:
         relation_hint = f"\n- relationship_keywords: Must be selected from this allowed list: [{', '.join(relation_types)}]. Choose the most appropriate keyword(s) from the list."
+
+    # Build ontology guide from OWL schema
+    ontology_guide = ""
+    if ontology_schema and not (hasattr(ontology_schema, 'is_empty') and ontology_schema.is_empty()):
+        try:
+            from aperag.ontology.prompt import build_ontology_guide
+            ontology_guide = build_ontology_guide(ontology_schema)
+        except ImportError:
+            pass
+
     context_base = dict(
         tuple_delimiter=DEFAULT_TUPLE_DELIMITER,
         record_delimiter=DEFAULT_RECORD_DELIMITER,
         completion_delimiter=DEFAULT_COMPLETION_DELIMITER,
         entity_types=",".join(entity_types),
         relation_hint=relation_hint,
+        ontology_guide=ontology_guide,
         examples=examples,
         language=language,
     )

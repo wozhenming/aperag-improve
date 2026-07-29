@@ -1,61 +1,194 @@
-# 测试环境覆盖 — 与生产环境并存，端口与 .env.test 一致
-# 使用: docker compose -p aperag-test --env-file .env.test \
-#          -f docker-compose.yml -f docker-compose.test.yml up -d --build
+# 测试环境 — 独立 compose 文件，不修改 docker-compose.yml
+# 使用: docker compose -p aperag-test -f docker-compose.test.yml up -d --build
+
+volumes:
+  aperag-postgres-data: {}
+  aperag-qdrant-data: {}
+  aperag-redis-data: {}
+  aperag-es-data: {}
+  aperag-shared-data: {}
 
 services:
-  api:
+  api: &api
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: ${REGISTRY:-docker.io}/apecloud/aperag:${VERSION:-v0.0.0-nightly}
     container_name: aperag-test-api
-    ports:
-      - "8001:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      es:
+        condition: service_healthy
+    volumes:
+      - ~/.cache:/root/.cache
+      - aperag-shared-data:/shared
     env_file:
       - .env.test
       - envs/docker.env.test.overrides
+    environment:
+      - DOCRAY_HOST=${DOCRAY_HOST}
+    ports:
+      - "8012:8000"
+    command: ["/app/scripts/entrypoint.sh", "/app/scripts/start-api.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || curl -f http://localhost:8000/docs || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   frontend:
+    build:
+      context: ./web
+      dockerfile: ./Dockerfile
+    image: ${REGISTRY:-docker.io}/apecloud/aperag-frontend:${VERSION:-v0.0.0-nightly}
     container_name: aperag-test-frontend
-    ports:
-      - "3001:3000"
+    depends_on:
+      api:
+        condition: service_healthy
     env_file:
       - web/deploy/env.test.local.template
+    environment:
+      - API_SERVER_ENDPOINT=http://aperag-test-api:8000
+      - API_SERVER_BASE_PATH=/api/v1
+    ports:
+      - "3012:3000"
 
   celeryworker:
+    image: ${REGISTRY:-docker.io}/apecloud/aperag:${VERSION:-v0.0.0-nightly}
+    build:
+      context: .
+      dockerfile: ./Dockerfile
     container_name: aperag-test-celeryworker
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      es:
+        condition: service_healthy
+    volumes:
+      - ~/.cache:/root/.cache
+      - ./resources:/data/resources
+      - aperag-shared-data:/shared
     env_file:
       - .env.test
       - envs/docker.env.test.overrides
+    environment:
+      - NODE_IP=aperag-test-celeryworker
+      - DOCRAY_HOST=${DOCRAY_HOST}
+      - APERAG_API_BASE_URL=http://aperag-test-api:8000
+      - LITELLM_LOG=CRITICAL
+    command: ["/app/scripts/entrypoint.sh", "/app/scripts/start-celery-worker.sh"]
 
   celerybeat:
+    image: ${REGISTRY:-docker.io}/apecloud/aperag:${VERSION:-v0.0.0-nightly}
+    build:
+      context: .
+      dockerfile: ./Dockerfile
     container_name: aperag-test-celerybeat
     env_file:
       - .env.test
       - envs/docker.env.test.overrides
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      - NODE_IP=aperag-test-celerybeat
+    command: ["/app/scripts/entrypoint.sh", "/app/scripts/start-celery-beat.sh"]
 
   flower:
+    image: ${REGISTRY:-docker.io}/apecloud/aperag:${VERSION:-v0.0.0-nightly}
+    build:
+      context: .
+      dockerfile: ./Dockerfile
     container_name: aperag-test-flower
-    ports:
-      - "5556:5555"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     env_file:
       - .env.test
       - envs/docker.env.test.overrides
+    ports:
+      - "5558:5555"
+    environment:
+      - NODE_IP=aperag-test-flower
+    command: ["/app/scripts/entrypoint.sh", "/app/scripts/start-celery-flower.sh"]
 
   postgres:
+    image: ${REGISTRY:-docker.io}/apecloud/pgvector:pg16
     container_name: aperag-test-postgres
+    volumes:
+      - aperag-postgres-data:/var/lib/postgresql/data
     ports:
-      - "5435:5432"
+      - "5437:5432"
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   redis:
+    image: ${REGISTRY:-docker.io}/apecloud/redis:6
     container_name: aperag-test-redis
+    volumes:
+      - aperag-redis-data:/data
     ports:
-      - "6381:6379"
+      - "6383:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
 
   qdrant:
+    image: ${REGISTRY:-docker.io}/apecloud/qdrant:v1.13.4
     container_name: aperag-test-qdrant
+    volumes:
+      - aperag-qdrant-data:/qdrant/storage
     ports:
-      - "6335:6333"
+      - "6337:6333"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 6333 || timeout 3 bash -c '</dev/tcp/localhost/6333' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   es:
+    image: ${REGISTRY:-docker.io}/apecloud/elasticsearch:8.8.2
     container_name: aperag-test-es
     ports:
-      - "9206:9200"
+      - "9208:9200"
     environment:
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"  # 测试环境减半内存
+      - "discovery.type=single-node"
+      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
+      - "xpack.security.enabled=false"
+    volumes:
+      - aperag-es-data:/usr/share/elasticsearch/data
+      - ./scripts/init-es.sh:/usr/share/elasticsearch/bin/init-es.sh
+    healthcheck:
+      test: ["CMD-SHELL", "bash /usr/share/elasticsearch/bin/init-es.sh check"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    command: bash /usr/share/elasticsearch/bin/init-es.sh
+    restart: on-failure

@@ -96,6 +96,34 @@ class LightRAGConfig:
     DEFAULT_LANGUAGE = "zh-CN"
 
 
+def _load_owl_schema(kg_config, collection_id: str):
+    """Load and parse OWL ontology file if configured."""
+    if not kg_config or not kg_config.owl_file_path:
+        return None
+    try:
+        import os
+        import tempfile
+
+        from aperag.objectstore.base import get_sync_object_store
+        from aperag.ontology.parser import parse_owl
+
+        store = get_sync_object_store()
+        owl_path = kg_config.owl_file_path
+        with tempfile.NamedTemporaryFile(suffix=".owl", delete=False) as tmp:
+            content = store.get(owl_path)
+            if hasattr(content, "read"):
+                content = content.read()
+            tmp.write(content)
+            tmp.flush()
+            schema = parse_owl(tmp.name)
+            os.unlink(tmp.name)
+            return schema if not schema.is_empty() else None
+    except Exception:
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Failed to load OWL schema for collection {collection_id}", exc_info=True)
+    return None
+
+
 class LightRAGError(Exception):
     """Base exception for LightRAG operations"""
 
@@ -126,7 +154,24 @@ async def create_lightrag_instance(collection: Collection) -> LightRAG:
         config = parseCollectionConfig(collection.config)
         kg_config = config.knowledge_graph_config
         language = config.language or LightRAGConfig.DEFAULT_LANGUAGE
-        entity_types = (kg_config and kg_config.entity_types) or LightRAGConfig.get_entity_types() or DEFAULT_ENTITY_TYPES
+
+        # Load OWL ontology if configured (takes precedence over manual settings)
+        ontology_schema = _load_owl_schema(kg_config, collection_id)
+
+        # If OWL is loaded, use its classes and properties as entity/relation types
+        if ontology_schema and not ontology_schema.is_empty():
+            entity_types = ontology_schema.classes or (
+                (kg_config and kg_config.entity_types) or LightRAGConfig.get_entity_types() or DEFAULT_ENTITY_TYPES
+            )
+            # Build relation types from OWL object properties
+            owl_relations = list(set(name for _, name, _ in ontology_schema.object_properties))
+            relation_types = owl_relations if owl_relations else (
+                (kg_config and kg_config.relation_types) or LightRAGConfig.get_relation_types()
+            )
+        else:
+            entity_types = (kg_config and kg_config.entity_types) or LightRAGConfig.get_entity_types() or DEFAULT_ENTITY_TYPES
+            relation_types = (kg_config and kg_config.relation_types) or LightRAGConfig.get_relation_types()
+            ontology_schema = None  # Don't pass empty schema
 
         # Helper: collection config → global setting → hardcoded default
         def _vc(col_val, default):
@@ -150,7 +195,8 @@ async def create_lightrag_instance(collection: Collection) -> LightRAG:
             summary_to_max_tokens=_vc(None, LightRAGConfig.get_summary_to_max_tokens()),
             force_llm_summary_on_merge=_vc(None, LightRAGConfig.get_force_llm_summary_on_merge()),
             language=language,
-            relation_types=(kg_config and kg_config.relation_types) or LightRAGConfig.get_relation_types(),
+            relation_types=relation_types,
+            ontology_schema=ontology_schema,
             entity_types=entity_types,
             kv_storage=kv_storage,
             vector_storage=vector_storage,

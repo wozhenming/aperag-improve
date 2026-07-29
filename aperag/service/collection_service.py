@@ -16,6 +16,7 @@ import logging
 from typing import List, Optional, Tuple
 
 import httpx
+from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from aperag.db import models as db_models
@@ -653,6 +654,33 @@ class CollectionService:
                 return {"status_code": response.status_code, "data": response.json()}
             except httpx.RequestError as e:
                 return {"status_code": 500, "data": {"msg": f"Request failed: {e}"}}
+
+    async def upload_owl(self, user_id: str, collection_id: str, file: UploadFile) -> dict:
+        """Upload an OWL ontology file and save path to collection config."""
+        from aperag.objectstore.base import get_async_object_store
+        from aperag.schema.utils import dumpCollectionConfig, parseCollectionConfig
+
+        collection = await self.db_ops.query_collection(user_id, collection_id)
+        if not collection:
+            raise ValueError("Collection not found")
+
+        # Store OWL file
+        content = await file.read()
+        owl_file_name = file.filename or "ontology.owl"
+        owl_obj_path = f"collections/{collection_id}/ontology/{owl_file_name}"
+        store = get_async_object_store()
+        await store.put(owl_obj_path, content)
+
+        # Update collection config
+        config = parseCollectionConfig(collection.config)
+        if config.knowledge_graph_config is None:
+            from aperag.schema.view_models import KnowledgeGraphConfig
+            config.knowledge_graph_config = KnowledgeGraphConfig()
+        config.knowledge_graph_config.owl_file_path = owl_obj_path
+        await self.db_ops.update_collection_by_id(
+            collection_id, config=dumpCollectionConfig(config)
+        )
+        return {"owl_file_path": owl_obj_path, "filename": owl_file_name}
 
 
 # Create a global service instance for easy access

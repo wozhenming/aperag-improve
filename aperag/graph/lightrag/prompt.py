@@ -86,6 +86,9 @@ Format the content-level key words as ("content_keywords"{tuple_delimiter}<high_
 {examples}
 
 #############################
+{ontology_guide}
+
+#############################
 ---Real Data---
 ######################
 Entity_types: [{entity_types}]

@@ -17,7 +17,6 @@
     "use_markitdown_description": "When enabled, the system will use markitdown for document parsing.",
     "system_default_quota": "User default quotas",
     "system_default_quota_description": "These default quotas help maintain system stability, prevent resource abuse, and ensure fair allocation across users or applications.",
-
     "core_chunking": "Core Chunking Configuration",
     "core_chunking_description": "Document parsing chunk parameters that affect retrieval precision and context coherence",
     "chunk_size": "Chunk Size",
@@ -25,7 +24,6 @@
     "cache_settings": "Cache Configuration",
     "cache_settings_description": "LLM call cache settings to reduce redundant API calls",
     "cache_ttl": "Cache TTL (seconds)",
-
     "kg_settings": "Knowledge Graph Configuration",
     "kg_settings_description": "Controls entity extraction, chunking, and merging behavior during knowledge graph construction",
     "kg_chunk_token_size": "Graph Chunk Token Size",
@@ -43,7 +41,6 @@
     "hint_kg_relation_types": "Allowed relation keywords for knowledge graph extraction. When set, LLM picks only from this list, enabling ontology constraints",
     "max_graph_nodes": "Max Display Nodes",
     "hint_max_graph_nodes": "Maximum number of nodes displayed in the knowledge graph visualization. Higher values show more nodes but may degrade rendering performance. Range 1-10000",
-
     "parent_child_chunking": "Parent-Child Chunking",
     "parent_child_chunking_description": "When enabled, documents are split into large parent chunks (preserving context) and small child chunks (for precise matching). When a child chunk is matched during retrieval, the full parent chunk is returned as context.",
     "parent_chunk_size": "Parent Chunk Size (Tokens)",
@@ -56,7 +53,6 @@
     "text_preprocessing": "Text Preprocessing",
     "preprocess_collapse_whitespace": "Collapse consecutive whitespace (spaces, newlines, tabs → single space)",
     "preprocess_remove_urls_emails": "Remove URLs and email addresses",
-
     "hint_chunk_size": "Controls retrieval granularity. Smaller chunks improve precision but may lose context; larger chunks preserve more context at the cost of precision",
     "hint_chunk_overlap_size": "Token overlap between adjacent chunks. Proper overlap prevents key information from being split across chunk boundaries",
     "hint_cache_enabled": "When enabled, caches LLM responses to avoid redundant API calls and reduce costs",
@@ -88,7 +84,6 @@
     "hint_paddleocr_host": "PaddleOCR service URL for image text extraction. Leave empty to skip OCR.",
     "whisper_host": "Whisper Service URL",
     "hint_whisper_host": "Whisper service URL for audio transcription. Leave empty to skip speech recognition.",
-
     "hint_max_bot_count": "Maximum number of bots a user can create",
     "hint_max_collection_count": "Maximum number of knowledge base collections a user can create",
     "hint_max_document_count": "Maximum total number of documents a user can upload",
@@ -329,6 +324,18 @@
     "kg_relation_types_title": "Relation Types",
     "kg_relation_types_placeholder": "Enter relation types separated by commas, e.g. references, specifies, contains",
     "hint_kg_relation_types": "Allowed relation keywords for graph extraction. When set, LLM picks only from this list for ontology constraints. Leave empty for free extraction",
+    "owl_upload_title": "OWL Ontology File",
+    "owl_upload_desc": "Upload a Protégé-exported OWL ontology file to constrain entity types, relationships, and structured property extraction",
+    "owl_upload_success": "OWL file uploaded successfully",
+    "owl_upload_error": "OWL file upload failed",
+    "owl_remove_success": "OWL file removed",
+    "owl_remove_error": "OWL file removal failed",
+    "owl_override_hint": "OWL file uploaded. Entity types and relation types will be read from the OWL ontology. Manual config is temporarily overridden.",
+    "owl_no_override_hint": "After upload, OWL classes, object properties and data properties will constrain extraction and enable structured property storage.",
+    "owl_remove": "Remove",
+    "owl_classes": "Classes",
+    "owl_obj_props": "Object Properties",
+    "owl_data_props": "Data Properties",
     "delete_collection": "Delete Collection",
     "delete_collection_confirm": "This action cannot be undone. This will permanently delete collection and remove your documents from our servers.",
     "publish_collection": "Publish to Marketplace",
@@ -578,7 +585,8 @@
     "entity_technology": "Technology",
     "entity_geo": "GEO",
     "entity_event": "Event",
-    "entity_UNKNOWN": "UNKNOWN"
+    "entity_UNKNOWN": "UNKNOWN",
+    "structured_properties": "Structured Properties"
   },
   "page_marketplace": {
     "metadata": {
@@ -708,7 +716,6 @@
     "prompt_template_tips": "The following variables will be replaced by the system:",
     "prompt_template_document_content": "The content of the document from the collection.",
     "prompt_template_number_of_question": "The number of questions to be generated.",
-
     "import_questions": "Import Questions from File",
     "import_questions_description": "Supports CSV and JSON formats. Files are parsed directly in the browser — nothing is uploaded to the server.",
     "import_format_guide": "File Format Guide",

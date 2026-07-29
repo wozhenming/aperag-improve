@@ -35,6 +35,7 @@ from sqlalchemy import (
     select,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -881,6 +882,7 @@ class LightRAGGraphNode(Base):
     entity_name = Column(String(255), nullable=True)
     entity_type = Column(String(255), nullable=True)
     description = Column(Text, nullable=True)
+    properties = Column(JSONB, nullable=True)
     source_id = Column(Text, nullable=True)
     file_path = Column(Text, nullable=True)
     workspace = Column(String(255), nullable=False)

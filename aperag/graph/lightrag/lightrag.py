@@ -234,6 +234,9 @@ class LightRAG:
     relation_types: list[str] | None = field(default=None)
     """Optional list of allowed relation keywords. When set, LLM picks from this list."""
 
+    ontology_schema: object | None = field(default=None)
+    """Optional parsed OWL ontology schema for structured extraction."""
+
     example_number: int | None = field(default=None)
     """Number of examples to use in prompts. If None, uses all available examples."""
 
@@ -766,6 +769,7 @@ class LightRAG:
                 language=self.language,
                 entity_types=self.entity_types,
                 relation_types=self.relation_types,
+                ontology_schema=self.ontology_schema,
                 example_number=self.example_number,
                 llm_model_max_async=self.llm_model_max_async,
                 lightrag_logger=self.lightrag_logger,

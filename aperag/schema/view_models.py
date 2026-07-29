@@ -98,6 +98,10 @@ class KnowledgeGraphConfig(BaseModel):
         None,
         description='Optional allowed relation keywords. When set, LLM picks keywords from this list only.',
     )
+    owl_file_path: Optional[str] = Field(
+        None,
+        description='Path to an uploaded OWL ontology file in object store for structured KG extraction.',
+    )
 
 
 class IndexPrompts(BaseModel):

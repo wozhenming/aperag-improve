@@ -17,7 +17,6 @@
     "use_markitdown_description": "启用后，系统将使用 markitdown 进行文档解析。",
     "system_default_quota": "用户默认配额",
     "system_default_quota_description": "默认配额有助于维护系统稳定性，防止资源滥用，并确保用户或应用间的公平分配",
-
     "core_chunking": "核心分块配置",
     "core_chunking_description": "文档解析时的分块参数，影响检索精度和上下文连贯性",
     "chunk_size": "分块大小",
@@ -25,7 +24,6 @@
     "cache_settings": "缓存配置",
     "cache_settings_description": "LLM 调用缓存设置，可减少重复 API 调用",
     "cache_ttl": "缓存过期时间（秒）",
-
     "kg_settings": "知识图谱配置",
     "kg_settings_description": "控制知识图谱构建过程中的实体提取、分块和合并行为",
     "kg_chunk_token_size": "图谱分块 Token 数",
@@ -43,7 +41,6 @@
     "hint_kg_relation_types": "知识图谱中关系的关键词列表。设置后 LLM 只能从该列表中选择关系类型，实现本体约束",
     "max_graph_nodes": "图谱最大展示节点数",
     "hint_max_graph_nodes": "前端知识图谱可视化时最多展示的节点数量。设置为更大值可看到更多节点，但渲染性能会下降。范围 1-10000",
-
     "parent_child_chunking": "父子分段",
     "parent_child_chunking_description": "启用后将文档切分为父块（大块保留上下文）和子块（小块精准匹配）。检索命中子块时返回完整父块内容作为上下文。",
     "parent_chunk_size": "父块大小（Token）",
@@ -56,7 +53,6 @@
     "text_preprocessing": "文本预处理",
     "preprocess_collapse_whitespace": "合并连续空白（将多个空格、换行、制表符合并为一个空格）",
     "preprocess_remove_urls_emails": "删除 URL 和邮箱地址",
-
     "hint_chunk_size": "每个检索单元的文本粒度。较小值提高匹配精度但可能丢失上下文，较大值保留更多信息但精度降低",
     "hint_chunk_overlap_size": "相邻分块间重叠的 token 数量。适当重叠可防止关键信息被切断分布到不同分块中",
     "hint_cache_enabled": "开启后缓存 LLM 调用结果，相同请求直接返回缓存响应，减少 API 费用",
@@ -69,7 +65,6 @@
     "hint_child_chunk_separator": "推荐使用 \\n\\n 按段落切分子块。留空则自动进行语义分块",
     "hint_preprocess_collapse_whitespace": "将连续的空格、换行符和制表符合并为单个空格，清理文档格式噪音",
     "hint_preprocess_remove_urls_emails": "删除文本中所有 URL 链接和邮件地址，避免无关字符串干扰检索和嵌入质量",
-
     "hint_kg_chunk_token_size": "LightRAG 处理文档时使用的分块 token 数，影响图谱实体提取的粒度",
     "hint_kg_chunk_overlap_token_size": "图谱相邻分块间重叠的 token 数，避免实体在分块边界处丢失",
     "hint_kg_entity_extract_max_gleaning": "实体提取时 Gleaning 的最大轮次。0 表示不进行 Gleaning，值越大提取越充分但耗时越长",
@@ -79,7 +74,6 @@
     "hint_kg_summary_max_tokens": "实体和关系摘要生成的最大 token 数，控制摘要详略程度",
     "hint_kg_force_llm_summary_on_merge": "当待合并实体数量达到此阈值时，强制使用 LLM 生成摘要而非简单拼接",
     "hint_kg_entity_types": "知识图谱中需要提取的实体类型列表。可作为自定义标签添加新类型，控制提取范围",
-
     "hint_use_mineru": "开启后优先使用 MinerU API 解析 PDF，对复杂表格和公式的识别效果更好",
     "hint_mineru_api_token": "MinerU 官方 API 令牌，有效期 14 天，到期前需更换",
     "hint_use_doc_ray": "开启后使用 DocRay 进行文档解析，支持本地部署的高级文档解析服务",
@@ -90,7 +84,6 @@
     "hint_paddleocr_host": "用于图片文字识别的 PaddleOCR 服务 URL。留空则不上传图片文件时不做 OCR 文字提取",
     "whisper_host": "Whisper 服务地址",
     "hint_whisper_host": "用于音频转文字的 Whisper 服务 URL。留空则不上传音频文件时不做语音识别",
-
     "hint_max_bot_count": "每个用户允许创建的机器人数量上限",
     "hint_max_collection_count": "每个用户允许创建的知识库集合数量上限",
     "hint_max_document_count": "每个用户允许上传的文档总数量上限",
@@ -331,6 +324,18 @@
     "kg_relation_types_title": "关系类型",
     "kg_relation_types_placeholder": "输入关系类型，用英文逗号分隔，如：引用, 规定, 包含",
     "hint_kg_relation_types": "知识图谱中关系的关键词列表。设置后 LLM 只能从该列表中选取关系关键词，实现本体约束。留空则 LLM 自由提取",
+    "owl_upload_title": "OWL 本体文件",
+    "owl_upload_desc": "上传 Protégé 导出的 OWL 本体文件，用于约束实体类型、关系和结构化属性提取",
+    "owl_upload_success": "OWL 文件上传成功",
+    "owl_upload_error": "OWL 文件上传失败",
+    "owl_remove_success": "OWL 文件已删除",
+    "owl_remove_error": "OWL 文件删除失败",
+    "owl_override_hint": "已上传 OWL 文件，实体类型和关系类型将自动从 OWL 本体中读取，手动配置暂时被覆盖",
+    "owl_no_override_hint": "上传后，OWL 本体的类、对象属性和数据属性将作为提取约束，并启用结构化属性存储",
+    "owl_remove": "删除文件",
+    "owl_classes": "类",
+    "owl_obj_props": "对象属性（关系）",
+    "owl_data_props": "数据属性",
     "delete_collection": "删除知识库",
     "delete_collection_confirm": "此操作不可撤销。系统将永久删除该知识库，并从我们的服务器中移除所有相关文档。",
     "publish_collection": "发布至市场",
@@ -583,7 +588,8 @@
     "entity_technology": "技术",
     "entity_geo": "位置",
     "entity_event": "事件",
-    "entity_UNKNOWN": "未知"
+    "entity_UNKNOWN": "未知",
+    "structured_properties": "结构化属性"
   },
   "page_marketplace": {
     "metadata": {
@@ -714,7 +720,6 @@
     "prompt_template_tips": "以下变量将被系统替换：",
     "prompt_template_document_content": "从知识库中提取的文档内容",
     "prompt_template_number_of_question": "需要生成的问题数量",
-
     "import_questions": "从文件导入问题",
     "import_questions_description": "支持 CSV 和 JSON 格式。前端直接解析文件内容，不会上传到服务器。",
     "import_format_guide": "文件格式说明",

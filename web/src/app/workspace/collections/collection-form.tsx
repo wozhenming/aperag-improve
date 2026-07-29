@@ -41,6 +41,8 @@ import _ from 'lodash';
 import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import axios from 'axios';
+import { FileText, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -66,7 +68,7 @@ const collectionSchema = z
       enable_summary: z.boolean(),
       enable_vector: z.boolean(),
       enable_vision: z.boolean(),
-      knowledge_graph_config: z.object({ entity_types: z.array(z.string()).optional(), relation_types: z.array(z.string()).optional() }).optional(),
+      knowledge_graph_config: z.object({ entity_types: z.array(z.string()).optional(), relation_types: z.array(z.string()).optional(), owl_file_path: z.string().optional() }).optional(),
       chunk_size: z.number().optional(),
       chunk_overlap_size: z.number().optional(),
       parent_child_enabled: z.boolean().optional(),
@@ -299,6 +301,13 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
   const watchPC = useWatch({ control: form.control, name: 'config.parent_child_enabled' });
   const [entityTypesText, setEntityTypesText] = useState('');
   const [relationTypesText, setRelationTypesText] = useState('');
+  const [owlInfo, setOwlInfo] = useState('');
+  const [owlPreview, setOwlPreview] = useState<{
+    classes_count: number; classes: string[];
+    object_properties_count: number; object_properties: string[];
+    data_properties_count: number;
+    data_properties: Record<string, { name: string; range: string }[]>;
+  } | null>(null);
   const embeddingModelName = useWatch({
     control: form.control,
     name: 'config.embedding.model',
@@ -345,6 +354,20 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
   useEffect(() => {
     loadModels();
   }, [loadModels]);
+
+  // Load existing OWL info when editing
+  useEffect(() => {
+    if (action !== 'edit' || !collection.id) return;
+    const owlPath = form.getValues('config.knowledge_graph_config.owl_file_path');
+    if (owlPath) {
+      setOwlInfo(owlPath.split('/').pop() || owlPath);
+      // Fetch OWL structure preview
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+      axios.get(`${basePath}/api/v1/collections/${collection.id}/owl`)
+        .then(({ data }) => { if (data.preview) setOwlPreview(data.preview); })
+        .catch(() => {});
+    }
+  }, [action, collection.id, form]);
 
   return (
     <>
@@ -543,6 +566,65 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
                     </FormItem>;
                   }}
                 />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>{page_collections('owl_upload_title')}</CardTitle>
+                <CardDescription>{page_collections('owl_upload_desc')}</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                {owlInfo ? (
+                  <>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Badge variant="secondary" className="gap-1">
+                        <FileText className="h-3 w-3" /> {owlInfo}
+                      </Badge>
+                      <Button variant="ghost" size="sm" className="text-destructive h-6"
+                        onClick={async () => {
+                          if (!collection.id) return;
+                          try {
+                            const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+                            await axios.delete(`${basePath}/api/v1/collections/${collection.id}/owl`);
+                            form.setValue('config.knowledge_graph_config.owl_file_path', undefined);
+                            setOwlInfo('');
+                            toast.success(page_collections('owl_remove_success'));
+                          } catch { toast.error(page_collections('owl_remove_error')); }
+                        }}>
+                        <Trash2 className="h-3 w-3 mr-1" /> {page_collections('owl_remove')}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{page_collections('owl_override_hint')}</p>
+                    {owlPreview && (
+                      <div className="grid gap-1 text-xs text-muted-foreground p-2 bg-muted rounded">
+                        <span>{page_collections('owl_classes')}: {owlPreview.classes_count} ({owlPreview.classes.slice(0, 8).join(', ')}{owlPreview.classes.length > 8 ? '...' : ''})</span>
+                        <span>{page_collections('owl_obj_props')}: {owlPreview.object_properties_count} ({owlPreview.object_properties.slice(0, 8).join(', ')}{owlPreview.object_properties.length > 8 ? '...' : ''})</span>
+                        <span>{page_collections('owl_data_props')}: {owlPreview.data_properties_count}</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Input type="file" accept=".owl,.rdf,.xml"
+                      onChange={async (e) => {
+                        const f = e.target.files?.[0]; if (!f || !collection.id) return;
+                        const fd = new FormData(); fd.append('file', f);
+                        try {
+                          const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+                          const { data } = await axios.post(
+                            `${basePath}/api/v1/collections/${collection.id}/owl`, fd,
+                            { headers: { 'Content-Type': 'multipart/form-data' } }
+                          );
+                          form.setValue('config.knowledge_graph_config.owl_file_path', data.owl_file_path);
+                          setOwlInfo(data.filename || f.name);
+                          toast.success(page_collections('owl_upload_success'));
+                        } catch { toast.error(page_collections('owl_upload_error')); }
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground">{page_collections('owl_no_override_hint')}</p>
+                  </>
+                )}
               </CardContent>
             </Card>
           </>)}
