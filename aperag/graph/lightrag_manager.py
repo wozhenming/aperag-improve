@@ -114,8 +114,6 @@ def _load_owl_schema(kg_config, collection_id: str):
             content = content.read()
         if isinstance(content, bytes):
             content = content.decode("utf-8")
-        # Strip &ontology; XML entities
-        content = content.replace("&ontology;", "")
         with tempfile.NamedTemporaryFile(suffix=".owl", delete=False, mode="w", encoding="utf-8") as tmp:
             tmp.write(content)
             tmp.flush()

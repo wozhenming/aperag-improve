@@ -50,6 +50,9 @@ def parse_owl(file_path: str) -> OntologySchema:
     try:
         from owlready2 import Thing, get_ontology
 
+        # Pre-process OWL content to resolve XML entities not defined in a DTD
+        _resolve_owl_entities(file_path)
+
         onto = get_ontology(f"file://{file_path}").load()
 
         with onto:
@@ -136,6 +139,37 @@ def parse_owl(file_path: str) -> OntologySchema:
         logger.error(f"Failed to parse OWL file {file_path}: {e}")
 
     return schema
+
+
+def _resolve_owl_entities(file_path: str):
+    """
+    Pre-process an OWL file to resolve XML entity references like &ontology;
+    that are not backed by a DTD. Reads xmlns from the file and replaces
+    entity references with the expanded namespace.
+    """
+    import re
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # Extract the default namespace from xmlns="..."
+    ns_match = re.search(r'xmlns="([^"]+)"', content)
+    if not ns_match:
+        return
+    base_ns = ns_match.group(1)  # e.g. http://www.工程造价知识库.org/ontology#
+
+    # Find entity references like &xxx; that aren't standard XML entities
+    entity_refs = set(re.findall(r"&([a-zA-Z_]\w*);", content))
+    standard = {"lt", "gt", "amp", "quot", "apos", "rdf", "rdfs", "owl", "xsd", "swrl", "sqwrl"}
+    custom = entity_refs - standard
+
+    # Replace each custom entity with the base namespace
+    for entity in custom:
+        content = content.replace(f"&{entity};", base_ns)
+
+    if custom:
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(content)
 
 
 def _get_property_domains(prop) -> list[str]:
