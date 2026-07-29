@@ -173,6 +173,12 @@ class SettingService:
     def get_kg_entity_types_sync(self) -> list[str] | None:
         return self.get_all_settings_sync().get("kg_entity_types")
 
+    async def get_kg_relation_types(self) -> list[str] | None:
+        return await self.get_setting("kg_relation_types")
+
+    def get_kg_relation_types_sync(self) -> list[str] | None:
+        return self.get_all_settings_sync().get("kg_relation_types")
+
     async def get_max_graph_nodes(self) -> int:
         val = await self.get_setting("max_graph_nodes")
         return val if val is not None else 1000

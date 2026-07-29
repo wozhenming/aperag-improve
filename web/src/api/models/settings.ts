@@ -123,6 +123,12 @@ export interface Settings {
      */
     'kg_entity_types'?: Array<string>;
     /**
+     * Custom relation types (keywords) for knowledge graph extraction
+     * @type {Array<string>}
+     * @memberof Settings
+     */
+    'kg_relation_types'?: Array<string>;
+    /**
      * Maximum number of graph nodes to display (1-10000)
      * @type {number}
      * @memberof Settings

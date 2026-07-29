@@ -659,6 +659,7 @@ async def extract_entities(
     entity_extract_max_gleaning: int,
     language: str,
     entity_types: list[str],
+    relation_types: list[str] | None,
     example_number: int | None,
     llm_model_max_async: int,
     lightrag_logger: LightRAGLogger,
@@ -680,11 +681,15 @@ async def extract_entities(
     examples = examples.format(**example_context_base)
 
     entity_extract_prompt = PROMPTS["entity_extraction"]
+    relation_hint = ""
+    if relation_types:
+        relation_hint = f"\n- relationship_keywords: Must be selected from this allowed list: [{', '.join(relation_types)}]. Choose the most appropriate keyword(s) from the list."
     context_base = dict(
         tuple_delimiter=DEFAULT_TUPLE_DELIMITER,
         record_delimiter=DEFAULT_RECORD_DELIMITER,
         completion_delimiter=DEFAULT_COMPLETION_DELIMITER,
         entity_types=",".join(entity_types),
+        relation_hint=relation_hint,
         examples=examples,
         language=language,
     )

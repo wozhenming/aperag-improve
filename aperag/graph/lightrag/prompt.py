@@ -40,14 +40,14 @@ DEFAULT_TUPLE_DELIMITER = "<|>"
 DEFAULT_RECORD_DELIMITER = "##"
 DEFAULT_COMPLETION_DELIMITER = "<|COMPLETE|>"
 DEFAULT_ENTITY_TYPES = [
-    "organization",
-    "person",
-    "geo",
-    "event",
-    "product",
-    "technology",
-    "date",
-    "category",
+    "组织机构",
+    "人员",
+    "地点",
+    "事件",
+    "产品",
+    "技术",
+    "日期",
+    "类别",
 ]
 
 PROMPTS: dict[str, Any] = {}

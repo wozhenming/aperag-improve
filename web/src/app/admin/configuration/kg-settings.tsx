@@ -35,14 +35,14 @@ const HintLabel = ({ text, hint }: { text: string; hint: string }) => (
 );
 
 const defaultEntityTypes = [
-  'organization',
-  'person',
-  'geo',
-  'event',
-  'product',
-  'technology',
-  'date',
-  'category',
+  '组织机构',
+  '人员',
+  '地点',
+  '事件',
+  '产品',
+  '技术',
+  '日期',
+  '类别',
 ];
 
 const defaults = {
@@ -55,6 +55,7 @@ const defaults = {
   kg_summary_max_tokens: 2000,
   kg_force_llm_summary_on_merge: 10,
   kg_entity_types: defaultEntityTypes,
+  kg_relation_types: [],
   max_graph_nodes: 1000,
 };
 
@@ -68,11 +69,13 @@ export const KgSettings = ({
     ...initData,
   });
   const [entityTypeInput, setEntityTypeInput] = useState('');
+  const [relationTypeInput, setRelationTypeInput] = useState('');
   const admin_config = useTranslations('admin_config');
   const common_action = useTranslations('common.action');
   const common_tips = useTranslations('common.tips');
 
   const entityTypes: string[] = data.kg_entity_types || defaultEntityTypes;
+  const relationTypes: string[] = data.kg_relation_types || [];
 
   const handleSave = useCallback(async () => {
     await apiClient.defaultApi.settingsPut({ settings: data });
@@ -94,6 +97,23 @@ export const KgSettings = ({
       setData(updated);
     },
     [entityTypes, data],
+  );
+
+  const addRelationType = useCallback(() => {
+    const trimmed = relationTypeInput.trim();
+    if (trimmed && !relationTypes.includes(trimmed)) {
+      const updated = { ...data, kg_relation_types: [...relationTypes, trimmed] };
+      setData(updated);
+    }
+    setRelationTypeInput('');
+  }, [relationTypeInput, relationTypes, data]);
+
+  const removeRelationType = useCallback(
+    (type: string) => {
+      const updated = { ...data, kg_relation_types: relationTypes.filter((t) => t !== type) };
+      setData(updated);
+    },
+    [relationTypes, data],
   );
 
   useEffect(() => {
@@ -172,6 +192,30 @@ export const KgSettings = ({
               <Badge key={type} variant="secondary">
                 {type}
                 <button type="button" className="ml-1 hover:text-destructive" onClick={() => removeEntityType(type)}>
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        </div>
+
+        {/* Relation types */}
+        <div className="flex flex-col gap-2">
+          <HintLabel text={admin_config('kg_relation_types')} hint={admin_config('hint_kg_relation_types')} />
+          <div className="flex flex-row gap-2">
+            <Input placeholder={admin_config('kg_relation_types_placeholder')}
+              value={relationTypeInput}
+              onChange={(e) => setRelationTypeInput(e.currentTarget.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addRelationType(); } }} />
+            <Button type="button" variant="outline" onClick={addRelationType}>
+              {common_action('add')}
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {relationTypes.map((type) => (
+              <Badge key={type} variant="secondary">
+                {type}
+                <button type="button" className="ml-1 hover:text-destructive" onClick={() => removeRelationType(type)}>
                   <X className="h-3 w-3" />
                 </button>
               </Badge>

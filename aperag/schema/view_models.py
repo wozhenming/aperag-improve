@@ -82,17 +82,21 @@ class KnowledgeGraphConfig(BaseModel):
 
     entity_types: Optional[list[str]] = Field(
         [
-            'organization',
-            'person',
-            'geo',
-            'event',
-            'product',
-            'technology',
-            'date',
-            'category',
+            '组织机构',
+            '人员',
+            '地点',
+            '事件',
+            '产品',
+            '技术',
+            '日期',
+            '类别',
         ],
         description='List of entity types to extract during graph indexing',
-        examples=[['organization', 'person', 'geo', 'event']],
+        examples=[['组织机构', '人员', '地点', '事件']],
+    )
+    relation_types: Optional[list[str]] = Field(
+        None,
+        description='Optional allowed relation keywords. When set, LLM picks keywords from this list only.',
     )
 
 
@@ -1086,6 +1090,9 @@ class Settings(BaseModel):
     )
     kg_entity_types: Optional[list[str]] = Field(
         None, description='Custom entity types for knowledge graph extraction'
+    )
+    kg_relation_types: Optional[list[str]] = Field(
+        None, description='Custom relation types (keywords) for knowledge graph extraction. When set, LLM picks from this list.'
     )
     max_graph_nodes: Optional[int] = Field(
         None, description='Maximum number of graph nodes to display (1-10000)'

@@ -66,7 +66,7 @@ const collectionSchema = z
       enable_summary: z.boolean(),
       enable_vector: z.boolean(),
       enable_vision: z.boolean(),
-      knowledge_graph_config: z.object({ entity_types: z.array(z.string()) }).optional(),
+      knowledge_graph_config: z.object({ entity_types: z.array(z.string()).optional(), relation_types: z.array(z.string()).optional() }).optional(),
       chunk_size: z.number().optional(),
       chunk_overlap_size: z.number().optional(),
       parent_child_enabled: z.boolean().optional(),
@@ -139,7 +139,8 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
       enable_summary: false,
       enable_vision: false,
       knowledge_graph_config: {
-        entity_types: ['organization', 'person', 'geo', 'event', 'product', 'technology', 'date', 'category'],
+        entity_types: ['组织机构', '人员', '地点', '事件', '产品', '技术', '日期', '类别'],
+        relation_types: [],
       },
       completion: {
         custom_llm_provider: '',
@@ -297,6 +298,7 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
   const enableKG = useWatch({ control: form.control, name: 'config.enable_knowledge_graph' });
   const watchPC = useWatch({ control: form.control, name: 'config.parent_child_enabled' });
   const [entityTypesText, setEntityTypesText] = useState('');
+  const [relationTypesText, setRelationTypesText] = useState('');
   const embeddingModelName = useWatch({
     control: form.control,
     name: 'config.embedding.model',
@@ -475,7 +477,7 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
           </Card>
 
           {/* Entity types — only shown when knowledge_graph is enabled */}
-          {enableKG && (
+          {enableKG && (<>
             <Card>
               <CardHeader>
                 <CardTitle>{page_collections('kg_entity_types_title')}</CardTitle>
@@ -491,7 +493,7 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
                       <FormControl>
                         <Textarea
                           className="h-24"
-                          placeholder="organization, person, geo, event, product, technology, date, category"
+                          placeholder="组织机构, 人员, 地点, 事件, 产品, 技术, 日期, 类别"
                           value={entityTypesText}
                           onChange={(e) => setEntityTypesText(e.target.value)}
                           onBlur={() => {
@@ -509,7 +511,41 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
                 />
               </CardContent>
             </Card>
-          )}
+
+            <Card>
+              <CardHeader>
+                <CardTitle>{page_collections('kg_relation_types_title')}</CardTitle>
+                <CardDescription>{page_collections('hint_kg_relation_types')}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FormField
+                  control={form.control}
+                  name="config.knowledge_graph_config.relation_types"
+                  render={({ field }) => {
+                    if (!relationTypesText && field.value?.length) setRelationTypesText(field.value.join(', '));
+                    return <FormItem>
+                      <FormControl>
+                        <Textarea
+                          className="h-24"
+                          placeholder={page_collections('kg_relation_types_placeholder')}
+                          value={relationTypesText}
+                          onChange={(e) => setRelationTypesText(e.target.value)}
+                          onBlur={() => {
+                            const types = relationTypesText.split(',').map((s) => s.trim()).filter(Boolean);
+                            field.onChange(types);
+                            setRelationTypesText(types.join(', '));
+                          }}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {page_collections('hint_kg_relation_types')}
+                      </FormDescription>
+                    </FormItem>;
+                  }}
+                />
+              </CardContent>
+            </Card>
+          </>)}
 
           <Card>
             <CardHeader>

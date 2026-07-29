@@ -231,6 +231,9 @@ class LightRAG:
     entity_types: list[str] = field(default_factory=lambda: DEFAULT_ENTITY_TYPES)
     """List of entity types to extract during graph indexing."""
 
+    relation_types: list[str] | None = field(default=None)
+    """Optional list of allowed relation keywords. When set, LLM picks from this list."""
+
     example_number: int | None = field(default=None)
     """Number of examples to use in prompts. If None, uses all available examples."""
 
@@ -762,6 +765,7 @@ class LightRAG:
                 entity_extract_max_gleaning=self.entity_extract_max_gleaning,
                 language=self.language,
                 entity_types=self.entity_types,
+                relation_types=self.relation_types,
                 example_number=self.example_number,
                 llm_model_max_async=self.llm_model_max_async,
                 lightrag_logger=self.lightrag_logger,

@@ -89,6 +89,10 @@ class LightRAGConfig:
     def get_entity_types(cls) -> list[str] | None:
         return cls._get_setting("kg_entity_types", None)
 
+    @classmethod
+    def get_relation_types(cls) -> list[str] | None:
+        return cls._get_setting("kg_relation_types", None)
+
     DEFAULT_LANGUAGE = "zh-CN"
 
 
@@ -146,6 +150,7 @@ async def create_lightrag_instance(collection: Collection) -> LightRAG:
             summary_to_max_tokens=_vc(None, LightRAGConfig.get_summary_to_max_tokens()),
             force_llm_summary_on_merge=_vc(None, LightRAGConfig.get_force_llm_summary_on_merge()),
             language=language,
+            relation_types=(kg_config and kg_config.relation_types) or LightRAGConfig.get_relation_types(),
             entity_types=entity_types,
             kv_storage=kv_storage,
             vector_storage=vector_storage,
