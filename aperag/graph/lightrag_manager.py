@@ -113,7 +113,11 @@ def _load_owl_schema(kg_config, collection_id: str):
             content = store.get(owl_path)
             if hasattr(content, "read"):
                 content = content.read()
-            tmp.write(content)
+            if isinstance(content, bytes):
+                content = content.decode("utf-8")
+            # Strip &ontology; XML entities
+            content = content.replace("&ontology;", "")
+            tmp.write(content.encode("utf-8"))
             tmp.flush()
             schema = parse_owl(tmp.name)
             os.unlink(tmp.name)

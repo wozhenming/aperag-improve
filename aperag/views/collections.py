@@ -614,6 +614,10 @@ async def get_owl_info(
             content = store.get(owl_path)
             if hasattr(content, "read"):
                 content = content.read()
+            if isinstance(content, bytes):
+                content = content.decode("utf-8")
+            # Strip &ontology; XML entities that owlready2 can't resolve
+            content = content.replace("&ontology;", "")
             with tempfile.NamedTemporaryFile(suffix=".owl", delete=False) as tmp:
                 tmp.write(content)
                 tmp.flush()
@@ -622,7 +626,7 @@ async def get_owl_info(
             if schema and not schema.is_empty():
                 preview = {
                     "classes_count": len(schema.classes),
-                    "classes": schema.classes[:20],  # first 20
+                    "classes": schema.classes[:20],
                     "object_properties_count": len(set(name for _, name, _ in schema.object_properties)),
                     "object_properties": list(set(name for _, name, _ in schema.object_properties))[:20],
                     "data_properties_count": sum(len(v) for v in schema.data_properties.values()),
@@ -631,8 +635,9 @@ async def get_owl_info(
                         for cls, props in list(schema.data_properties.items())[:10]
                     },
                 }
-        except Exception:
-            pass
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.warning(f"OWL preview parse failed for {owl_path}: {e}")
 
     return {"owl_file_path": owl_path, "preview": preview}
 
