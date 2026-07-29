@@ -78,7 +78,7 @@ export const DocumentReBuildMulti = ({
           {children}
         </Slot>
       </DialogTrigger>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>{page_documents('index_rebuild_multi_title')}</DialogTitle>
           <DialogDescription>{page_documents('index_rebuild_multi_desc')}</DialogDescription>
@@ -116,7 +116,7 @@ export const DocumentReBuildMulti = ({
               <label key={doc.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-accent cursor-pointer text-sm border-b last:border-0">
                 <Checkbox checked={selectedDocs.has(doc.id || '')}
                   onCheckedChange={() => toggleDoc(doc.id || '')} />
-                <span className="truncate">{doc.name}</span>
+                <span className="truncate min-w-0">{doc.name}</span>
                 <span className="text-muted-foreground text-xs shrink-0">{doc.id}</span>
               </label>
             ))}
