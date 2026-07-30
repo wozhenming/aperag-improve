@@ -209,9 +209,15 @@ def parse_owl(file_path: str) -> OntologySchema:
 
 
 def _resolve_owl_entities(content: str) -> str:
-    """Pre-process OWL XML to resolve XML entities and encode non-ASCII IRIs."""
+    """Pre-process OWL XML: resolve entities, strip invalid nesting, encode IRIs."""
     import re
     from urllib.parse import quote
+
+    # Strip Protégé quirks that owlready2 can't parse:
+    # <owl:FunctionalProperty/> nested inside ObjectProperty / DatatypeProperty
+    # <owl:inverseOf rdf:resource="..."/> as standalone element
+    content = content.replace("<owl:FunctionalProperty/>", "")
+    content = re.sub(r'<owl:inverseOf\s+rdf:resource="[^"]*"\s*/>', "", content)
 
     ns_map: dict[str, str] = {}
     for m in re.finditer(r'xmlns:(\w+)="([^"]+)"', content):
