@@ -1,9 +1,8 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import axios from 'axios';
-import { ArrowLeft, LoaderCircle } from 'lucide-react';
+import { ArrowLeft, LoaderCircle, Maximize2, Minus, Plus, RotateCcw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -32,7 +31,8 @@ export default function OwlGraphPage() {
   const [graphData, setGraphData] = useState<{ nodes: GraphNode[]; links: GraphEdge[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [dims, setDims] = useState({ width: 600, height: 500 });
+  const graphRef = useRef<any>(null);
+  const [dims, setDims] = useState({ width: 800, height: 600 });
 
   const loadGraph = useCallback(async () => {
     if (typeof params.collectionId !== 'string') return;
@@ -45,9 +45,9 @@ export default function OwlGraphPage() {
       if (!preview) { setLoading(false); return; }
 
       const colorPalette = [
-        '#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231',
-        '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe',
-        '#008080', '#e6beff', '#9a6324', '#fffac8', '#800000',
+        '#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4',
+        '#46f0f0', '#f032e6', '#bcf60c', '#008080', '#e6beff',
+        '#9a6324', '#fabebe', '#800000', '#ffe119', '#aaffc3',
       ];
 
       const nodes: GraphNode[] = (preview.classes || []).map(
@@ -76,14 +76,25 @@ export default function OwlGraphPage() {
 
   useEffect(() => {
     loadGraph();
-    const el = containerRef.current;
-    if (el) {
-      setDims({ width: el.offsetWidth - 4, height: el.offsetHeight - 4 });
-      const onResize = () => setDims({ width: el.offsetWidth - 4, height: el.offsetHeight - 4 });
-      window.addEventListener('resize', onResize);
-      return () => window.removeEventListener('resize', onResize);
-    }
   }, [loadGraph]);
+
+  // Resize handler — triggered after DOM renders
+  useEffect(() => {
+    if (!graphData) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => setDims({ width: el.offsetWidth, height: el.offsetHeight });
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [graphData]);
+
+  // Auto zoom-to-fit after engine settles
+  const handleEngineStop = useCallback(() => {
+    if (graphRef.current) {
+      graphRef.current.zoomToFit(400, 50);
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -107,20 +118,44 @@ export default function OwlGraphPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
-      <div className="flex items-center gap-4 p-3 border-b">
+    <div className="flex flex-col h-screen overflow-hidden">
+      {/* Top bar */}
+      <div className="flex items-center gap-3 px-3 py-2 border-b shrink-0">
         <Button asChild variant="ghost" size="icon">
           <Link href={`/workspace/collections/${params.collectionId}`}>
-            <ArrowLeft />
+            <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
-        <h2 className="font-semibold text-lg">{page_collections('owl_view_graph')}</h2>
-        <span className="text-muted-foreground text-sm">
-          {graphData.nodes.length} {page_collections('classes')}, {graphData.links.length} {page_collections('relations')}
+        <h2 className="font-semibold text-base">{page_collections('owl_view_graph')}</h2>
+        <span className="text-muted-foreground text-xs">
+          {graphData.nodes.length} {page_collections('classes')} / {graphData.links.length} {page_collections('relations')}
         </span>
+        <div className="flex-1" />
+        {/* Control buttons */}
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-8 w-8"
+            onClick={() => graphRef.current?.zoom(1.5, 300)}>
+            <Plus className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8"
+            onClick={() => graphRef.current?.zoom(0.7, 300)}>
+            <Minus className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8"
+            onClick={() => graphRef.current?.zoomToFit(400, 50)}>
+            <Maximize2 className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8"
+            onClick={() => loadGraph()}>
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
-      <Card ref={containerRef} className="flex-1 m-2 bg-card/0">
+
+      {/* Graph area */}
+      <div ref={containerRef} className="flex-1 relative">
         <ForceGraph2D
+          ref={graphRef}
           graphData={graphData}
           width={dims.width}
           height={dims.height}
@@ -133,11 +168,35 @@ export default function OwlGraphPage() {
           linkCurvature={0.25}
           linkWidth={1.5}
           cooldownTicks={100}
-          onEngineStop={() => {
-            // Zoom to fit
+          onEngineStop={handleEngineStop}
+          nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+            const label = node.label || node.id;
+            const size = Math.max(node.val || 5, 4);
+            // Node circle
+            ctx.beginPath();
+            ctx.arc(node.x!, node.y!, size, 0, 2 * Math.PI);
+            ctx.fillStyle = node.color || '#4363d8';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+            // Label below node
+            const fontSize = Math.max(10, 12 / globalScale);
+            ctx.font = `${fontSize}px sans-serif`;
+            ctx.fillStyle = '#333';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText(label, node.x!, node.y! + size + 3);
+          }}
+          nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D) => {
+            const size = Math.max(node.val || 5, 4);
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(node.x!, node.y!, size, 0, 2 * Math.PI);
+            ctx.fill();
           }}
         />
-      </Card>
+      </div>
     </div>
   );
 }
