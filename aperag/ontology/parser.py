@@ -82,7 +82,16 @@ def parse_owl(file_path: str) -> OntologySchema:
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
 
-        onto = get_ontology(f"file://{file_path}").load()
+        # Debug: log content around line 231 if parsing fails
+        try:
+            onto = get_ontology(f"file://{file_path}").load()
+        except Exception:
+            lines = content.split("\n")
+            start = max(0, 228)
+            end = min(len(lines), 235)
+            for i in range(start, end):
+                logger.error(f"OWL line {i+1}: {lines[i]}")
+            raise
 
         with onto:
             # ----- Classes + hierarchy + disjoint -----
@@ -214,10 +223,9 @@ def _resolve_owl_entities(content: str) -> str:
     from urllib.parse import quote
 
     # Strip Protégé quirks that owlready2 can't parse:
-    # <owl:FunctionalProperty/> nested inside ObjectProperty / DatatypeProperty
-    # <owl:inverseOf rdf:resource="..."/> as standalone element
-    content = content.replace("<owl:FunctionalProperty/>", "")
-    content = re.sub(r'<owl:inverseOf\s+rdf:resource="[^"]*"\s*/>', "", content)
+    content = re.sub(r'\s*<owl:FunctionalProperty\s*/>\s*', '\n', content)
+    content = re.sub(r'\s*<owl:inverseOf\s+rdf:resource="[^"]*"\s*/>\s*', '\n', content)
+    content = re.sub(r'\s*<owl:inverseOf>.*?</owl:inverseOf>\s*', '\n', content, flags=re.DOTALL)
 
     ns_map: dict[str, str] = {}
     for m in re.finditer(r'xmlns:(\w+)="([^"]+)"', content):
@@ -234,8 +242,11 @@ def _resolve_owl_entities(content: str) -> str:
 
     def _encode_iri(m: re.Match) -> str:
         before, value, after = m.group(1), m.group(2), m.group(3)
-        encoded = quote(value, safe='/#:')
-        return before + encoded + after
+        # Only encode if value contains non-ASCII and is not already a full URL
+        if any(ord(c) > 127 for c in value) and not value.startswith("http"):
+            encoded = quote(value, safe='/#:')
+            return before + encoded + after
+        return before + value + after
 
     content = re.sub(r'(rdf:about=")([^"]+)(")', _encode_iri, content)
     return content
