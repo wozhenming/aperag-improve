@@ -209,9 +209,15 @@ def parse_owl(file_path: str) -> OntologySchema:
 
 
 def _resolve_owl_entities(content: str) -> str:
-    """Pre-process OWL XML to resolve XML entities and encode non-ASCII IRIs."""
+    """Pre-process OWL XML to resolve XML entities, encode non-ASCII IRIs,
+    and strip non-standard nested tags that break owlready2."""
     import re
     from urllib.parse import quote
+
+    # Strip <owl:FunctionalProperty/> embedded inside ObjectProperty/DatatypeProperty —
+    # this is valid OWL but owlready2's expat parser can't handle nested property tags.
+    # Functional status is recovered from is_functional attribute during parse.
+    content = re.sub(r'\s*<owl:FunctionalProperty\s*/>', '', content)
 
     ns_map: dict[str, str] = {}
     for m in re.finditer(r'xmlns:(\w+)="([^"]+)"', content):
