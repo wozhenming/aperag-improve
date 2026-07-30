@@ -464,7 +464,11 @@
     "import_model_match": "模型匹配！可直接恢复向量数据。",
     "import_model_mismatch": "模型不匹配。将使用选中的模型重建索引。",
     "import_force_warning": "强制导入风险：选择与导出不同的嵌入模型将导致向量数据被丢弃，需要重新构建索引。这会消耗 API 调用额度。",
-    "owl_view_structure": "查看结构"
+    "owl_view_structure": "查看结构",
+    "owl_view_graph": "查看关系图",
+    "no_data": "暂无数据",
+    "classes": "个类",
+    "relations": "个关系"
   },
   "page_docs": {
     "metadata": {

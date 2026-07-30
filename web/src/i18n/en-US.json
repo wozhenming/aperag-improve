@@ -464,7 +464,11 @@
     "import_model_match": "Models match! Vector data can be restored directly.",
     "import_model_mismatch": "Models do not match. Indexes will be rebuilt with the selected model.",
     "import_force_warning": "Risk: selecting a different embedding model will discard vector data and require full re-indexing. This consumes API quota.",
-    "owl_view_structure": "View Structure"
+    "owl_view_structure": "View Structure",
+    "owl_view_graph": "View Graph",
+    "no_data": "No data",
+    "classes": "classes",
+    "relations": "relations"
   },
   "page_docs": {
     "metadata": {

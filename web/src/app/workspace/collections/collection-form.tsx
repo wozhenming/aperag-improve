@@ -42,7 +42,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
-import { FileText, Trash2, Eye } from 'lucide-react';
+import { FileText, GitBranch, Trash2, Eye } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -603,10 +603,16 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
                     </div>
                     <p className="text-xs text-muted-foreground">{page_collections('owl_override_hint')}</p>
                     {owlPreview && (
-                      <Button variant="outline" size="sm" type="button"
-                        onClick={() => setOwlDialogOpen(true)}>
-                        <Eye className="h-3 w-3 mr-1" /> {page_collections('owl_view_structure')}
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" type="button"
+                          onClick={() => setOwlDialogOpen(true)}>
+                          <Eye className="h-3 w-3 mr-1" /> {page_collections('owl_view_structure')}
+                        </Button>
+                        <Button variant="outline" size="sm" type="button"
+                          onClick={() => router.push(`/workspace/collections/${collection.id}/owl-graph`)}>
+                          <GitBranch className="h-3 w-3 mr-1" /> {page_collections('owl_view_graph')}
+                        </Button>
+                      </div>
                     )}
                   </>
                 ) : (
