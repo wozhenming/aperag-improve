@@ -79,19 +79,11 @@ def parse_owl(file_path: str) -> OntologySchema:
         with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
-        # Save original in case preprocessing breaks it
-        original = content
         content = _resolve_owl_entities(content)
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
 
-        try:
-            onto = get_ontology(f"file://{file_path}").load()
-        except Exception as exc:
-            logger.warning(f"OWL parse failed after preprocessing ({exc}), falling back to raw")
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(original)
-            onto = get_ontology(f"file://{file_path}").load()
+        onto = get_ontology(f"file://{file_path}").load()
 
         with onto:
             # ----- Classes + hierarchy + disjoint -----
@@ -247,13 +239,15 @@ def _resolve_owl_entities(content: str) -> str:
 
     def _encode_iri(m: re.Match) -> str:
         before, value, after = m.group(1), m.group(2), m.group(3)
-        # Only encode if value contains non-ASCII and is not already a full URL
-        if any(ord(c) > 127 for c in value) and not value.startswith("http"):
+        if any(ord(c) > 127 for c in value):
             encoded = quote(value, safe='/#:')
             return before + encoded + after
         return before + value + after
 
+    # Encode non-ASCII in rdf:about, xml:base, and default xmlns values
     content = re.sub(r'(rdf:about=")([^"]+)(")', _encode_iri, content)
+    content = re.sub(r'(xml:base=")([^"]+)(")', _encode_iri, content)
+    content = re.sub(r'(xmlns=")([^"]+)(")', _encode_iri, content)
     return content
 
 
