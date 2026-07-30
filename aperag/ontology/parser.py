@@ -11,7 +11,7 @@ class PropertyDef:
     """A data property from the ontology."""
 
     name: str
-    label: str | None = None
+    label: str | None = None  # rdfs:label (Chinese display name)
     comment: str | None = None
     domain: str | None = None
     range_: str | None = None
@@ -23,7 +23,7 @@ class ObjectPropertyDef:
     """An object property with optional inverse."""
 
     name: str
-    label: str | None = None
+    label: str | None = None  # rdfs:label
     comment: str | None = None
     domain: str | None = None
     range_: str | None = None
@@ -49,6 +49,7 @@ class OntologySchema:
 
 
 def _label_of(entity) -> str | None:
+    """Get rdfs:label first() from an owlready2 entity, fallback to None."""
     try:
         lbls = entity.label
         if lbls:
@@ -59,6 +60,7 @@ def _label_of(entity) -> str | None:
 
 
 def _comment_of(entity) -> str | None:
+    """Get rdfs:comment first() from an owlready2 entity."""
     try:
         cmts = entity.comment
         if cmts:
@@ -76,7 +78,6 @@ def parse_owl(file_path: str) -> OntologySchema:
 
         with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
-
         content = _resolve_owl_entities(content)
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
@@ -84,16 +85,19 @@ def parse_owl(file_path: str) -> OntologySchema:
         onto = get_ontology(f"file://{file_path}").load()
 
         with onto:
+            # ----- Classes + hierarchy + disjoint -----
             for cls in onto.classes():
                 if cls is Thing:
                     continue
                 name = cls.name.replace("_", " ")
                 schema.classes.append(name)
 
+                # Chinese label
                 label = _label_of(cls)
                 if label:
                     schema.class_labels[name] = label
 
+                # Class hierarchy (subClassOf)
                 for parent in cls.is_a:
                     if hasattr(parent, "name") and parent is not Thing:
                         parent_name = parent.name.replace("_", " ")
@@ -101,6 +105,7 @@ def parse_owl(file_path: str) -> OntologySchema:
                             schema.class_hierarchy[name] = []
                         schema.class_hierarchy[name].append(parent_name)
 
+                # Disjoint classes
                 try:
                     for disjoint_set in cls.disjoints():
                         for other in disjoint_set.entities:
@@ -113,6 +118,7 @@ def parse_owl(file_path: str) -> OntologySchema:
                 except Exception:
                     pass
 
+            # ----- Object properties + inverse -----
             for prop in onto.object_properties():
                 prop_name = prop.name.replace("_", " ")
                 domains = _get_property_domains(prop)
@@ -120,6 +126,7 @@ def parse_owl(file_path: str) -> OntologySchema:
                 label = _label_of(prop)
                 comment = _comment_of(prop)
 
+                # Inverse
                 inv_name = None
                 try:
                     inv = prop.inverse_property
@@ -143,6 +150,7 @@ def parse_owl(file_path: str) -> OntologySchema:
                     for range_cls in ranges or [""]:
                         schema.object_properties.append((domain_cls, prop_name, range_cls))
 
+            # ----- Data properties + functional -----
             seen_data_props: set = set()
             for prop in onto.data_properties():
                 prop_name = prop.name.replace("_", " ")
@@ -152,6 +160,7 @@ def parse_owl(file_path: str) -> OntologySchema:
                 label = _label_of(prop)
                 comment = _comment_of(prop)
 
+                # Check if functional (single value)
                 is_func = False
                 try:
                     is_func = prop.is_functional
@@ -200,8 +209,9 @@ def parse_owl(file_path: str) -> OntologySchema:
 
 
 def _resolve_owl_entities(content: str) -> str:
-    """Resolve &xxx; XML entity references using xmlns:xxx declarations."""
+    """Pre-process OWL XML to resolve XML entities and encode non-ASCII IRIs."""
     import re
+    from urllib.parse import quote
 
     ns_map: dict[str, str] = {}
     for m in re.finditer(r'xmlns:(\w+)="([^"]+)"', content):
@@ -216,6 +226,12 @@ def _resolve_owl_entities(content: str) -> str:
         if entity in ns_map:
             content = content.replace(f"&{entity};", ns_map[entity])
 
+    def _encode_iri(m: re.Match) -> str:
+        before, value, after = m.group(1), m.group(2), m.group(3)
+        encoded = quote(value, safe='/#:')
+        return before + encoded + after
+
+    content = re.sub(r'(rdf:about=")([^"]+)(")', _encode_iri, content)
     return content
 
 

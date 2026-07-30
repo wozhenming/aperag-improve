@@ -43,7 +43,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { FileText, Trash2, Eye } from 'lucide-react';
-import { OwlGraph } from './owl-graph';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -847,7 +846,6 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
           </DialogHeader>
           {owlPreview && (
             <div className="flex flex-col gap-4 text-sm">
-              <OwlGraph preview={owlPreview} />
               <div>
                 <h4 className="font-medium mb-1">{page_collections('owl_classes')} ({owlPreview.classes_count})</h4>
                 <div className="space-y-1">
