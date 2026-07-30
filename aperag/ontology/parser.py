@@ -78,20 +78,20 @@ def parse_owl(file_path: str) -> OntologySchema:
 
         with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
+
+        # Save original in case preprocessing breaks it
+        original = content
         content = _resolve_owl_entities(content)
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
 
-        # Debug: log content around line 231 if parsing fails
         try:
             onto = get_ontology(f"file://{file_path}").load()
-        except Exception:
-            lines = content.split("\n")
-            start = max(0, 228)
-            end = min(len(lines), 235)
-            for i in range(start, end):
-                logger.error(f"OWL line {i+1}: {lines[i]}")
-            raise
+        except Exception as exc:
+            logger.warning(f"OWL parse failed after preprocessing ({exc}), falling back to raw")
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(original)
+            onto = get_ontology(f"file://{file_path}").load()
 
         with onto:
             # ----- Classes + hierarchy + disjoint -----
@@ -222,10 +222,15 @@ def _resolve_owl_entities(content: str) -> str:
     import re
     from urllib.parse import quote
 
-    # Strip Protégé quirks that owlready2 can't parse:
-    content = re.sub(r'\s*<owl:FunctionalProperty\s*/>\s*', '\n', content)
-    content = re.sub(r'\s*<owl:inverseOf\s+rdf:resource="[^"]*"\s*/>\s*', '\n', content)
-    content = re.sub(r'\s*<owl:inverseOf>.*?</owl:inverseOf>\s*', '\n', content, flags=re.DOTALL)
+    # Fix Protégé shorthand that owlready2 can't parse:
+    # Replace <owl:FunctionalProperty/> with standard <rdf:type rdf:resource="..."/>
+    content = re.sub(
+        r'<owl:FunctionalProperty\s*/>',
+        '<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>',
+        content,
+    )
+    # Keep inverseOf declarations as comments for now
+    content = re.sub(r'<owl:inverseOf\s+rdf:resource="([^"]*)"\s*/>', r'<!-- inverseOf \1 -->', content)
 
     ns_map: dict[str, str] = {}
     for m in re.finditer(r'xmlns:(\w+)="([^"]+)"', content):
