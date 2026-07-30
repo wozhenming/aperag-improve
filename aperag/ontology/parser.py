@@ -72,22 +72,31 @@ def parse_owl(file_path: str) -> OntologySchema:
         g = Graph()
         g.parse(file_path, format="xml")
 
-        # Collect namespace prefix → full URI
-        ns_map: dict[str, str] = {}
+        # Collect namespace prefix → full URI, and extract base namespaces
+        ns_prefix_map: dict[str, str] = {}  # URI → prefix
+        all_ns_uris: list[str] = []
         for prefix, ns in g.namespaces():
-            ns_map[str(ns)] = prefix  # reverse: URI → prefix
+            all_ns_uris.append(str(ns))
+            if prefix:
+                ns_prefix_map[str(ns)] = prefix
+
+        # Add xml:base variants (with/without #) for relative URI resolution
+        base_ns = set(all_ns_uris)
+        for ns in list(base_ns):
+            if ns.endswith("#"):
+                base_ns.add(ns[:-1])
+            else:
+                base_ns.add(ns + "#")
 
         def _qname(uri: str) -> str:
-            """Convert URI to short name if possible."""
+            """Convert URI to short local name."""
             s = str(uri)
-            # Try namespace prefix
-            for ns, prefix in g.namespaces():
-                ns = str(ns)
+            # Try exact namespace match first
+            for ns in sorted(base_ns, key=len, reverse=True):
                 if s.startswith(ns):
                     local = s[len(ns):]
-                    if prefix:
+                    if local:
                         return local
-                    return local
             return _short_name(s)
 
         # ----- Classes -----
