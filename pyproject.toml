@@ -81,6 +81,7 @@ dependencies = [
     "pypdfium2>=4.30.0",
     "httpx-oauth>=0.16.1",
     "owlready2>=0.47",
+    "rdflib>=7.0",
 ]
 name = "aperag"
 version = "0.1.0"
