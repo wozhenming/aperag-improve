@@ -1054,6 +1054,7 @@ class SearchRequest(BaseModel):
 class Settings(BaseModel):
     use_mineru: Optional[bool] = Field(None, description='Whether to use MinerU')
     mineru_api_token: Optional[str] = Field(None, description='API token for MinerU')
+    mineru_api_base_url: Optional[str] = Field(None, description='MinerU API base URL. Leave empty for cloud (https://mineru.net), or set your local instance e.g. http://10.0.0.5:8000')
     use_doc_ray: Optional[bool] = Field(None, description='Whether to use DocRay')
     use_markitdown: Optional[bool] = Field(
         None, description='Whether to use MarkItDown'

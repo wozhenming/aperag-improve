@@ -39,6 +39,7 @@ const HintLabel = ({ text, hint }: { text: string; hint: string }) => (
 const defaultValue = {
   use_mineru: false,
   mineru_api_token: '',
+  mineru_api_base_url: '',
   use_doc_ray: false,
   use_markitdown: true,
 };
@@ -126,6 +127,11 @@ export const ParserSettings = ({
           </div>
           <div className="text-muted-foreground mt-2 text-sm">
             {admin_config('mineru_api_token_tips')}
+          </div>
+          <div className="flex flex-col gap-2 mt-4">
+            <HintLabel text={admin_config('mineru_api_base_url')} hint={admin_config('hint_mineru_api_base_url')} />
+            <Input placeholder="https://mineru.net" value={data.mineru_api_base_url || ''}
+              onChange={(e) => setData({ ...data, mineru_api_base_url: e.currentTarget.value })} />
           </div>
         </CardContent>
         <CardFooter className={cn('justify-end', data.use_mineru ? 'flex' : 'hidden')}>

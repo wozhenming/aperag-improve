@@ -33,6 +33,12 @@ export interface Settings {
      */
     'mineru_api_token'?: string;
     /**
+     * MinerU API base URL. Leave empty for cloud (https://mineru.net)
+     * @type {string}
+     * @memberof Settings
+     */
+    'mineru_api_base_url'?: string;
+    /**
      * Whether to use DocRay
      * @type {boolean}
      * @memberof Settings
