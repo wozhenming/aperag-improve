@@ -6,6 +6,7 @@ volumes:
   aperag-qdrant-data: {}
   aperag-redis-data: {}
   aperag-es-data: {}
+  aperag-neo4j-data: {}
   aperag-shared-data: {}
 
 services:
@@ -24,6 +25,8 @@ services:
         condition: service_healthy
       es:
         condition: service_healthy
+      neo4j:
+        condition: service_started
     volumes:
       - ~/.cache:/root/.cache
       - aperag-shared-data:/shared
@@ -74,6 +77,8 @@ services:
         condition: service_healthy
       es:
         condition: service_healthy
+      neo4j:
+        condition: service_started
     volumes:
       - ~/.cache:/root/.cache
       - ./resources:/data/resources
@@ -192,3 +197,17 @@ services:
       start_period: 10s
     command: bash /usr/share/elasticsearch/bin/init-es.sh
     restart: on-failure
+
+  neo4j:
+    image: neo4j:5.26.5-enterprise
+    container_name: aperag-test-neo4j
+    ports:
+      - "7476:7474"
+      - "7690:7687"
+    environment:
+      - NEO4J_AUTH=neo4j/password
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+      - NEO4J_apoc_export_file_enabled=true
+    volumes:
+      - aperag-neo4j-data:/data

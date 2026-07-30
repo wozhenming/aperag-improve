@@ -612,11 +612,15 @@ async def _merge_nodes_and_edges_impl(
 
             # Update entity in vector db immediately under the same lock
             if entity_vdb is not None and entity_data:
+                content = f"{entity_data['entity_name']}\n{entity_data['description']}"
+                if entity_data.get("properties"):
+                    import json
+                    content += f"\nProperties: {json.dumps(entity_data['properties'], ensure_ascii=False)}"
                 vdb_data = {
                     compute_mdhash_id(entity_data["entity_name"], prefix="ent-", workspace=workspace): {
                         "entity_name": entity_data["entity_name"],
                         "entity_type": entity_data["entity_type"],
-                        "content": f"{entity_data['entity_name']}\n{entity_data['description']}",
+                        "content": content,
                         "source_id": entity_data["source_id"],
                         "file_path": entity_data.get("file_path", "unknown_source"),
                     }
