@@ -43,6 +43,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { FileText, Trash2, Eye } from 'lucide-react';
+import { OwlGraph } from './owl-graph';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -306,10 +307,12 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
   const [relationTypesText, setRelationTypesText] = useState('');
   const [owlInfo, setOwlInfo] = useState('');
   const [owlPreview, setOwlPreview] = useState<{
-    classes_count: number; classes: string[];
-    object_properties_count: number; object_properties: string[];
+    classes_count: number; classes: { name: string; label?: string; parents?: string[] }[];
+    object_properties_count: number;
+    object_properties: { name: string; label?: string; comment?: string; domain?: string; range?: string; inverse?: string }[];
     data_properties_count: number;
-    data_properties: Record<string, { name: string; range: string }[]>;
+    data_properties: Record<string, { name: string; label?: string; comment?: string; range: string; functional?: boolean }[]>;
+    disjoint_pairs?: [string, string][];
   } | null>(null);
   const [owlDialogOpen, setOwlDialogOpen] = useState(false);
   const embeddingModelName = useWatch({
@@ -844,13 +847,35 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
           </DialogHeader>
           {owlPreview && (
             <div className="flex flex-col gap-4 text-sm">
+              <OwlGraph preview={owlPreview} />
               <div>
                 <h4 className="font-medium mb-1">{page_collections('owl_classes')} ({owlPreview.classes_count})</h4>
-                <p className="text-muted-foreground">{owlPreview.classes.join(', ')}</p>
+                <div className="space-y-1">
+                  {owlPreview.classes.map((c) => (
+                    <div key={c.name} className="flex items-baseline gap-2">
+                      <span className="font-medium">{c.label || c.name}</span>
+                      {c.label && <span className="text-muted-foreground text-xs">({c.name})</span>}
+                      {c.parents && c.parents.length > 0 && (
+                        <span className="text-muted-foreground text-xs">→ {c.parents.join(', ')}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
               <div>
                 <h4 className="font-medium mb-1">{page_collections('owl_obj_props')} ({owlPreview.object_properties_count})</h4>
-                <p className="text-muted-foreground">{owlPreview.object_properties.join(', ')}</p>
+                <div className="space-y-1">
+                  {owlPreview.object_properties.map((p) => (
+                    <div key={p.name} className="flex flex-wrap items-baseline gap-x-2 text-xs">
+                      <span className="font-medium">{p.label || p.name}</span>
+                      {p.label && <span className="text-muted-foreground">({p.name})</span>}
+                      {p.domain && <span className="text-muted-foreground">domain: {p.domain}</span>}
+                      {p.range && <span className="text-muted-foreground">range: {p.range}</span>}
+                      {p.inverse && <span className="text-blue-500">inverse: {p.inverse}</span>}
+                      {p.comment && <span className="text-muted-foreground italic">— {p.comment}</span>}
+                    </div>
+                  ))}
+                </div>
               </div>
               {Object.keys(owlPreview.data_properties).length > 0 && (
                 <div>
@@ -858,21 +883,32 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
                   {Object.entries(owlPreview.data_properties).map(([cls, props]) => (
                     <div key={cls} className="ml-2 mb-2">
                       <span className="font-medium text-xs">{cls}:</span>
-                      <p className="text-muted-foreground text-xs">
+                      <div className="text-muted-foreground text-xs space-y-0.5 mt-0.5">
                         {(() => {
                           const seen = new Set<string>();
                           return props
-                            .filter((p: { name: string; range: string }) => {
-                              const k = `${p.name}|${p.range}`;
-                              if (seen.has(k)) return false;
-                              seen.add(k); return true;
-                            })
-                            .map((p: { name: string; range: string }) => `${p.name}(${p.range})`)
-                            .join(', ');
+                            .filter((p) => { const k = `${p.name}|${p.range}`; if (seen.has(k)) return false; seen.add(k); return true; })
+                            .map((p) => (
+                              <div key={p.name} className="flex flex-wrap gap-x-2">
+                                <span>{p.label || p.name}</span>
+                                {p.label && <span className="text-muted-foreground/60">({p.name})</span>}
+                                <span className="text-muted-foreground/60">({p.range})</span>
+                                {p.functional && <span className="text-amber-500">[单值]</span>}
+                                {p.comment && <span className="text-muted-foreground/60 italic ml-1">— {p.comment}</span>}
+                              </div>
+                            ));
                         })()}
-                      </p>
+                      </div>
                     </div>
                   ))}
+                </div>
+              )}
+              {owlPreview.disjoint_pairs && owlPreview.disjoint_pairs.length > 0 && (
+                <div>
+                  <h4 className="font-medium mb-1">互斥类 (DisjointWith)</h4>
+                  <p className="text-muted-foreground text-xs">
+                    {owlPreview.disjoint_pairs.map(([a, b]) => `${a} ⟂ ${b}`).join(', ')}
+                  </p>
                 </div>
               )}
             </div>

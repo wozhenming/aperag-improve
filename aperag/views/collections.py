@@ -622,16 +622,60 @@ async def get_owl_info(
                 schema = parse_owl(tmp.name)
                 os.unlink(tmp.name)
             if schema and not schema.is_empty():
+                # Build class list with Chinese labels
+                classes_info = []
+                for name in schema.classes[:30]:
+                    info = {"name": name}
+                    if name in schema.class_labels:
+                        info["label"] = schema.class_labels[name]
+                    if name in schema.class_hierarchy:
+                        info["parents"] = schema.class_hierarchy[name]
+                    classes_info.append(info)
+
+                # Object properties with details
+                obj_props_info = []
+                seen_obj = set()
+                for _, name, _ in schema.object_properties:
+                    if name in seen_obj:
+                        continue
+                    seen_obj.add(name)
+                    detail = schema.obj_prop_details.get(name)
+                    entry = {"name": name}
+                    if detail:
+                        if detail.label:
+                            entry["label"] = detail.label
+                        if detail.comment:
+                            entry["comment"] = detail.comment
+                        if detail.domain:
+                            entry["domain"] = detail.domain
+                        if detail.range_:
+                            entry["range"] = detail.range_
+                        if detail.inverse:
+                            entry["inverse"] = detail.inverse
+                    obj_props_info.append(entry)
+
+                # Data properties with labels and functional flags
+                dp_info: dict[str, list[dict]] = {}
+                for cls, props in list(schema.data_properties.items())[:12]:
+                    dp_info[cls] = [
+                        {
+                            "name": p.name,
+                            "label": p.label,
+                            "comment": p.comment,
+                            "range": p.range_,
+                            "functional": p.functional,
+                        }
+                        for p in props[:15]
+                    ]
+
                 preview = {
                     "classes_count": len(schema.classes),
-                    "classes": schema.classes[:20],
-                    "object_properties_count": len(set(name for _, name, _ in schema.object_properties)),
-                    "object_properties": list(set(name for _, name, _ in schema.object_properties))[:20],
+                    "classes": classes_info,
+                    "object_properties_count": len(obj_props_info),
+                    "object_properties": obj_props_info,
                     "data_properties_count": sum(len(v) for v in schema.data_properties.values()),
-                    "data_properties": {
-                        cls: [{"name": p.name, "range": p.range_} for p in props[:10]]
-                        for cls, props in list(schema.data_properties.items())[:10]
-                    },
+                    "data_properties": dp_info,
+                    "disjoint_pairs": schema.disjoint_pairs[:15],
                 }
         except Exception as e:
             logger = logging.getLogger(__name__)
