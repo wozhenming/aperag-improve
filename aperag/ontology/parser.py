@@ -171,12 +171,10 @@ def parse_owl(file_path: str) -> OntologySchema:
             for dom in g.objects(prop_uri, RDFLIB_RDFS.domain):
                 domain = _qname(dom)
 
-            # FunctionalProperty marker
+            # FunctionalProperty marker — <owl:FunctionalProperty/> as nested tag
+            # is parsed by RDFLib as (prop_uri, rdf:type, owl:FunctionalProperty)
             if (prop_uri, RDFLIB_RDF.type, RDFLIB_OWL.FunctionalProperty) in g:
                 functional = True
-            # Also check for separate FunctionalProperty declaration
-            for _ in g.subjects(RDFLIB_OWL.FunctionalProperty, RDFLIB_OWL.hasProperty or RDFLIB_RDF.type):
-                pass  # handled above
 
             # Deduplicate
             dedup_key = (domain or "*", prop_name)
@@ -198,12 +196,6 @@ def parse_owl(file_path: str) -> OntologySchema:
                 if prop_name not in schema.functional_properties[domain]:
                     schema.functional_properties[domain].append(prop_name)
 
-        # ----- Detect FunctionalProperty on ObjectProperties too -----
-        for prop_uri in g.subjects(RDFLIB_RDF.type, RDFLIB_OWL.ObjectProperty):
-            if (prop_uri, RDFLIB_RDF.type, RDFLIB_OWL.FunctionalProperty) in g:
-                prop_name = _qname(prop_uri)
-                detail = schema.obj_prop_details.get(prop_name)
-                # store functional status — we don't have a field for this yet, skip for now
 
     except ImportError:
         logger.warning("rdflib not installed, OWL parsing skipped")
