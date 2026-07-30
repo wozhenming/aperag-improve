@@ -159,11 +159,13 @@ def parse_owl(file_path: str) -> OntologySchema:
 
 def _resolve_owl_entities(content: str) -> str:
     """
-    Pre-process OWL XML content to resolve ALL XML entity references (&xxx;)
-    using their xmlns:xxx namespace declarations.
+    Pre-process OWL XML content to:
+    1. Resolve XML entity references (&xxx;) using xmlns:xxx declarations
+    2. URL-encode non-ASCII characters in rdf:about values (owlready2 can't handle IRIs)
     Returns the modified content string.
     """
     import re
+    from urllib.parse import quote
 
     # Collect all xmlns:prefix="url" declarations
     ns_map: dict[str, str] = {}
@@ -175,12 +177,23 @@ def _resolve_owl_entities(content: str) -> str:
     if default_ns:
         ns_map["ontology"] = default_ns.group(1)
 
-    # Find all &xxx; entity references
+    # Resolve XML entity references
     entity_refs = set(re.findall(r"&([a-zA-Z_]\w*);", content))
-
     for entity in entity_refs:
         if entity in ns_map:
             content = content.replace(f"&{entity};", ns_map[entity])
+
+    # URL-encode non-ASCII in rdf:about values (owlready2 can't handle raw Chinese IRIs)
+    def _encode_iri(m: re.Match) -> str:
+        before, value, after = m.group(1), m.group(2), m.group(3)
+        encoded = quote(value, safe='/#:')
+        return before + encoded + after
+
+    content = re.sub(
+        r'(rdf:about=")([^"]+)(")',
+        _encode_iri,
+        content,
+    )
 
     return content
 
