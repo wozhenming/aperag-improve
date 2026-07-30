@@ -76,6 +76,8 @@
     "hint_kg_entity_types": "知识图谱中需要提取的实体类型列表。可作为自定义标签添加新类型，控制提取范围",
     "hint_use_mineru": "开启后优先使用 MinerU API 解析 PDF，对复杂表格和公式的识别效果更好",
     "hint_mineru_api_token": "MinerU 官方 API 令牌，有效期 14 天，到期前需更换",
+    "mineru_api_base_url": "MinerU API 地址",
+    "hint_mineru_api_base_url": "MinerU API 服务地址，留空使用官方云端 (https://mineru.net)，本地部署时填写内网地址如 http://10.0.0.5:8000",
     "hint_use_doc_ray": "开启后使用 DocRay 进行文档解析，支持本地部署的高级文档解析服务",
     "hint_use_markitdown": "开启后使用 MarkItDown 将 Word/Excel 等格式转为 Markdown",
     "ocr_asr_settings": "OCR / 语音识别",

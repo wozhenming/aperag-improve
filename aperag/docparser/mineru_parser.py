@@ -38,15 +38,16 @@ SUPPORTED_EXTENSIONS = [
     ".jpeg",
 ]
 
-API_HOST = "https://mineru.net"
+DEFAULT_API_HOST = "https://mineru.net"
 
 
 class MinerUParser(BaseParser):
     name = "mineru"
 
-    def __init__(self, api_token: str = None, **kwargs):
+    def __init__(self, api_token: str = None, api_base: str = None, **kwargs):
         super().__init__(**kwargs)
         self.api_token = api_token
+        self.api_host = api_base or DEFAULT_API_HOST
 
     def supported_extensions(self) -> list[str]:
         return SUPPORTED_EXTENSIONS
@@ -68,7 +69,7 @@ class MinerUParser(BaseParser):
         }
         try:
             resp = requests.post(
-                f"{API_HOST}/api/v4/file-urls/batch",
+                f"{self.api_host}/api/v4/file-urls/batch",
                 headers=headers,
                 json=upload_url_payload,
             )
@@ -100,7 +101,7 @@ class MinerUParser(BaseParser):
             try:
                 time.sleep(5)  # Poll every 5 seconds
                 status_resp = requests.get(
-                    f"{API_HOST}/api/v4/extract-results/batch/{batch_id}",
+                    f"{self.api_host}/api/v4/extract-results/batch/{batch_id}",
                     headers={"Authorization": f"Bearer {self.api_token}"},
                 )
                 status_resp.raise_for_status()

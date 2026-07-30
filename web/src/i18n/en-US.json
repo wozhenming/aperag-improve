@@ -76,6 +76,8 @@
     "hint_kg_entity_types": "Entity types to extract in the knowledge graph. Add custom types as tags to control extraction scope",
     "hint_use_mineru": "When enabled, prioritize MinerU API for PDF parsing with better table and formula recognition",
     "hint_mineru_api_token": "Official MinerU API token, valid for 14 days. Replace before expiry",
+    "mineru_api_base_url": "MinerU API Base URL",
+    "hint_mineru_api_base_url": "MinerU API service base URL. Leave empty for cloud (https://mineru.net), or set your local instance e.g. http://10.0.0.5:8000",
     "hint_use_doc_ray": "When enabled, use DocRay for document parsing with locally deployed advanced parsing service",
     "hint_use_markitdown": "When enabled, use MarkItDown to convert Word/Excel files to Markdown",
     "ocr_asr_settings": "OCR / Speech Recognition",

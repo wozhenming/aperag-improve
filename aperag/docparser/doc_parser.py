@@ -91,6 +91,10 @@ class DocParser(BaseParser):
                     if cfg.settings is None:
                         cfg.settings = {}
                     cfg.settings["api_token"] = token
+                    # Allow overriding API base URL for local deployments
+                    base_url = parser_config.get("mineru_api_base_url") or os.getenv("MINERU_API_BASE_URL")
+                    if base_url:
+                        cfg.settings["api_base"] = base_url
                 else:
                     cfg.enabled = False
             elif cfg.name == DocRayParser.name:
