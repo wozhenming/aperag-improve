@@ -351,13 +351,8 @@ export default function OwlGraphPage() {
                 if (!svg) return;
                 const clone = svg.cloneNode(true) as SVGSVGElement;
                 clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-                // Inline CSS for background
-                const style = document.createElement('style');
-                style.textContent = 'svg { background: white; }';
-                clone.prepend(style);
                 const data = new XMLSerializer().serializeToString(clone);
-                const svgBlob = new Blob([data], { type: 'image/svg+xml' });
-                const url = URL.createObjectURL(svgBlob);
+                const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(data);
                 const img = new Image();
                 img.onload = () => {
                   const c = document.createElement('canvas');
@@ -373,10 +368,8 @@ export default function OwlGraphPage() {
                   document.body.appendChild(a);
                   a.click();
                   document.body.removeChild(a);
-                  URL.revokeObjectURL(url);
                 };
-                img.onerror = () => URL.revokeObjectURL(url);
-                img.src = url;
+                img.src = svgDataUrl;
               }}>
               <Download className="h-3 w-3" />
             </Button>
