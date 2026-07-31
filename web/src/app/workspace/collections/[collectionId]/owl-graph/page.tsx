@@ -344,74 +344,42 @@ export default function OwlGraphPage() {
           <div className="flex items-center justify-between px-3 py-1 border-b bg-muted/40 shrink-0">
             <span className="text-xs text-muted-foreground">Mermaid</span>
             <Button variant="ghost" size="icon" className="h-6 w-6"
-              onClick={() => {
+              onClick={async () => {
                 const container = mermaidRef.current?.querySelector<HTMLElement>('.flex-1.overflow-auto');
-                if (!container) return;
+                if (!container || !mermaidCode) return;
                 const svg = container.querySelector('svg:not(.lucide)');
                 if (!svg) return;
-                const clone = svg.cloneNode(true) as SVGSVGElement;
-                // Set explicit size from the rendered SVG bounding box
-                const bbox = svg.getBoundingClientRect();
+
+                // Re-render with neutral (light) theme via mermaid API for clean export
+                const { default: mermaid } = await import('mermaid');
+                mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
+                const id = 'mermaid-export-' + Date.now();
+                const { svg: cleanSvg } = await mermaid.render(id, mermaidCode);
+                document.getElementById('d' + id)?.remove();
+
                 const scale = 4;
+                const bbox = svg.getBoundingClientRect();
                 const w = Math.max(bbox.width, 600) * scale;
                 const h = Math.max(bbox.height, 400) * scale;
-                clone.setAttribute('width', String(w));
-                clone.setAttribute('height', String(h));
-                clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-                // Force light theme — inject CSS that overrides dark Mermaid theme
-                const fixStyle = document.createElementNS('http://www.w3.org/2000/svg', 'style');
-                fixStyle.textContent = `
-                  svg { background: #fff !important; }
-                  .node rect, .node circle, .node ellipse, .node polygon, .node path { fill: #e8eaf6 !important; stroke: #3f51b5 !important; }
-                  .node .label { color: #1a237e !important; }
-                  .node .label text { fill: #1a237e !important; }
-                  g.edgePath path { stroke: #666 !important; stroke-width: 1.5px !important; fill: none !important; }
-                  .edgeLabel rect { fill: #fff !important; stroke: none !important; }
-                  .edgeLabel span, .edgeLabel foreignObject div { color: #333 !important; background: #fff !important; }
-                  marker path { fill: #666 !important; stroke: #666 !important; }
-                  .cluster rect { fill: #f5f5f5 !important; stroke: #bbb !important; }
-                  .cluster .label { color: #333 !important; }
-                  text, tspan { fill: #333 !important; }
-                `;
-                clone.appendChild(fixStyle);
-                // Force paths inside edgePath to be visible
-                // Fix all edge paths: remove inline styles that hide them
-                clone.querySelectorAll('g.edgePath path, .edge-pattern, .edgeLine').forEach((el) => {
-                  const p = el as SVGElement;
-                  p.removeAttribute('style');
-                  p.setAttribute('stroke', '#555');
-                  p.setAttribute('stroke-width', '1.5');
-                  p.setAttribute('fill', 'none');
-                });
-                // Also fix any marker (arrow) paths
-                clone.querySelectorAll('marker path').forEach((el) => {
-                  el.setAttribute('fill', '#555');
-                });
-                const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                bg.setAttribute('width', '100%');
-                bg.setAttribute('height', '100%');
-                bg.setAttribute('fill', '#ffffff');
-                clone.insertBefore(bg, clone.firstChild);
-
-                const data = new XMLSerializer().serializeToString(clone);
-                const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(data);
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = cleanSvg;
+                const cleanEl = wrapper.querySelector('svg')!;
+                cleanEl.setAttribute('width', String(w));
+                cleanEl.setAttribute('height', String(h));
+                const data = new XMLSerializer().serializeToString(cleanEl);
+                const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(data);
                 const img = new Image();
                 img.onload = () => {
                   const c = document.createElement('canvas');
-                  c.width = w;
-                  c.height = h;
+                  c.width = w; c.height = h;
                   const ctx = c.getContext('2d')!;
-                  ctx.fillStyle = '#fff';
-                  ctx.fillRect(0, 0, c.width, c.height);
-                  ctx.drawImage(img, 0, 0, c.width, c.height);
+                  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+                  ctx.drawImage(img, 0, 0, w, h);
                   const a = document.createElement('a');
-                  a.download = 'owl-mermaid.png';
-                  a.href = c.toDataURL('image/png');
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
+                  a.download = 'owl-mermaid.png'; a.href = c.toDataURL('image/png');
+                  document.body.appendChild(a); a.click(); document.body.removeChild(a);
                 };
-                img.src = svgDataUrl;
+                img.src = url;
               }}>
               <Download className="h-3 w-3" />
             </Button>
