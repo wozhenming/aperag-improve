@@ -351,28 +351,32 @@ export default function OwlGraphPage() {
                 if (!svg) return;
                 const clone = svg.cloneNode(true) as SVGSVGElement;
                 clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                // Inline CSS for background
+                const style = document.createElement('style');
+                style.textContent = 'svg { background: white; }';
+                clone.prepend(style);
                 const data = new XMLSerializer().serializeToString(clone);
                 const svgBlob = new Blob([data], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(svgBlob);
                 const img = new Image();
-                const svgUrl = URL.createObjectURL(svgBlob);
                 img.onload = () => {
                   const c = document.createElement('canvas');
-                  c.width = img.width * 2; c.height = img.height * 2;
+                  c.width = img.naturalWidth * 2;
+                  c.height = img.naturalHeight * 2;
                   const ctx = c.getContext('2d')!;
-                  ctx.scale(2, 2);
-                  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
-                  ctx.drawImage(img, 0, 0);
-                  c.toBlob((png) => {
-                    if (!png) return;
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(png);
-                    a.download = 'owl-mermaid.png';
-                    document.body.appendChild(a);
-                    a.click(); document.body.removeChild(a);
-                  }, 'image/png');
-                  URL.revokeObjectURL(svgUrl);
+                  ctx.fillStyle = '#fff';
+                  ctx.fillRect(0, 0, c.width, c.height);
+                  ctx.drawImage(img, 0, 0, c.width, c.height);
+                  const a = document.createElement('a');
+                  a.download = 'owl-mermaid.png';
+                  a.href = c.toDataURL('image/png');
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
                 };
-                img.src = svgUrl;
+                img.onerror = () => URL.revokeObjectURL(url);
+                img.src = url;
               }}>
               <Download className="h-3 w-3" />
             </Button>
