@@ -350,14 +350,27 @@ export default function OwlGraphPage() {
                 const svg = container.querySelector('svg:not(.lucide)');
                 if (!svg) return;
                 const clone = svg.cloneNode(true) as SVGSVGElement;
+                // Set explicit size from the rendered SVG bounding box
+                const bbox = svg.getBoundingClientRect();
+                const w = Math.max(bbox.width, 600);
+                const h = Math.max(bbox.height, 400);
+                clone.setAttribute('width', String(w));
+                clone.setAttribute('height', String(h));
                 clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                // White background rect
+                const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                bg.setAttribute('width', '100%');
+                bg.setAttribute('height', '100%');
+                bg.setAttribute('fill', '#ffffff');
+                clone.insertBefore(bg, clone.firstChild);
+
                 const data = new XMLSerializer().serializeToString(clone);
                 const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(data);
                 const img = new Image();
                 img.onload = () => {
                   const c = document.createElement('canvas');
-                  c.width = img.naturalWidth * 2;
-                  c.height = img.naturalHeight * 2;
+                  c.width = w * 2;
+                  c.height = h * 2;
                   const ctx = c.getContext('2d')!;
                   ctx.fillStyle = '#fff';
                   ctx.fillRect(0, 0, c.width, c.height);
