@@ -71,21 +71,18 @@ export default function OwlGraphPage() {
     const lines: string[] = ['graph TB'];
     for (const c of classes) getCode(c.name);
     const doneNodes = new Set<string>();
+    // Recursive function to collect and declare all descendants
+    function collectDescendants(name: string) {
+      if (doneNodes.has(name)) return;
+      const c = classMap.get(name);
+      lines.push(`  ${getCode(name)}["${c ? label(c) : name}"]`);
+      doneNodes.add(name);
+      for (const kid of children[name] || []) collectDescendants(kid);
+    }
     for (const root of roots) {
-      const c = classMap.get(root.name);
-      lines.push(`  ${getCode(root.name)}["${c ? label(c) : root.name}"]`);
-      doneNodes.add(root.name);
-      const kids = children[root.name] || [];
-      if (kids.length > 0) {
-        const rc = classMap.get(root.name);
-        lines.push(`  subgraph ${getCode(root.name)}_sg["${rc ? (rc.label || rc.name) : root.name} - 子类"]`);
-        for (const kid of kids) {
-          if (!doneNodes.has(kid)) { lines.push(`    ${getCode(kid)}["${label(classMap.get(kid) || { name: kid, label: kid, comment: '' })}"]`); doneNodes.add(kid); }
-          const grandkids = children[kid] || [];
-          for (const gk of grandkids) { if (!doneNodes.has(gk)) { lines.push(`    ${getCode(gk)}["${label(classMap.get(gk) || { name: gk, label: gk, comment: '' })}"]`); doneNodes.add(gk); } }
-        }
-        lines.push('  end');
-      }
+      lines.push(`  subgraph ${getCode(root.name)}_sg["${label(root)} - 子类"]`);
+      for (const kid of children[root.name] || []) collectDescendants(kid);
+      lines.push('  end');
     }
     for (const c of classes) { for (const p of c.parents || []) { if (classSet.has(p)) lines.push(`  ${getCode(c.name)} -->|"继承"| ${getCode(p)}`); } }
     const addedEdges = new Set<string>();
@@ -161,7 +158,7 @@ export default function OwlGraphPage() {
       </div>
 
       {showMermaid && mermaidCode ? (
-        <div className="flex-1 flex flex-col bg-muted/20">
+        <div className="flex-1 flex flex-col bg-muted/20 relative z-0">
           <div className="flex items-center justify-between px-3 py-1 border-b bg-muted/40 shrink-0">
             <div className="flex items-center gap-1">
               <Button variant={mermaidTab === 'graph' ? 'secondary' : 'ghost'} size="sm" className="h-7 text-xs"
@@ -197,7 +194,7 @@ export default function OwlGraphPage() {
             <div ref={mermaidZoomRef} className="flex-1 overflow-auto cursor-move p-4" dangerouslySetInnerHTML={{ __html: mermaidSvg }} />
           ) : (
             <div className="flex-1 overflow-auto p-4">
-              <pre className="text-xs whitespace-pre-wrap font-mono text-muted-foreground">{mermaidCode}</pre>
+              <textarea readOnly className="w-full h-full text-xs font-mono text-muted-foreground bg-transparent border-0 resize-none p-4 outline-none" value={mermaidCode} />
             </div>
           )}
         </div>
