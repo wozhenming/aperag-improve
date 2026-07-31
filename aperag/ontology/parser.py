@@ -83,9 +83,10 @@ def parse_owl(file_path: str) -> OntologySchema:
         ):
             inverse_pairs.append((m.group(1), m.group(2)))
 
-        # Strip non-standard nested tags that break RDFLib's parser
+        # Strip non-standard nested tags + XML comments (RDFLib parser issues)
         content = re.sub(r'\s*<owl:FunctionalProperty\s*/>', '', content)
         content = re.sub(r'\s*<owl:inverseOf\s+[^>]+/>', '', content)
+        content = re.sub(r'<!--[\s\S]*?-->', '', content)
         g = Graph()
         g.parse(data=content.encode("utf-8"), format="xml")
 
