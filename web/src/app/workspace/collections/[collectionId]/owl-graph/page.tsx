@@ -7,7 +7,7 @@ import {
 } from '@/components/ui/drawer';
 import { Separator } from '@/components/ui/separator';
 import axios from 'axios';
-import { ArrowLeft, ChevronDown, ChevronUp, LoaderCircle, Maximize2, Minus, Plus, RotateCcw, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Download, LoaderCircle, Maximize2, Minus, Plus, RotateCcw, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { useParams, useRouter } from 'next/navigation';
@@ -23,9 +23,12 @@ export default function OwlGraphPage() {
   const [loading, setLoading] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<any>(null);
+  const mermaidRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ width: 800, height: 600 });
   const [activeNode, setActiveNode] = useState<any>(null);
   const [showMermaid, setShowMermaid] = useState(true);
+  const [mermaidPct, setMermaidPct] = useState(40); // % height for Mermaid
+  const [dragging, setDragging] = useState(false);
   const [classComments, setClassComments] = useState<Record<string, string>>({});
 
   const loadGraph = useCallback(async () => {
@@ -334,17 +337,56 @@ export default function OwlGraphPage() {
         </div>
       </div>
 
-      {/* Mermaid diagram — collapsible */}
+      {/* Mermaid diagram — resizable */}
       {showMermaid && mermaidCode && (
-        <div className="border-b shrink-0 bg-muted/20">
-          <div className="max-h-[35vh] overflow-auto p-2">
+        <div ref={mermaidRef} className="border-b bg-muted/20 relative flex flex-col"
+          style={{ height: `${mermaidPct}%`, minHeight: 100 }}>
+          <div className="flex items-center justify-between px-3 py-1 border-b bg-muted/40 shrink-0">
+            <span className="text-xs text-muted-foreground">Mermaid</span>
+            <Button variant="ghost" size="icon" className="h-6 w-6"
+              onClick={() => {
+                const svg = mermaidRef.current?.querySelector('svg');
+                if (!svg) return;
+                const clone = svg.cloneNode(true) as SVGSVGElement;
+                clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                const data = new XMLSerializer().serializeToString(clone);
+                const blob = new Blob([data], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = 'owl-mermaid.svg';
+                a.click(); URL.revokeObjectURL(url);
+              }}>
+              <Download className="h-3 w-3" />
+            </Button>
+          </div>
+          <div className="flex-1 overflow-auto p-2">
             <ChartMermaid>{mermaidCode}</ChartMermaid>
           </div>
+          {/* Drag handle */}
+          <div
+            className="absolute bottom-0 left-0 right-0 h-1.5 cursor-row-resize hover:bg-primary/20 transition-colors"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setDragging(true);
+              const startY = e.clientY;
+              const startPct = mermaidPct;
+              const parentH = (e.currentTarget.parentElement?.parentElement?.clientHeight || 600);
+              const onMove = (ev: MouseEvent) => {
+                const dy = ev.clientY - startY;
+                const newPct = Math.max(10, Math.min(80, startPct + (dy / parentH) * 100));
+                setMermaidPct(newPct);
+              };
+              const onUp = () => { setDragging(false); window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+              window.addEventListener('mousemove', onMove);
+              window.addEventListener('mouseup', onUp);
+            }}
+          />
         </div>
       )}
+      {dragging && <div className="fixed inset-0 z-50 cursor-row-resize" />}
 
       {/* Graph area */}
-      <div ref={containerRef} className="flex-1 relative">
+      <div ref={containerRef} className="flex-1 relative min-h-[120px]">
         <ForceGraph2D
           ref={graphRef}
           graphData={graphData}
