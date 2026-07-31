@@ -352,12 +352,16 @@ export default function OwlGraphPage() {
                 const clone = svg.cloneNode(true) as SVGSVGElement;
                 // Set explicit size from the rendered SVG bounding box
                 const bbox = svg.getBoundingClientRect();
-                const w = Math.max(bbox.width, 600);
-                const h = Math.max(bbox.height, 400);
+                const scale = 4;
+                const w = Math.max(bbox.width, 600) * scale;
+                const h = Math.max(bbox.height, 400) * scale;
                 clone.setAttribute('width', String(w));
                 clone.setAttribute('height', String(h));
                 clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-                // White background rect
+                // Force light theme fixes + white background
+                const fixStyle = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+                fixStyle.textContent = '.edgeLabel rect, .edgeLabel span { fill: #fff !important; color: #333 !important; } .edgeLabel foreignObject { overflow: visible !important; } .label foreignObject { overflow: visible !important; }';
+                clone.insertBefore(fixStyle, clone.firstChild);
                 const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 bg.setAttribute('width', '100%');
                 bg.setAttribute('height', '100%');
@@ -369,8 +373,8 @@ export default function OwlGraphPage() {
                 const img = new Image();
                 img.onload = () => {
                   const c = document.createElement('canvas');
-                  c.width = w * 2;
-                  c.height = h * 2;
+                  c.width = w;
+                  c.height = h;
                   const ctx = c.getContext('2d')!;
                   ctx.fillStyle = '#fff';
                   ctx.fillRect(0, 0, c.width, c.height);
