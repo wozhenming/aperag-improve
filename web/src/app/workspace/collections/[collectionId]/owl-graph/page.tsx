@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/drawer';
 import { Separator } from '@/components/ui/separator';
 import axios from 'axios';
-import { ArrowLeft, ChevronDown, ChevronUp, Download, LoaderCircle, Maximize2, Minus, Plus, RotateCcw, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Copy, Download, LoaderCircle, Maximize2, Minus, Plus, RotateCcw, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { useParams, useRouter } from 'next/navigation';
@@ -16,7 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d').then((r) => r), { ssr: false });
 
-/* Full-size Mermaid renderer — no Card wrapper, fills container */
+/* Full-size Mermaid renderer with pan/zoom */
 function MermaidView({ code }: { code: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState('');
@@ -25,9 +25,20 @@ function MermaidView({ code }: { code: string }) {
     mermaid.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'loose' });
     mermaid.render(id, code).then((r) => setSvg(r.svg)).catch(() => {});
   }, [code, id]);
+  useEffect(() => {
+    if (!svg || !ref.current) return;
+    let zoomInstance: any;
+    import('panzoom').then(({ default: panzoom }) => {
+      const el = ref.current;
+      if (el) zoomInstance = panzoom(el, { minZoom: 0.2, maxZoom: 10, smoothScroll: false });
+    });
+    return () => { if (zoomInstance && typeof zoomInstance.dispose === 'function') zoomInstance.dispose(); };
+  }, [svg]);
   if (!svg) return null;
-  return <div ref={ref} className="w-full h-full flex items-center justify-center"
-    dangerouslySetInnerHTML={{ __html: svg.replace(/<svg/, '<svg style="max-width:100%;max-height:100%"') }} />;
+  return <div className="w-full h-full overflow-hidden">
+    <div ref={ref} className="w-full h-full flex items-center justify-center cursor-move"
+      dangerouslySetInnerHTML={{ __html: svg.replace(/<svg/, '<svg style="max-width:100%;max-height:100%"') }} />
+  </div>;
 }
 
 export default function OwlGraphPage() {
@@ -150,8 +161,13 @@ export default function OwlGraphPage() {
         <div className="flex-1 flex flex-col overflow-auto bg-muted/20">
           <div className="flex items-center justify-between px-3 py-1 border-b bg-muted/40 shrink-0">
             <span className="text-xs text-muted-foreground">Mermaid</span>
-            <Button variant="ghost" size="icon" className="h-6 w-6"
-              onClick={async () => {
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="icon" className="h-6 w-6"
+                onClick={() => { navigator.clipboard.writeText(mermaidCode); }}>
+                <Copy className="h-3 w-3" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6"
+                onClick={async () => {
                 const { default: mermaid } = await import('mermaid');
                 mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
                 const id = 'mermaid-export-' + Date.now();
@@ -172,7 +188,9 @@ export default function OwlGraphPage() {
                 };
                 img.src = url;
               }}>
-              <Download className="h-3 w-3" /></Button>
+                <Download className="h-3 w-3" />
+              </Button>
+            </div>
           </div>
           <MermaidView code={mermaidCode} />
         </div>
