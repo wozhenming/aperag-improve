@@ -339,8 +339,8 @@ export default function OwlGraphPage() {
 
       {/* Mermaid diagram — resizable */}
       {showMermaid && mermaidCode && (
-        <div ref={mermaidRef} className="border-b bg-muted/20 relative flex flex-col"
-          style={{ height: `${mermaidPct}%`, minHeight: 100 }}>
+        <div ref={mermaidRef} className="border-b bg-muted/20 relative flex flex-col shrink-0 overflow-hidden"
+          style={{ flexBasis: `${mermaidPct}%`, minHeight: 100, maxHeight: `${mermaidPct}%` }}>
           <div className="flex items-center justify-between px-3 py-1 border-b bg-muted/40 shrink-0">
             <span className="text-xs text-muted-foreground">Mermaid</span>
             <Button variant="ghost" size="icon" className="h-6 w-6"
@@ -352,26 +352,13 @@ export default function OwlGraphPage() {
                 const clone = svg.cloneNode(true) as SVGSVGElement;
                 clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
                 const data = new XMLSerializer().serializeToString(clone);
-                const svgBlob = new Blob([data], { type: 'image/svg+xml' });
-                const url = URL.createObjectURL(svgBlob);
-                const img = new Image();
-                img.onload = () => {
-                  const canvas = document.createElement('canvas');
-                  canvas.width = img.width * 2; canvas.height = img.height * 2;
-                  const ctx = canvas.getContext('2d')!;
-                  ctx.scale(2, 2);
-                  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-                  ctx.drawImage(img, 0, 0);
-                  canvas.toBlob((blob) => {
-                    if (!blob) return;
-                    const pngUrl = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = pngUrl; a.download = 'owl-mermaid.png';
-                    a.click(); URL.revokeObjectURL(pngUrl);
-                  }, 'image/png');
-                  URL.revokeObjectURL(url);
-                };
-                img.src = url;
+                const blob = new Blob([data], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = 'owl-mermaid.svg';
+                document.body.appendChild(a);
+                a.click(); document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
               }}>
               <Download className="h-3 w-3" />
             </Button>
