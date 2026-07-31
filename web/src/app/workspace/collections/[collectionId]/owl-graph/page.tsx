@@ -51,15 +51,38 @@ export default function OwlGraphPage() {
         '#9a6324', '#fabebe', '#800000', '#ffe119', '#aaffc3',
       ];
 
-      const nodes: any[] = (preview.classes || []).map((c: any, i: number) => ({
-        id: c.name,
-        label: c.label || c.name,
-        comment: c.comment || '',
-        parents: c.parents || [],
-        val: (c.parents?.length || 0) * 3 + 5,
-        color: colorPalette[i % colorPalette.length],
-        dataProps: (preview.data_properties || {})[c.name] || [],
-      }));
+      // Compute node depth: roots = 0, leaves = max depth
+      const depthMap: Record<string, number> = {};
+      const calcDepth = (name: string, d: number) => {
+        if (depthMap[name] !== undefined && depthMap[name] >= d) return;
+        depthMap[name] = d;
+        for (const c of (preview.classes || [])) {
+          if ((c.parents || []).includes(name)) calcDepth(c.name, d + 1);
+        }
+      };
+      // Find roots (no parents or external parents)
+      const classNames = new Set((preview.classes || []).map((c: any) => c.name));
+      for (const c of (preview.classes || [])) {
+        if (!c.parents || c.parents.length === 0 || !c.parents.some((p: string) => classNames.has(p))) {
+          calcDepth(c.name, 0);
+        }
+      }
+      const maxDepth = Math.max(...Object.values(depthMap), 1);
+
+      const nodes: any[] = (preview.classes || []).map((c: any, i: number) => {
+        const depth = depthMap[c.name] ?? 0;
+        // Top-level: 15, leaf: 4
+        const val = 15 - ((depth / maxDepth) * 11);
+        return {
+          id: c.name,
+          label: c.label || c.name,
+          comment: c.comment || '',
+          parents: c.parents || [],
+          val,
+          color: colorPalette[i % colorPalette.length],
+          dataProps: (preview.data_properties || {})[c.name] || [],
+        };
+      });
 
       const edges: any[] = [];
 
