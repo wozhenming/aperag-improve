@@ -131,10 +131,9 @@ export default function OwlGraphPage() {
         </div>
       </div>
 
-      {showMermaid && mermaidCode && (
-        <div ref={mermaidRef} className="border-b bg-muted/20 relative flex flex-col overflow-auto"
-          style={{ resize: 'vertical', height: '40vh', minHeight: '10vh', maxHeight: '80vh' }}>
-          <div className="flex items-center justify-between px-3 py-1 border-b bg-muted/40 shrink-0 sticky top-0 z-10">
+      {showMermaid && mermaidCode ? (
+        <div className="flex-1 flex flex-col overflow-auto bg-muted/20">
+          <div className="flex items-center justify-between px-3 py-1 border-b bg-muted/40 shrink-0">
             <span className="text-xs text-muted-foreground">Mermaid</span>
             <Button variant="ghost" size="icon" className="h-6 w-6"
               onClick={async () => {
@@ -160,11 +159,10 @@ export default function OwlGraphPage() {
               }}>
               <Download className="h-3 w-3" /></Button>
           </div>
-          <div className="flex-1 overflow-auto p-2"><ChartMermaid>{mermaidCode}</ChartMermaid></div>
+          <div className="flex-1 overflow-auto p-4"><ChartMermaid>{mermaidCode}</ChartMermaid></div>
         </div>
-      )}
-
-      <div ref={containerRef} className="flex-1 relative min-h-[100px] overflow-hidden">
+      ) : (
+        <div ref={containerRef} className="flex-1 relative min-h-[100px] overflow-hidden">
         <ForceGraph2D ref={graphRef} graphData={graphData} width={dims.width} height={dims.height}
           nodeLabel={(n) => (n as any).label} nodeColor={(n) => (n as any).color || '#4363d8'} nodeVal={(n) => (n as any).val || 5}
           linkLabel={(l) => (l as any).label} linkColor={(l) => (l as any).color || '#999'}
@@ -188,6 +186,7 @@ export default function OwlGraphPage() {
           onNodeClick={(node: any) => setActiveNode({ id: node.id, label: node.label || node.id, comment: node.comment || classComments[node.id] || '', properties: (node.dataProps || []).map((p: any) => ({ name: p.name, label: p.label, range: p.range, comment: p.comment })) })}
         />
       </div>
+      )}
 
       <Drawer direction="right" open={!!activeNode} onOpenChange={(v) => { if (!v) setActiveNode(null); }}>
         <DrawerContent className="flex sm:min-w-sm md:min-w-md"><DrawerHeader><DrawerTitle>{activeNode?.label || activeNode?.id}</DrawerTitle><Button variant="ghost" size="icon" className="absolute top-2 right-2" onClick={() => setActiveNode(null)}><X className="h-4 w-4" /></Button></DrawerHeader>
