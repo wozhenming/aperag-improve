@@ -1,42 +1,32 @@
 'use client';
 
+import { ChartMermaid } from '@/components/chart-mermaid';
 import { Button } from '@/components/ui/button';
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle,
 } from '@/components/ui/drawer';
+import { Separator } from '@/components/ui/separator';
 import axios from 'axios';
-import { ArrowLeft, LoaderCircle, Maximize2, Minus, Plus, RotateCcw, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, LoaderCircle, Maximize2, Minus, Plus, RotateCcw, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { useParams, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d').then((r) => r), { ssr: false });
-
-interface GraphNode {
-  id: string;
-  label: string;
-  parents?: string[];
-  val?: number;
-}
-
-interface GraphEdge {
-  source: string;
-  target: string;
-  label: string;
-  id: string;
-}
 
 export default function OwlGraphPage() {
   const params = useParams();
   const router = useRouter();
   const page_collections = useTranslations('page_collections');
-  const [graphData, setGraphData] = useState<{ nodes: GraphNode[]; links: GraphEdge[] } | null>(null);
+  const [graphData, setGraphData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<any>(null);
   const [dims, setDims] = useState({ width: 800, height: 600 });
-  const [activeNode, setActiveNode] = useState<{ id: string; label: string; properties?: { name: string; label?: string; range: string; comment?: string }[] } | null>(null);
+  const [activeNode, setActiveNode] = useState<any>(null);
+  const [showMermaid, setShowMermaid] = useState(true);
+  const [classComments, setClassComments] = useState<Record<string, string>>({});
 
   const loadGraph = useCallback(async () => {
     if (typeof params.collectionId !== 'string') return;
@@ -48,22 +38,28 @@ export default function OwlGraphPage() {
       const preview = (data as any).preview;
       if (!preview) { setLoading(false); return; }
 
+      // Save class comments
+      const comments: Record<string, string> = {};
+      for (const c of preview.classes || []) {
+        if (c.comment) comments[c.name] = c.comment;
+      }
+      setClassComments(comments);
+
       const colorPalette = [
         '#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4',
         '#46f0f0', '#f032e6', '#bcf60c', '#008080', '#e6beff',
         '#9a6324', '#fabebe', '#800000', '#ffe119', '#aaffc3',
       ];
 
-      const nodes: any[] = (preview.classes || []).map(
-        (c: any, i: number) => ({
-          id: c.name,
-          label: c.label || c.name,
-          parents: c.parents || [],
-          val: (c.parents?.length || 0) * 3 + 5,
-          color: colorPalette[i % colorPalette.length],
-          dataProps: (preview.data_properties || {})[c.name] || [],
-        })
-      );
+      const nodes: any[] = (preview.classes || []).map((c: any, i: number) => ({
+        id: c.name,
+        label: c.label || c.name,
+        comment: c.comment || '',
+        parents: c.parents || [],
+        val: (c.parents?.length || 0) * 3 + 5,
+        color: colorPalette[i % colorPalette.length],
+        dataProps: (preview.data_properties || {})[c.name] || [],
+      }));
 
       const edges: any[] = (preview.object_properties || [])
         .filter((p: any) => p.domain && p.range)
@@ -74,10 +70,40 @@ export default function OwlGraphPage() {
           id: `${p.name}_${i}`,
         }));
 
-      setGraphData({ nodes, links: edges });
+      setGraphData({ nodes, links: edges, preview });
     } catch { /* ignore */ }
     setLoading(false);
   }, [params.collectionId]);
+
+  // Build Mermaid classDiagram
+  const mermaidCode = useMemo(() => {
+    if (!graphData?.preview) return '';
+    const lines = ['classDiagram'];
+    const classes = graphData.preview.classes || [];
+    const objProps = graphData.preview.object_properties || [];
+
+    // Classes with labels
+    for (const c of classes) {
+      const label = (c.label || c.name).replace(/[\s-]/g, '_');
+      lines.push(`  class ${label} {`);
+      const dps = (graphData.preview.data_properties || {})[c.name] || [];
+      for (const p of dps.slice(0, 10)) {
+        const pname = (p.label || p.name).replace(/[\s-]/g, '');
+        lines.push(`    +${p.range} ${pname}`);
+      }
+      lines.push('  }');
+    }
+
+    // Relationships
+    for (const p of objProps) {
+      if (!p.domain || !p.range) continue;
+      const src = (classes.find((c: any) => c.name === p.domain)?.label || p.domain).replace(/[\s-]/g, '_');
+      const tgt = (classes.find((c: any) => c.name === p.range)?.label || p.range).replace(/[\s-]/g, '_');
+      const label = (p.label || p.name).replace(/[\s-]/g, '_');
+      lines.push(`  ${src} --> ${tgt} : ${label}`);
+    }
+    return lines.join('\n');
+  }, [graphData]);
 
   useEffect(() => { loadGraph(); }, [loadGraph]);
 
@@ -86,7 +112,7 @@ export default function OwlGraphPage() {
     const el = containerRef.current;
     if (!el) return;
     const update = () => setDims({ width: el.offsetWidth, height: el.offsetHeight });
-    update();
+    setTimeout(update, 100);
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   }, [graphData]);
@@ -126,6 +152,11 @@ export default function OwlGraphPage() {
           {graphData.nodes.length} {page_collections('classes')} / {graphData.links.length} {page_collections('relations')}
         </span>
         <div className="flex-1" />
+        <Button variant="ghost" size="sm" className="text-xs gap-1"
+          onClick={() => setShowMermaid(!showMermaid)}>
+          {showMermaid ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          {page_collections('owl_view_graph')}
+        </Button>
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" className="h-8 w-8"
             onClick={() => graphRef.current?.zoom(1.5, 300)}>
@@ -145,6 +176,15 @@ export default function OwlGraphPage() {
           </Button>
         </div>
       </div>
+
+      {/* Mermaid diagram — collapsible */}
+      {showMermaid && mermaidCode && (
+        <div className="border-b shrink-0 bg-muted/20">
+          <div className="max-h-[35vh] overflow-auto p-2">
+            <ChartMermaid>{mermaidCode}</ChartMermaid>
+          </div>
+        </div>
+      )}
 
       {/* Graph area */}
       <div ref={containerRef} className="flex-1 relative">
@@ -188,16 +228,14 @@ export default function OwlGraphPage() {
             ctx.fill();
           }}
           onNodeClick={(node: any) => {
-            const dps = node.dataProps || [];
-            if (dps.length > 0) {
-              setActiveNode({
-                id: node.id,
-                label: node.label || node.id,
-                properties: dps.map((p: any) => ({
-                  name: p.name, label: p.label, range: p.range, comment: p.comment,
-                })),
-              });
-            }
+            setActiveNode({
+              id: node.id,
+              label: node.label || node.id,
+              comment: node.comment || classComments[node.id] || '',
+              properties: (node.dataProps || []).map((p: any) => ({
+                name: p.name, label: p.label, range: p.range, comment: p.comment,
+              })),
+            });
           }}
         />
       </div>
@@ -213,10 +251,16 @@ export default function OwlGraphPage() {
             </Button>
           </DrawerHeader>
           <div className="flex-1 overflow-auto p-4">
+            {activeNode?.comment && (
+              <>
+                <p className="text-sm text-muted-foreground mb-3">{activeNode.comment}</p>
+                <Separator className="my-3" />
+              </>
+            )}
             {activeNode?.properties && activeNode.properties.length > 0 ? (
               <div className="grid gap-2 text-sm">
-                <h4 className="font-medium">{page_collections('owl_data_props')}</h4>
-                {activeNode.properties.map((p) => (
+                <h4 className="font-medium text-sm mb-1">{page_collections('owl_data_props')}</h4>
+                {activeNode.properties.map((p: any) => (
                   <div key={p.name} className="flex flex-col border-b pb-1">
                     <div className="flex items-baseline gap-2">
                       <span className="font-medium">{p.label || p.name}</span>

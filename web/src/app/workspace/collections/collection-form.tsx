@@ -306,7 +306,7 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
   const [relationTypesText, setRelationTypesText] = useState('');
   const [owlInfo, setOwlInfo] = useState('');
   const [owlPreview, setOwlPreview] = useState<{
-    classes_count: number; classes: { name: string; label?: string; parents?: string[] }[];
+    classes_count: number; classes: { name: string; label?: string; comment?: string; parents?: string[] }[];
     object_properties_count: number;
     object_properties: { name: string; label?: string; comment?: string; domain?: string; range?: string; inverse?: string }[];
     data_properties_count: number;
@@ -856,12 +856,15 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
                 <h4 className="font-medium mb-1">{page_collections('owl_classes')} ({owlPreview.classes_count})</h4>
                 <div className="space-y-1">
                   {owlPreview.classes.map((c) => (
-                    <div key={c.name} className="flex items-baseline gap-2">
-                      <span className="font-medium">{c.label || c.name}</span>
-                      {c.label && <span className="text-muted-foreground text-xs">({c.name})</span>}
-                      {c.parents && c.parents.length > 0 && (
-                        <span className="text-muted-foreground text-xs">→ {c.parents.join(', ')}</span>
-                      )}
+                    <div key={c.name}>
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-medium">{c.label || c.name}</span>
+                        {c.label && <span className="text-muted-foreground text-xs">({c.name})</span>}
+                        {c.parents && c.parents.length > 0 && (
+                          <span className="text-muted-foreground text-xs">→ {c.parents.join(', ')}</span>
+                        )}
+                      </div>
+                      {c.comment && <p className="text-muted-foreground text-xs ml-1">— {c.comment}</p>}
                     </div>
                   ))}
                 </div>

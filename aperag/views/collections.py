@@ -628,6 +628,8 @@ async def get_owl_info(
                     info = {"name": name}
                     if name in schema.class_labels:
                         info["label"] = schema.class_labels[name]
+                    if name in schema.class_comments:
+                        info["comment"] = schema.class_comments[name]
                     if name in schema.class_hierarchy:
                         info["parents"] = schema.class_hierarchy[name]
                     classes_info.append(info)

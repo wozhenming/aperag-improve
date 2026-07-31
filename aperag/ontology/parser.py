@@ -41,6 +41,7 @@ class OntologySchema:
     """Parsed OWL ontology schema."""
     classes: list[str] = field(default_factory=list)
     class_labels: dict[str, str] = field(default_factory=dict)
+    class_comments: dict[str, str] = field(default_factory=dict)
     class_hierarchy: dict[str, list[str]] = field(default_factory=dict)
     disjoint_pairs: list[tuple[str, str]] = field(default_factory=list)
     object_properties: list[tuple[str, str, str]] = field(default_factory=list)
@@ -104,9 +105,11 @@ def parse_owl(file_path: str) -> OntologySchema:
             name = _qname(cls_uri)
             schema.classes.append(name)
 
-            # Labels
+            # Labels & comments
             for label in g.objects(cls_uri, RDFLIB_RDFS.label):
                 schema.class_labels[name] = str(label)
+            for cmt in g.objects(cls_uri, RDFLIB_RDFS.comment):
+                schema.class_comments[name] = str(cmt)
 
             # SubClassOf
             for parent in g.objects(cls_uri, RDFLIB_RDFS.subClassOf):
