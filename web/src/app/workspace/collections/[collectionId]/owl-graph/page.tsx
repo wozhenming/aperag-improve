@@ -365,9 +365,10 @@ export default function OwlGraphPage() {
                   .node rect, .node circle, .node ellipse, .node polygon, .node path { fill: #e8eaf6 !important; stroke: #3f51b5 !important; }
                   .node .label { color: #1a237e !important; }
                   .node .label text { fill: #1a237e !important; }
-                  .edgePath .path { stroke: #666 !important; stroke-width: 1.5px !important; }
+                  g.edgePath path { stroke: #666 !important; stroke-width: 1.5px !important; fill: none !important; }
                   .edgeLabel rect { fill: #fff !important; stroke: none !important; }
                   .edgeLabel span, .edgeLabel foreignObject div { color: #333 !important; background: #fff !important; }
+                  marker path { fill: #666 !important; stroke: #666 !important; }
                   .cluster rect { fill: #f5f5f5 !important; stroke: #bbb !important; }
                   .cluster .label { color: #333 !important; }
                   text, tspan { fill: #333 !important; }
