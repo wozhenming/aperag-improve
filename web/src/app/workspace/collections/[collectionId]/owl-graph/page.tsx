@@ -340,7 +340,7 @@ export default function OwlGraphPage() {
       {/* Mermaid diagram — resizable */}
       {showMermaid && mermaidCode && (
         <div ref={mermaidRef} className="border-b bg-muted/20 relative flex flex-col"
-          style={{ height: `${mermaidPct}%`, minHeight: 100 }}>
+          style={{ flex: `0 0 ${mermaidPct}%`, minHeight: 100 }}>
           <div className="flex items-center justify-between px-3 py-1 border-b bg-muted/40 shrink-0">
             <span className="text-xs text-muted-foreground">Mermaid</span>
             <Button variant="ghost" size="icon" className="h-6 w-6"
