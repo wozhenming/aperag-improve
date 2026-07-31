@@ -75,33 +75,120 @@ export default function OwlGraphPage() {
     setLoading(false);
   }, [params.collectionId]);
 
-  // Build Mermaid classDiagram
+  // Build Mermaid graph TB
   const mermaidCode = useMemo(() => {
     if (!graphData?.preview) return '';
-    const lines = ['classDiagram'];
-    const classes = graphData.preview.classes || [];
-    const objProps = graphData.preview.object_properties || [];
+    const classes: any[] = graphData.preview.classes || [];
+    const objProps: any[] = graphData.preview.object_properties || [];
+    const classMap = new Map(classes.map((c: any) => [c.name, c]));
 
-    // Classes with labels
+    // Assign short codes
+    let nextCode = 0;
+    const codes: Record<string, string> = {};
+    const getCode = (name: string) => {
+      if (!codes[name]) codes[name] = 'C' + (nextCode++);
+      return codes[name];
+    };
+
+    // Build hierarchy tree: child → [parents]
+    const parents: Record<string, string[]> = {};
+    const children: Record<string, string[]> = {};
     for (const c of classes) {
-      const label = (c.label || c.name).replace(/[\s-]/g, '_');
-      lines.push(`  class ${label} {`);
-      const dps = (graphData.preview.data_properties || {})[c.name] || [];
-      for (const p of dps.slice(0, 10)) {
-        const pname = (p.label || p.name).replace(/[\s-]/g, '');
-        lines.push(`    +${p.range} ${pname}`);
+      parents[c.name] = c.parents || [];
+      for (const p of c.parents || []) {
+        if (!children[p]) children[p] = [];
+        children[p].push(c.name);
       }
-      lines.push('  }');
     }
 
-    // Relationships
-    for (const p of objProps) {
-      if (!p.domain || !p.range) continue;
-      const src = (classes.find((c: any) => c.name === p.domain)?.label || p.domain).replace(/[\s-]/g, '_');
-      const tgt = (classes.find((c: any) => c.name === p.range)?.label || p.range).replace(/[\s-]/g, '_');
-      const label = (p.label || p.name).replace(/[\s-]/g, '_');
-      lines.push(`  ${src} --> ${tgt} : ${label}`);
+    // Find root classes (no parents or parents not in our class list)
+    const classSet = new Set(classes.map((c: any) => c.name));
+    const roots = classes.filter((c: any) => !c.parents || c.parents.length === 0 || !c.parents.some((p: string) => classSet.has(p)));
+
+    // Recursive grouping
+    const lines: string[] = ['graph TB'];
+
+    function esc(s: string) { return s.replace(/"/g, '&quot;'); }
+    function label(c: any) { return `${esc(c.label || c.name)}<br/>${c.comment ? esc(c.comment.slice(0, 40)) + (c.comment.length > 40 ? '...' : '') : ''}`; }
+
+    // Build subgraph recursively
+    function buildSubgraph(clsList: string[], depth: number, parentName: string) {
+      for (const name of clsList) {
+        const c = classMap.get(name);
+        if (!c) continue;
+        const code = getCode(name);
+        const kids = children[name] || [];
+        if (kids.length > 0) {
+          lines.push(`  subgraph ${code}["${label(c)}"]`);
+          for (const kid of kids) {
+            const kc = classMap.get(kid);
+            const kcode = getCode(kid);
+            lines.push(`    ${kcode}["${kc ? label(kc) : kid}"]`);
+          }
+          lines.push('  end');
+        } else {
+          lines.push(`  ${code}["${label(c)}"]`);
+        }
+      }
     }
+
+    // Top-level sorting: group by root parents
+    const handled = new Set<string>();
+    for (const root of roots) {
+      const code = getCode(root.name);
+      lines.push(`  subgraph ${code}_root[" "]`);
+      lines.push(`  ${code}["${label(root)}"]`);
+      // Direct children
+      const kids = children[root.name] || [];
+      for (const kid of kids) {
+        const kc = classMap.get(kid);
+        const kcode = getCode(kid);
+        lines.push(`  ${kcode}["${kc ? label(kc) : kid}"]`);
+        // Grandchildren
+        const grandkids = children[kid] || [];
+        for (const gk of grandkids) {
+          const gc = classMap.get(gk);
+          const gcode = getCode(gk);
+          lines.push(`  ${gcode}["${gc ? label(gc) : gk}"]`);
+        }
+      }
+      lines.push('  end');
+      handled.add(root.name);
+    }
+
+    // Inheritance edges (subClassOf)
+    for (const c of classes) {
+      for (const p of c.parents || []) {
+        if (classSet.has(p)) {
+          lines.push(`  ${getCode(c.name)} -->|"继承"| ${getCode(p)}`);
+        }
+      }
+    }
+
+    // Object property edges
+    const addedEdges = new Set<string>();
+    for (const p of objProps) {
+      if (!p.domain || !p.range || !classSet.has(p.domain) || !classSet.has(p.range)) continue;
+      const key = `${p.domain}|${p.range}|${p.label || p.name}`;
+      if (addedEdges.has(key)) continue;
+      addedEdges.add(key);
+      const plabel = esc(p.label || p.name);
+      lines.push(`  ${getCode(p.domain)} -->|"${plabel}"| ${getCode(p.range)}`);
+    }
+
+    // Styles
+    lines.push('');
+    const colorPalette = ['#e8eaf6,#3f51b5', '#e3f2fd,#1565c0', '#e8f5e9,#2e7d32', '#fff3e0,#e65100', '#fce4ec,#c62828', '#f3e5f5,#6a1b9a'];
+    let ci = 0;
+    for (const root of roots) {
+      const [bg, border] = colorPalette[ci % colorPalette.length].split(',');
+      const allNodes = [getCode(root.name)];
+      for (const kid of children[root.name] || []) { allNodes.push(getCode(kid)); }
+      lines.push(`  classDef group${ci} fill:${bg},stroke:${border},stroke-width:2px;`);
+      lines.push(`  class ${allNodes.join(',')} group${ci};`);
+      ci++;
+    }
+
     return lines.join('\n');
   }, [graphData]);
 
