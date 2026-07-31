@@ -350,11 +350,26 @@ export default function OwlGraphPage() {
                 const clone = svg.cloneNode(true) as SVGSVGElement;
                 clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
                 const data = new XMLSerializer().serializeToString(clone);
-                const blob = new Blob([data], { type: 'image/svg+xml' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url; a.download = 'owl-mermaid.svg';
-                a.click(); URL.revokeObjectURL(url);
+                const svgBlob = new Blob([data], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(svgBlob);
+                const img = new Image();
+                img.onload = () => {
+                  const canvas = document.createElement('canvas');
+                  canvas.width = img.width * 2; canvas.height = img.height * 2;
+                  const ctx = canvas.getContext('2d')!;
+                  ctx.scale(2, 2);
+                  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                  ctx.drawImage(img, 0, 0);
+                  canvas.toBlob((blob) => {
+                    if (!blob) return;
+                    const pngUrl = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = pngUrl; a.download = 'owl-mermaid.png';
+                    a.click(); URL.revokeObjectURL(pngUrl);
+                  }, 'image/png');
+                  URL.revokeObjectURL(url);
+                };
+                img.src = url;
               }}>
               <Download className="h-3 w-3" />
             </Button>
