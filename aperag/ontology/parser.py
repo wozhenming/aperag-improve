@@ -75,6 +75,7 @@ def parse_owl(file_path: str) -> OntologySchema:
             content = f.read()
         import re
         content = re.sub(r'\s*<owl:FunctionalProperty\s*/>', '', content)
+        content = re.sub(r'\s*<owl:inverseOf\s+[^>]+/>', '', content)
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
 
