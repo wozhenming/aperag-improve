@@ -154,30 +154,34 @@ export default function OwlGraphPage() {
     // Step 1: Declare ALL node IDs
     for (const c of classes) getCode(c.name);
 
-    // Step 2: Build subgraph — group peers under each parent
+    // Step 2: Build subgraphs — only group children, not root itself
     const doneNodes = new Set<string>();
-    function groupSubgraph(nodeName: string) {
-      if (doneNodes.has(nodeName)) return;
-      doneNodes.add(nodeName);
-      const kids = children[nodeName] || [];
-      if (kids.length === 0) return;
-      const c = classMap.get(nodeName);
-      lines.push(`  subgraph ${getCode(nodeName)}_sg["${c ? (c.label || c.name) : nodeName}"]`);
-      for (const kid of kids) {
-        if (!doneNodes.has(kid)) {
-          lines.push(`    ${getCode(kid)}["${label(classMap.get(kid) || { name: kid, label: kid, comment: '' })}"]`);
-          doneNodes.add(kid);
-        }
-        groupSubgraph(kid);
-      }
-      lines.push('  end');
-    }
-    for (const root of roots) groupSubgraph(root.name);
+    for (const root of roots) {
+      // Root itself is a standalone node (not inside its own subgraph)
+      const c = classMap.get(root.name);
+      lines.push(`  ${getCode(root.name)}["${c ? label(c) : root.name}"]`);
+      doneNodes.add(root.name);
 
-    // Declare orphan nodes (not in any subgraph)
-    for (const c of classes) {
-      if (!doneNodes.has(c.name)) {
-        lines.push(`  ${getCode(c.name)}["${label(c)}"]`);
+      // Group direct children under the root's subgraph
+      const kids = children[root.name] || [];
+      if (kids.length > 0) {
+        const rc = classMap.get(root.name);
+        lines.push(`  subgraph ${getCode(root.name)}_sg["${rc ? (rc.label || rc.name) : root.name} - 子类"]`);
+        for (const kid of kids) {
+          if (!doneNodes.has(kid)) {
+            lines.push(`    ${getCode(kid)}["${label(classMap.get(kid) || { name: kid, label: kid, comment: '' })}"]`);
+            doneNodes.add(kid);
+          }
+          // Grandchildren
+          const grandkids = children[kid] || [];
+          for (const gk of grandkids) {
+            if (!doneNodes.has(gk)) {
+              lines.push(`    ${getCode(gk)}["${label(classMap.get(gk) || { name: gk, label: gk, comment: '' })}"]`);
+              doneNodes.add(gk);
+            }
+          }
+        }
+        lines.push('  end');
       }
     }
 
@@ -230,7 +234,15 @@ export default function OwlGraphPage() {
   }, [graphData, showMermaid]);
 
   const handleEngineStop = useCallback(() => {
-    if (graphRef.current) graphRef.current.zoomToFit(400, 50);
+    if (graphRef.current) {
+      // Spread nodes apart
+      const fg = graphRef.current;
+      if (fg.d3Force) {
+        fg.d3Force('link')?.distance(150);
+        fg.d3Force('charge')?.strength(-400);
+      }
+      fg.zoomToFit(400, 50);
+    }
   }, []);
 
   if (loading) {
@@ -314,7 +326,7 @@ export default function OwlGraphPage() {
           linkDirectionalArrowRelPos={1}
           linkCurvature={0.25}
           linkWidth={1.5}
-          cooldownTicks={100}
+          cooldownTicks={120}
           onEngineStop={handleEngineStop}
           linkCanvasObjectMode={() => 'after'}
           linkCanvasObject={(link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
