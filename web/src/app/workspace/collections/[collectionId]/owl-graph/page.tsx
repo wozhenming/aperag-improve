@@ -1,7 +1,6 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { ChartMermaid } from '@/components/chart-mermaid';
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle,
 } from '@/components/ui/drawer';
@@ -24,6 +23,7 @@ export default function OwlGraphPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<any>(null);
   const mermaidRef = useRef<HTMLDivElement>(null);
+  const [mermaidSvg, setMermaidSvg] = useState('');
   const [dims, setDims] = useState({ width: 800, height: 600 });
   const [activeNode, setActiveNode] = useState<any>(null);
   const [showMermaid, setShowMermaid] = useState(true);
@@ -95,6 +95,21 @@ export default function OwlGraphPage() {
     return lines.join('\n');
   }, [graphData]);
 
+  useEffect(() => {
+    if (!showMermaid || !mermaidCode) return;
+    let cancelled = false;
+    (async () => {
+      const { default: mermaid } = await import('mermaid');
+      mermaid.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'loose' });
+      const id = 'owl-mermaid-' + Date.now();
+      try {
+        const { svg } = await mermaid.render(id, mermaidCode);
+        if (!cancelled) setMermaidSvg(svg);
+      } catch { /* ignore render errors */ }
+    })();
+    return () => { cancelled = true; };
+  }, [mermaidCode, showMermaid]);
+
   useEffect(() => { loadGraph(); }, [loadGraph]);
 
   useEffect(() => {
@@ -159,7 +174,7 @@ export default function OwlGraphPage() {
               }}>
               <Download className="h-3 w-3" /></Button>
           </div>
-          <div className="flex-1 overflow-auto p-4 [&>div]:w-full [&>div]:h-full [&_svg]:w-full"><ChartMermaid>{mermaidCode}</ChartMermaid></div>
+          <div className="flex-1 overflow-auto p-4" dangerouslySetInnerHTML={{ __html: mermaidSvg }} />
         </div>
       ) : (
         <div ref={containerRef} className="flex-1 relative min-h-[100px] overflow-hidden">
