@@ -103,27 +103,28 @@ export default function OwlGraphPage() {
       doneNodes.add(name);
       const c = classMap.get(name);
       const kids = children[name] || [];
+      const indent = '  '.repeat(depth + 1);
       if (kids.length === 0) {
-        lines.push(`${'  '.repeat(depth + 1)}${getCode(name)}["${label(c || { name, label: name, comment: '' })}"]`);
+        lines.push(`${indent}${getCode(name)}["${label(c || { name, label: name, comment: '' })}"]`);
       } else {
-        lines.push(`${'  '.repeat(depth + 1)}subgraph SG_${getCode(name)}["${c ? (c.label || c.name) : name}"]`);
+        // Parent class is BOTH a node (for inheritance edges) and a subgraph container.
+        // Declare the node inside its own subgraph.
+        lines.push(`${indent}subgraph SG_${getCode(name)}["${c ? (c.label || c.name) : name}"]`);
+        lines.push(`${indent}  ${getCode(name)}["${label(c || { name, label: name, comment: '' })}"]`);
         for (const kid of kids) emitNode(kid, depth + 1);
-        lines.push(`${'  '.repeat(depth + 1)}end`);
+        lines.push(`${indent}end`);
       }
     };
 
     for (const root of roots) {
       const c = classMap.get(root.name);
       const kids = children[root.name] || [];
+      lines.push(`  ${getCode(root.name)}["${c ? label(c) : root.name}"]`);
+      doneNodes.add(root.name);
       if (kids.length > 0) {
-        lines.push(`  ${getCode(root.name)}["${c ? label(c) : root.name}"]`);
-        doneNodes.add(root.name);
         lines.push(`  subgraph SG_${getCode(root.name)}["${c ? (c.label || c.name) : root.name} - 子类"]`);
         for (const kid of kids) emitNode(kid, 1);
         lines.push('  end');
-      } else {
-        lines.push(`  ${getCode(root.name)}["${c ? label(c) : root.name}"]`);
-        doneNodes.add(root.name);
       }
     }
     for (const c of classes) { for (const p of c.parents || []) { if (classSet.has(p)) lines.push(`  ${getCode(c.name)} -->|"继承"| ${getCode(p)}`); } }
