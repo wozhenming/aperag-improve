@@ -70,6 +70,14 @@ def parse_owl(file_path: str) -> OntologySchema:
         from rdflib import RDFS as RDFLIB_RDFS
         from rdflib import Graph
 
+        # Strip non-standard nested tags that break RDFLib's XML parser
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        import re
+        content = re.sub(r'\s*<owl:FunctionalProperty\s*/>', '', content)
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(content)
+
         g = Graph()
         g.parse(file_path, format="xml")
 
