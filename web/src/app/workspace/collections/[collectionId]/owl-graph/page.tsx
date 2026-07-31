@@ -96,7 +96,8 @@ export default function OwlGraphPage() {
     for (const c of classes) getCode(c.name);
     const doneNodes = new Set<string>();
 
-    // Recursively emit a node and its children inside nested subgraphs
+    // Recursively emit a node and its children inside nested subgraphs.
+    // Subgraph IDs must NOT collide with node IDs — use a distinct prefix.
     const emitNode = (name: string, depth: number) => {
       if (doneNodes.has(name)) return;
       doneNodes.add(name);
@@ -105,7 +106,7 @@ export default function OwlGraphPage() {
       if (kids.length === 0) {
         lines.push(`${'  '.repeat(depth + 1)}${getCode(name)}["${label(c || { name, label: name, comment: '' })}"]`);
       } else {
-        lines.push(`${'  '.repeat(depth + 1)}subgraph ${getCode(name)}_sg["${c ? (c.label || c.name) : name}"]`);
+        lines.push(`${'  '.repeat(depth + 1)}subgraph SG_${getCode(name)}["${c ? (c.label || c.name) : name}"]`);
         for (const kid of kids) emitNode(kid, depth + 1);
         lines.push(`${'  '.repeat(depth + 1)}end`);
       }
@@ -115,10 +116,9 @@ export default function OwlGraphPage() {
       const c = classMap.get(root.name);
       const kids = children[root.name] || [];
       if (kids.length > 0) {
-        // Root is a standalone node; its children are in a subgraph
         lines.push(`  ${getCode(root.name)}["${c ? label(c) : root.name}"]`);
         doneNodes.add(root.name);
-        lines.push(`  subgraph ${getCode(root.name)}_sg["${c ? (c.label || c.name) : root.name} - 子类"]`);
+        lines.push(`  subgraph SG_${getCode(root.name)}["${c ? (c.label || c.name) : root.name} - 子类"]`);
         for (const kid of kids) emitNode(kid, 1);
         lines.push('  end');
       } else {
