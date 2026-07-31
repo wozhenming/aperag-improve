@@ -177,35 +177,45 @@ export default function OwlGraphPage() {
     // Step 1: Declare ALL node IDs
     for (const c of classes) getCode(c.name);
 
-    // Step 2: Build subgraphs — only group children, not root itself
+    // Step 2: Build subgraphs — root is standalone, children grouped recursively
     const doneNodes = new Set<string>();
-    for (const root of roots) {
-      // Root itself is a standalone node (not inside its own subgraph)
-      const c = classMap.get(root.name);
-      lines.push(`  ${getCode(root.name)}["${c ? label(c) : root.name}"]`);
-      doneNodes.add(root.name);
 
-      // Group direct children under the root's subgraph
-      const kids = children[root.name] || [];
-      if (kids.length > 0) {
-        const rc = classMap.get(root.name);
-        lines.push(`  subgraph ${getCode(root.name)}_sg["${rc ? (rc.label || rc.name) : root.name} - 子类"]`);
+    function collectAll(className: string) {
+      if (doneNodes.has(className)) return;
+      doneNodes.add(className);
+      for (const kid of children[className] || []) collectAll(kid);
+    }
+
+    function emitSubgraph(className: string, depth: number) {
+      const kids = children[className] || [];
+      if (kids.length === 0) return;
+      const c = classMap.get(className);
+      const indent = '  '.repeat(depth + 1);
+      if (depth === 0) {
+        // Root: node itself at top level, children in subgraph
+        lines.push(`  subgraph ${getCode(className)}_sg["${c ? (c.label || c.name) : className}"]`);
         for (const kid of kids) {
-          if (!doneNodes.has(kid)) {
-            lines.push(`    ${getCode(kid)}["${label(classMap.get(kid) || { name: kid, label: kid, comment: '' })}"]`);
-            doneNodes.add(kid);
-          }
-          // Grandchildren
-          const grandkids = children[kid] || [];
-          for (const gk of grandkids) {
-            if (!doneNodes.has(gk)) {
-              lines.push(`    ${getCode(gk)}["${label(classMap.get(gk) || { name: gk, label: gk, comment: '' })}"]`);
-              doneNodes.add(gk);
-            }
-          }
+          lines.push(`${indent}${getCode(kid)}["${label(classMap.get(kid) || { name: kid, label: kid, comment: '' })}"]`);
+          emitSubgraph(kid, depth + 1);
+        }
+        lines.push('  end');
+      } else {
+        lines.push(`  subgraph ${getCode(className)}_kid["${c ? (c.label || c.name) : className}"]`);
+        for (const kid of kids) {
+          lines.push(`${indent}${getCode(kid)}["${label(classMap.get(kid) || { name: kid, label: kid, comment: '' })}"]`);
+          emitSubgraph(kid, depth + 1);
         }
         lines.push('  end');
       }
+    }
+
+    for (const root of roots) {
+      // Declare root node
+      lines.push(`  ${getCode(root.name)}["${label(root)}"]`);
+      // Declare all descendants
+      for (const kid of children[root.name] || []) collectAll(kid);
+      // Build subgraph nesting
+      emitSubgraph(root.name, 0);
     }
 
     // Inheritance edges (subClassOf)
