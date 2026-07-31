@@ -13,6 +13,7 @@ import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d').then((r) => r), { ssr: false });
 
@@ -183,11 +184,11 @@ export default function OwlGraphPage() {
                   try {
                     await navigator.clipboard.writeText(mermaidCode);
                   } catch {
-                    // Fallback for non-secure contexts
                     const ta = document.createElement('textarea');
                     ta.value = mermaidCode; document.body.appendChild(ta);
                     ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
                   }
+                  toast.success(page_collections('copied'));
                 }}>
                 <Copy className="h-3 w-3" />
               </Button>
@@ -198,9 +199,12 @@ export default function OwlGraphPage() {
                 const id = 'mermaid-export-' + Date.now();
                 const { svg: cleanSvg } = await mermaid.render(id, mermaidCode);
                 document.getElementById('d' + id)?.remove();
-                const scale = 4; const w = 800 * scale; const h = 600 * scale;
+                // Use SVG's natural viewBox for accurate cropping, scale 4x
                 const wrapper = document.createElement('div'); wrapper.innerHTML = cleanSvg;
                 const cleanEl = wrapper.querySelector('svg')!;
+                const vb = (cleanEl.getAttribute('viewBox') || '0 0 800 600').split(' ').map(Number);
+                const vbw = vb[2] || 800; const vbh = vb[3] || 600;
+                const scale = 4; const w = Math.round(vbw * scale); const h = Math.round(vbh * scale);
                 cleanEl.setAttribute('width', String(w)); cleanEl.setAttribute('height', String(h));
                 const data = new XMLSerializer().serializeToString(cleanEl);
                 const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(data);

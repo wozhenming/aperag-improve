@@ -468,7 +468,8 @@
     "owl_view_graph": "查看关系图",
     "no_data": "暂无数据",
     "classes": "个类",
-    "relations": "个关系"
+    "relations": "个关系",
+    "copied": "已复制到剪贴板"
   },
   "page_docs": {
     "metadata": {

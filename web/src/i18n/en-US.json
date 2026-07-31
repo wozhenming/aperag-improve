@@ -468,7 +468,8 @@
     "owl_view_graph": "View Graph",
     "no_data": "No data",
     "classes": "classes",
-    "relations": "relations"
+    "relations": "relations",
+    "copied": "Copied to clipboard"
   },
   "page_docs": {
     "metadata": {
