@@ -345,9 +345,9 @@ export default function OwlGraphPage() {
             <span className="text-xs text-muted-foreground">Mermaid</span>
             <Button variant="ghost" size="icon" className="h-6 w-6"
               onClick={() => {
-                const mermaidDiv = mermaidRef.current?.querySelector('.mermaid') || mermaidRef.current?.querySelector('svg');
-                if (!mermaidDiv) return;
-                const svg = mermaidDiv.tagName === 'svg' ? mermaidDiv : mermaidDiv.querySelector('svg');
+                const container = mermaidRef.current?.querySelector<HTMLElement>('.flex-1.overflow-auto');
+                if (!container) return;
+                const svg = container.querySelector('svg:not(.lucide)');
                 if (!svg) return;
                 const clone = svg.cloneNode(true) as SVGSVGElement;
                 clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -381,19 +381,17 @@ export default function OwlGraphPage() {
           </div>
           {/* Drag handle */}
           <div
-            className="absolute bottom-0 left-0 right-0 h-3 cursor-row-resize hover:bg-primary/20 transition-colors flex items-center justify-center group"
+            className="absolute bottom-0 left-0 right-0 h-3 cursor-row-resize hover:bg-primary/20 flex items-center justify-center group z-10"
             onMouseDown={(e) => {
-              e.preventDefault(); e.stopPropagation();
-              setDragging(true);
+              e.preventDefault();
               const startY = e.clientY;
               const startPct = mermaidPct;
-              const parentH = (e.currentTarget.parentElement?.parentElement?.clientHeight || 800);
+              const rootH = (e.currentTarget.closest('.flex.h-screen') as HTMLElement)?.clientHeight || window.innerHeight;
               const onMove = (ev: MouseEvent) => {
                 const dy = ev.clientY - startY;
-                const newPct = Math.max(10, Math.min(80, startPct + (dy / parentH) * 100));
-                setMermaidPct(newPct);
+                setMermaidPct(Math.max(10, Math.min(80, startPct + (dy / rootH) * 100)));
               };
-              const onUp = () => { setDragging(false); window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+              const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
               window.addEventListener('mousemove', onMove);
               window.addEventListener('mouseup', onUp);
             }}
