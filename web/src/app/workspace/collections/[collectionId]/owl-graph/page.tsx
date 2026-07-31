@@ -374,6 +374,13 @@ export default function OwlGraphPage() {
                   text, tspan { fill: #333 !important; }
                 `;
                 clone.appendChild(fixStyle);
+                // Force paths inside edgePath to be visible
+                clone.querySelectorAll('g.edgePath path').forEach((el) => {
+                  const p = el as SVGPathElement;
+                  p.setAttribute('stroke', '#555');
+                  p.setAttribute('stroke-width', '1.5');
+                  p.setAttribute('fill', 'none');
+                });
                 const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 bg.setAttribute('width', '100%');
                 bg.setAttribute('height', '100%');
