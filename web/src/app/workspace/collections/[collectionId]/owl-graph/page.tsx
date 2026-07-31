@@ -345,7 +345,9 @@ export default function OwlGraphPage() {
             <span className="text-xs text-muted-foreground">Mermaid</span>
             <Button variant="ghost" size="icon" className="h-6 w-6"
               onClick={() => {
-                const svg = mermaidRef.current?.querySelector('svg');
+                const mermaidDiv = mermaidRef.current?.querySelector('.mermaid') || mermaidRef.current?.querySelector('svg');
+                if (!mermaidDiv) return;
+                const svg = mermaidDiv.tagName === 'svg' ? mermaidDiv : mermaidDiv.querySelector('svg');
                 if (!svg) return;
                 const clone = svg.cloneNode(true) as SVGSVGElement;
                 clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -379,13 +381,13 @@ export default function OwlGraphPage() {
           </div>
           {/* Drag handle */}
           <div
-            className="absolute bottom-0 left-0 right-0 h-1.5 cursor-row-resize hover:bg-primary/20 transition-colors"
+            className="absolute bottom-0 left-0 right-0 h-3 cursor-row-resize hover:bg-primary/20 transition-colors flex items-center justify-center group"
             onMouseDown={(e) => {
-              e.preventDefault();
+              e.preventDefault(); e.stopPropagation();
               setDragging(true);
               const startY = e.clientY;
               const startPct = mermaidPct;
-              const parentH = (e.currentTarget.parentElement?.parentElement?.clientHeight || 600);
+              const parentH = (e.currentTarget.parentElement?.parentElement?.clientHeight || 800);
               const onMove = (ev: MouseEvent) => {
                 const dy = ev.clientY - startY;
                 const newPct = Math.max(10, Math.min(80, startPct + (dy / parentH) * 100));
@@ -395,7 +397,9 @@ export default function OwlGraphPage() {
               window.addEventListener('mousemove', onMove);
               window.addEventListener('mouseup', onUp);
             }}
-          />
+          >
+            <div className="w-8 h-1 rounded-full bg-border group-hover:bg-primary/50 transition-colors" />
+          </div>
         </div>
       )}
       {dragging && <div className="fixed inset-0 z-50 cursor-row-resize" />}
