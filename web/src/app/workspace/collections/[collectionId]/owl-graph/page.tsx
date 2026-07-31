@@ -339,8 +339,8 @@ export default function OwlGraphPage() {
 
       {/* Mermaid diagram — resizable */}
       {showMermaid && mermaidCode && (
-        <div ref={mermaidRef} className="border-b bg-muted/20 relative flex flex-col shrink-0 overflow-hidden"
-          style={{ flexBasis: `${mermaidPct}%`, minHeight: 100, maxHeight: `${mermaidPct}%` }}>
+        <div ref={mermaidRef} className="border-b bg-muted/20 relative flex flex-col"
+          style={{ height: `${mermaidPct}%`, minHeight: 100 }}>
           <div className="flex items-center justify-between px-3 py-1 border-b bg-muted/40 shrink-0">
             <span className="text-xs text-muted-foreground">Mermaid</span>
             <Button variant="ghost" size="icon" className="h-6 w-6"
@@ -411,7 +411,7 @@ export default function OwlGraphPage() {
       {dragging && <div className="fixed inset-0 z-50 cursor-row-resize" />}
 
       {/* Graph area */}
-      <div ref={containerRef} className="flex-1 relative min-h-[120px]">
+      <div ref={containerRef} className="flex-1 relative min-h-[100px] overflow-hidden">
         <ForceGraph2D
           ref={graphRef}
           graphData={graphData}
