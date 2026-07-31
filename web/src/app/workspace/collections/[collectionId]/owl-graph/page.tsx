@@ -1,18 +1,34 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import { ChartMermaid } from '@/components/chart-mermaid';
+import mermaid from 'mermaid';
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle,
 } from '@/components/ui/drawer';
 import { Separator } from '@/components/ui/separator';
 import axios from 'axios';
-import { ArrowLeft, ChevronDown, ChevronUp, Code2, Download, LoaderCircle, Maximize2, Minus, Plus, RotateCcw, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Download, LoaderCircle, Maximize2, Minus, Plus, RotateCcw, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d').then((r) => r), { ssr: false });
+
+/* Full-size Mermaid renderer — no Card wrapper, fills container */
+function MermaidView({ code }: { code: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [svg, setSvg] = useState('');
+  const [id] = useState(() => 'mv-' + String(Math.floor(Math.random() * 100000)));
+  useEffect(() => {
+    mermaid.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'loose' });
+    mermaid.render(id, code).then((r) => setSvg(r.svg)).catch(() => {});
+  }, [code, id]);
+  if (!svg) return null;
+  return <div ref={ref} className="w-full h-full flex items-center justify-center"
+    dangerouslySetInnerHTML={{ __html: svg.replace(/<svg/, '<svg style="max-width:100%;max-height:100%"') }} />;
+}
 
 export default function OwlGraphPage() {
   const params = useParams();
@@ -23,9 +39,6 @@ export default function OwlGraphPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<any>(null);
   const mermaidRef = useRef<HTMLDivElement>(null);
-  const mermaidZoomRef = useRef<any>(null);
-  const [mermaidSvg, setMermaidSvg] = useState('');
-  const [mermaidTab, setMermaidTab] = useState<'graph' | 'code'>('graph');
   const [dims, setDims] = useState({ width: 800, height: 600 });
   const [activeNode, setActiveNode] = useState<any>(null);
   const [showMermaid, setShowMermaid] = useState(true);
@@ -71,18 +84,21 @@ export default function OwlGraphPage() {
     const lines: string[] = ['graph TB'];
     for (const c of classes) getCode(c.name);
     const doneNodes = new Set<string>();
-    // Recursive function to collect and declare all descendants
-    function collectDescendants(name: string) {
-      if (doneNodes.has(name)) return;
-      const c = classMap.get(name);
-      lines.push(`  ${getCode(name)}["${c ? label(c) : name}"]`);
-      doneNodes.add(name);
-      for (const kid of children[name] || []) collectDescendants(kid);
-    }
     for (const root of roots) {
-      lines.push(`  subgraph ${getCode(root.name)}_sg["${label(root)} - 子类"]`);
-      for (const kid of children[root.name] || []) collectDescendants(kid);
-      lines.push('  end');
+      const c = classMap.get(root.name);
+      lines.push(`  ${getCode(root.name)}["${c ? label(c) : root.name}"]`);
+      doneNodes.add(root.name);
+      const kids = children[root.name] || [];
+      if (kids.length > 0) {
+        const rc = classMap.get(root.name);
+        lines.push(`  subgraph ${getCode(root.name)}_sg["${rc ? (rc.label || rc.name) : root.name} - 子类"]`);
+        for (const kid of kids) {
+          if (!doneNodes.has(kid)) { lines.push(`    ${getCode(kid)}["${label(classMap.get(kid) || { name: kid, label: kid, comment: '' })}"]`); doneNodes.add(kid); }
+          const grandkids = children[kid] || [];
+          for (const gk of grandkids) { if (!doneNodes.has(gk)) { lines.push(`    ${getCode(gk)}["${label(classMap.get(gk) || { name: gk, label: gk, comment: '' })}"]`); doneNodes.add(gk); } }
+        }
+        lines.push('  end');
+      }
     }
     for (const c of classes) { for (const p of c.parents || []) { if (classSet.has(p)) lines.push(`  ${getCode(c.name)} -->|"继承"| ${getCode(p)}`); } }
     const addedEdges = new Set<string>();
@@ -93,33 +109,6 @@ export default function OwlGraphPage() {
     for (const root of roots) { const [bg, border] = colorPalette2[ci % colorPalette2.length].split(','); const allNodes = [getCode(root.name)]; for (const kid of children[root.name] || []) allNodes.push(getCode(kid)); lines.push(`  classDef group${ci} fill:${bg},stroke:${border},stroke-width:2px;`); lines.push(`  class ${allNodes.join(',')} group${ci};`); ci++; }
     return lines.join('\n');
   }, [graphData]);
-
-  useEffect(() => {
-    if (!showMermaid || !mermaidCode) return;
-    let cancelled = false;
-    (async () => {
-      const { default: mermaid } = await import('mermaid');
-      mermaid.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'loose' });
-      const id = 'owl-mermaid-' + Date.now();
-      try {
-        const { svg } = await mermaid.render(id, mermaidCode);
-        if (!cancelled) setMermaidSvg(svg);
-      } catch { /* ignore render errors */ }
-    })();
-    return () => { cancelled = true; };
-  }, [mermaidCode, showMermaid]);
-
-  // Attach panzoom to Mermaid SVG container after render
-  useEffect(() => {
-    if (!showMermaid || !mermaidSvg) return;
-    const el = mermaidZoomRef.current;
-    if (!el) return;
-    let pz: any;
-    import('panzoom').then(({ default: panzoom }) => {
-      pz = panzoom(el, { minZoom: 0.3, maxZoom: 5 });
-    });
-    return () => { if (pz) pz.dispose(); };
-  }, [mermaidSvg, showMermaid]);
 
   useEffect(() => { loadGraph(); }, [loadGraph]);
 
@@ -158,14 +147,9 @@ export default function OwlGraphPage() {
       </div>
 
       {showMermaid && mermaidCode ? (
-        <div className="flex-1 flex flex-col bg-muted/20 relative z-0">
+        <div className="flex-1 flex flex-col overflow-auto bg-muted/20">
           <div className="flex items-center justify-between px-3 py-1 border-b bg-muted/40 shrink-0">
-            <div className="flex items-center gap-1">
-              <Button variant={mermaidTab === 'graph' ? 'secondary' : 'ghost'} size="sm" className="h-7 text-xs"
-                onClick={() => setMermaidTab('graph')}>{page_collections('owl_view_graph')}</Button>
-              <Button variant={mermaidTab === 'code' ? 'secondary' : 'ghost'} size="sm" className="h-7 text-xs"
-                onClick={() => setMermaidTab('code')}><Code2 className="h-3 w-3 mr-1" />Code</Button>
-            </div>
+            <span className="text-xs text-muted-foreground">Mermaid</span>
             <Button variant="ghost" size="icon" className="h-6 w-6"
               onClick={async () => {
                 const { default: mermaid } = await import('mermaid');
@@ -190,13 +174,7 @@ export default function OwlGraphPage() {
               }}>
               <Download className="h-3 w-3" /></Button>
           </div>
-          {mermaidTab === 'graph' ? (
-            <div ref={mermaidZoomRef} className="flex-1 overflow-auto cursor-move p-4" dangerouslySetInnerHTML={{ __html: mermaidSvg }} />
-          ) : (
-            <div className="flex-1 overflow-auto p-4">
-              <textarea readOnly className="w-full h-full text-xs font-mono text-muted-foreground bg-transparent border-0 resize-none p-4 outline-none" value={mermaidCode} />
-            </div>
-          )}
+          <MermaidView code={mermaidCode} />
         </div>
       ) : (
         <div ref={containerRef} className="flex-1 relative min-h-[100px] overflow-hidden">
