@@ -159,7 +159,7 @@ export default function OwlGraphPage() {
               }}>
               <Download className="h-3 w-3" /></Button>
           </div>
-          <div className="flex-1 overflow-auto p-4"><ChartMermaid>{mermaidCode}</ChartMermaid></div>
+          <div className="flex-1 overflow-auto p-4 [&>div]:w-full [&>div]:h-full [&_svg]:w-full"><ChartMermaid>{mermaidCode}</ChartMermaid></div>
         </div>
       ) : (
         <div ref={containerRef} className="flex-1 relative min-h-[100px] overflow-hidden">
