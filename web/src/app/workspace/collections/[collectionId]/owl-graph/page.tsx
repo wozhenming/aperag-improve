@@ -375,11 +375,17 @@ export default function OwlGraphPage() {
                 `;
                 clone.appendChild(fixStyle);
                 // Force paths inside edgePath to be visible
-                clone.querySelectorAll('g.edgePath path').forEach((el) => {
-                  const p = el as SVGPathElement;
+                // Fix all edge paths: remove inline styles that hide them
+                clone.querySelectorAll('g.edgePath path, .edge-pattern, .edgeLine').forEach((el) => {
+                  const p = el as SVGElement;
+                  p.removeAttribute('style');
                   p.setAttribute('stroke', '#555');
                   p.setAttribute('stroke-width', '1.5');
                   p.setAttribute('fill', 'none');
+                });
+                // Also fix any marker (arrow) paths
+                clone.querySelectorAll('marker path').forEach((el) => {
+                  el.setAttribute('fill', '#555');
                 });
                 const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 bg.setAttribute('width', '100%');
