@@ -61,14 +61,33 @@ export default function OwlGraphPage() {
         dataProps: (preview.data_properties || {})[c.name] || [],
       }));
 
-      const edges: any[] = (preview.object_properties || [])
-        .filter((p: any) => p.domain && p.range)
-        .map((p: any, i: number) => ({
+      const edges: any[] = [];
+
+      // Object property edges
+      for (const p of (preview.object_properties || [])) {
+        if (!p.domain || !p.range) continue;
+        edges.push({
           source: p.domain,
           target: p.range,
           label: p.label || p.name,
-          id: `${p.name}_${i}`,
-        }));
+          id: `op_${p.name}_${edges.length}`,
+          color: '#666',
+        });
+      }
+
+      // Inheritance edges (subClassOf)
+      for (const c of (preview.classes || [])) {
+        if (!c.parents) continue;
+        for (const parent of c.parents) {
+          edges.push({
+            source: c.name,
+            target: parent,
+            label: '继承',
+            id: `inh_${c.name}_${parent}`,
+            color: '#aabbcc',
+          });
+        }
+      }
 
       setGraphData({ nodes, links: edges, preview });
     } catch { /* ignore */ }
@@ -290,7 +309,8 @@ export default function OwlGraphPage() {
           nodeColor={(n) => (n as any).color || '#4363d8'}
           nodeVal={(n) => (n as any).val || 5}
           linkLabel={(l) => (l as any).label}
-          linkDirectionalArrowLength={4}
+          linkColor={(l) => (l as any).color || '#999'}
+          linkDirectionalArrowLength={3}
           linkDirectionalArrowRelPos={1}
           linkCurvature={0.25}
           linkWidth={1.5}
