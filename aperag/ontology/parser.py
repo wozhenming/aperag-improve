@@ -74,6 +74,16 @@ def parse_owl(file_path: str) -> OntologySchema:
         with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
         import re
+
+        # Extract inverseOf pairs before stripping (they're valid RDF/XML)
+        inverse_pairs: list[tuple[str, str]] = []
+        for m in re.finditer(
+            r'<owl:ObjectProperty\s+rdf:about="([^"]+)">\s*<owl:inverseOf\s+rdf:resource="([^"]+)"/>\s*</owl:ObjectProperty>',
+            content,
+        ):
+            inverse_pairs.append((m.group(1), m.group(2)))
+
+        # Strip non-standard nested tags that break RDFLib's parser
         content = re.sub(r'\s*<owl:FunctionalProperty\s*/>', '', content)
         content = re.sub(r'\s*<owl:inverseOf\s+[^>]+/>', '', content)
         with open(file_path, "w", encoding="utf-8") as f:
@@ -81,6 +91,16 @@ def parse_owl(file_path: str) -> OntologySchema:
 
         g = Graph()
         g.parse(file_path, format="xml")
+
+        # Add extracted inverse pairs
+        for prop_a, prop_b in inverse_pairs:
+            schema.inverse_map[prop_a] = prop_b
+            schema.inverse_map[prop_b] = prop_a
+            # Ensure the inverse pair properties exist in obj_prop_details
+            for pname in (prop_a, prop_b):
+                if pname not in schema.obj_prop_details:
+                    schema.obj_prop_details[pname] = ObjectPropertyDef(name=pname)
+                    schema.object_properties.append(("", pname, ""))
 
         # Collect namespace prefix → full URI, and extract base namespaces
         ns_prefix_map: dict[str, str] = {}  # URI → prefix
