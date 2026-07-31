@@ -95,20 +95,35 @@ export default function OwlGraphPage() {
     const lines: string[] = ['graph TB'];
     for (const c of classes) getCode(c.name);
     const doneNodes = new Set<string>();
+
+    // Recursively emit a node and its children inside nested subgraphs
+    const emitNode = (name: string, depth: number) => {
+      if (doneNodes.has(name)) return;
+      doneNodes.add(name);
+      const c = classMap.get(name);
+      const kids = children[name] || [];
+      if (kids.length === 0) {
+        lines.push(`${'  '.repeat(depth + 1)}${getCode(name)}["${label(c || { name, label: name, comment: '' })}"]`);
+      } else {
+        lines.push(`${'  '.repeat(depth + 1)}subgraph ${getCode(name)}_sg["${c ? (c.label || c.name) : name}"]`);
+        for (const kid of kids) emitNode(kid, depth + 1);
+        lines.push(`${'  '.repeat(depth + 1)}end`);
+      }
+    };
+
     for (const root of roots) {
       const c = classMap.get(root.name);
-      lines.push(`  ${getCode(root.name)}["${c ? label(c) : root.name}"]`);
-      doneNodes.add(root.name);
       const kids = children[root.name] || [];
       if (kids.length > 0) {
-        const rc = classMap.get(root.name);
-        lines.push(`  subgraph ${getCode(root.name)}_sg["${rc ? (rc.label || rc.name) : root.name} - 子类"]`);
-        for (const kid of kids) {
-          if (!doneNodes.has(kid)) { lines.push(`    ${getCode(kid)}["${label(classMap.get(kid) || { name: kid, label: kid, comment: '' })}"]`); doneNodes.add(kid); }
-          const grandkids = children[kid] || [];
-          for (const gk of grandkids) { if (!doneNodes.has(gk)) { lines.push(`    ${getCode(gk)}["${label(classMap.get(gk) || { name: gk, label: gk, comment: '' })}"]`); doneNodes.add(gk); } }
-        }
+        // Root is a standalone node; its children are in a subgraph
+        lines.push(`  ${getCode(root.name)}["${c ? label(c) : root.name}"]`);
+        doneNodes.add(root.name);
+        lines.push(`  subgraph ${getCode(root.name)}_sg["${c ? (c.label || c.name) : root.name} - 子类"]`);
+        for (const kid of kids) emitNode(kid, 1);
         lines.push('  end');
+      } else {
+        lines.push(`  ${getCode(root.name)}["${c ? label(c) : root.name}"]`);
+        doneNodes.add(root.name);
       }
     }
     for (const c of classes) { for (const p of c.parents || []) { if (classSet.has(p)) lines.push(`  ${getCode(c.name)} -->|"继承"| ${getCode(p)}`); } }
@@ -163,7 +178,16 @@ export default function OwlGraphPage() {
             <span className="text-xs text-muted-foreground">Mermaid</span>
             <div className="flex items-center gap-1">
               <Button variant="ghost" size="icon" className="h-6 w-6"
-                onClick={() => { navigator.clipboard.writeText(mermaidCode); }}>
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(mermaidCode);
+                  } catch {
+                    // Fallback for non-secure contexts
+                    const ta = document.createElement('textarea');
+                    ta.value = mermaidCode; document.body.appendChild(ta);
+                    ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+                  }
+                }}>
                 <Copy className="h-3 w-3" />
               </Button>
               <Button variant="ghost" size="icon" className="h-6 w-6"
