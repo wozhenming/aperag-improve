@@ -132,28 +132,34 @@ export default function OwlGraphPage() {
       }
     }
 
-    // Top-level sorting: group by root parents
-    const handled = new Set<string>();
-    for (const root of roots) {
-      const code = getCode(root.name);
-      lines.push(`  subgraph ${code}_root[" "]`);
-      lines.push(`  ${code}["${label(root)}"]`);
-      // Direct children
-      const kids = children[root.name] || [];
+    // Step 1: Declare ALL node IDs
+    for (const c of classes) getCode(c.name);
+
+    // Step 2: Build subgraph — group peers under each parent
+    const doneNodes = new Set<string>();
+    function groupSubgraph(nodeName: string) {
+      if (doneNodes.has(nodeName)) return;
+      doneNodes.add(nodeName);
+      const kids = children[nodeName] || [];
+      if (kids.length === 0) return;
+      const c = classMap.get(nodeName);
+      lines.push(`  subgraph ${getCode(nodeName)}_sg["${c ? (c.label || c.name) : nodeName}"]`);
       for (const kid of kids) {
-        const kc = classMap.get(kid);
-        const kcode = getCode(kid);
-        lines.push(`  ${kcode}["${kc ? label(kc) : kid}"]`);
-        // Grandchildren
-        const grandkids = children[kid] || [];
-        for (const gk of grandkids) {
-          const gc = classMap.get(gk);
-          const gcode = getCode(gk);
-          lines.push(`  ${gcode}["${gc ? label(gc) : gk}"]`);
+        if (!doneNodes.has(kid)) {
+          lines.push(`    ${getCode(kid)}["${label(classMap.get(kid) || { name: kid, label: kid, comment: '' })}"]`);
+          doneNodes.add(kid);
         }
+        groupSubgraph(kid);
       }
       lines.push('  end');
-      handled.add(root.name);
+    }
+    for (const root of roots) groupSubgraph(root.name);
+
+    // Declare orphan nodes (not in any subgraph)
+    for (const c of classes) {
+      if (!doneNodes.has(c.name)) {
+        lines.push(`  ${getCode(c.name)}["${label(c)}"]`);
+      }
     }
 
     // Inheritance edges (subClassOf)
@@ -199,10 +205,10 @@ export default function OwlGraphPage() {
     const el = containerRef.current;
     if (!el) return;
     const update = () => setDims({ width: el.offsetWidth, height: el.offsetHeight });
-    setTimeout(update, 100);
+    setTimeout(update, 50);
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
-  }, [graphData]);
+  }, [graphData, showMermaid]);
 
   const handleEngineStop = useCallback(() => {
     if (graphRef.current) graphRef.current.zoomToFit(400, 50);
@@ -290,6 +296,20 @@ export default function OwlGraphPage() {
           linkWidth={1.5}
           cooldownTicks={100}
           onEngineStop={handleEngineStop}
+          linkCanvasObjectMode={() => 'after'}
+          linkCanvasObject={(link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+            if (!link.label) return;
+            const start = link.source;
+            const end = link.target;
+            const mx = (start.x! + end.x!) / 2;
+            const my = (start.y! + end.y!) / 2;
+            const fontSize = Math.max(8, 10 / globalScale);
+            ctx.font = `${fontSize}px sans-serif`;
+            ctx.fillStyle = '#666';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(link.label, mx, my - 4);
+          }}
           nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
             const label = node.label || node.id;
             const size = Math.max(node.val || 5, 4);
