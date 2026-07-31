@@ -6,7 +6,7 @@ import {
 } from '@/components/ui/drawer';
 import { Separator } from '@/components/ui/separator';
 import axios from 'axios';
-import { ArrowLeft, ChevronDown, ChevronUp, Download, LoaderCircle, Maximize2, Minus, Plus, RotateCcw, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Code2, Download, LoaderCircle, Maximize2, Minus, Plus, RotateCcw, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { useParams, useRouter } from 'next/navigation';
@@ -23,7 +23,9 @@ export default function OwlGraphPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<any>(null);
   const mermaidRef = useRef<HTMLDivElement>(null);
+  const mermaidZoomRef = useRef<any>(null);
   const [mermaidSvg, setMermaidSvg] = useState('');
+  const [mermaidTab, setMermaidTab] = useState<'graph' | 'code'>('graph');
   const [dims, setDims] = useState({ width: 800, height: 600 });
   const [activeNode, setActiveNode] = useState<any>(null);
   const [showMermaid, setShowMermaid] = useState(true);
@@ -110,6 +112,18 @@ export default function OwlGraphPage() {
     return () => { cancelled = true; };
   }, [mermaidCode, showMermaid]);
 
+  // Attach panzoom to Mermaid SVG container after render
+  useEffect(() => {
+    if (!showMermaid || !mermaidSvg) return;
+    const el = mermaidZoomRef.current;
+    if (!el) return;
+    let pz: any;
+    import('panzoom').then(({ default: panzoom }) => {
+      pz = panzoom(el, { minZoom: 0.3, maxZoom: 5 });
+    });
+    return () => { if (pz) pz.dispose(); };
+  }, [mermaidSvg, showMermaid]);
+
   useEffect(() => { loadGraph(); }, [loadGraph]);
 
   useEffect(() => {
@@ -147,9 +161,14 @@ export default function OwlGraphPage() {
       </div>
 
       {showMermaid && mermaidCode ? (
-        <div className="flex-1 flex flex-col overflow-auto bg-muted/20">
+        <div className="flex-1 flex flex-col bg-muted/20">
           <div className="flex items-center justify-between px-3 py-1 border-b bg-muted/40 shrink-0">
-            <span className="text-xs text-muted-foreground">Mermaid</span>
+            <div className="flex items-center gap-1">
+              <Button variant={mermaidTab === 'graph' ? 'secondary' : 'ghost'} size="sm" className="h-7 text-xs"
+                onClick={() => setMermaidTab('graph')}>{page_collections('owl_view_graph')}</Button>
+              <Button variant={mermaidTab === 'code' ? 'secondary' : 'ghost'} size="sm" className="h-7 text-xs"
+                onClick={() => setMermaidTab('code')}><Code2 className="h-3 w-3 mr-1" />Code</Button>
+            </div>
             <Button variant="ghost" size="icon" className="h-6 w-6"
               onClick={async () => {
                 const { default: mermaid } = await import('mermaid');
@@ -174,7 +193,13 @@ export default function OwlGraphPage() {
               }}>
               <Download className="h-3 w-3" /></Button>
           </div>
-          <div className="flex-1 overflow-auto p-4" dangerouslySetInnerHTML={{ __html: mermaidSvg }} />
+          {mermaidTab === 'graph' ? (
+            <div ref={mermaidZoomRef} className="flex-1 overflow-auto cursor-move p-4" dangerouslySetInnerHTML={{ __html: mermaidSvg }} />
+          ) : (
+            <div className="flex-1 overflow-auto p-4">
+              <pre className="text-xs whitespace-pre-wrap font-mono text-muted-foreground">{mermaidCode}</pre>
+            </div>
+          )}
         </div>
       ) : (
         <div ref={containerRef} className="flex-1 relative min-h-[100px] overflow-hidden">
