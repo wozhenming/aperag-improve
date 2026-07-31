@@ -358,10 +358,21 @@ export default function OwlGraphPage() {
                 clone.setAttribute('width', String(w));
                 clone.setAttribute('height', String(h));
                 clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-                // Force light theme fixes + white background
+                // Force light theme — inject CSS that overrides dark Mermaid theme
                 const fixStyle = document.createElementNS('http://www.w3.org/2000/svg', 'style');
-                fixStyle.textContent = '.edgeLabel rect, .edgeLabel span { fill: #fff !important; color: #333 !important; } .edgeLabel foreignObject { overflow: visible !important; } .label foreignObject { overflow: visible !important; }';
-                clone.insertBefore(fixStyle, clone.firstChild);
+                fixStyle.textContent = `
+                  svg { background: #fff !important; }
+                  .node rect, .node circle, .node ellipse, .node polygon, .node path { fill: #e8eaf6 !important; stroke: #3f51b5 !important; }
+                  .node .label { color: #1a237e !important; }
+                  .node .label text { fill: #1a237e !important; }
+                  .edgePath .path { stroke: #666 !important; stroke-width: 1.5px !important; }
+                  .edgeLabel rect { fill: #fff !important; stroke: none !important; }
+                  .edgeLabel span, .edgeLabel foreignObject div { color: #333 !important; background: #fff !important; }
+                  .cluster rect { fill: #f5f5f5 !important; stroke: #bbb !important; }
+                  .cluster .label { color: #333 !important; }
+                  text, tspan { fill: #333 !important; }
+                `;
+                clone.appendChild(fixStyle);
                 const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 bg.setAttribute('width', '100%');
                 bg.setAttribute('height', '100%');
