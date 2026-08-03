@@ -486,6 +486,9 @@ class Agent(BaseModel):
     system_prompt_template: Optional[str] = None
     query_prompt_template: Optional[str] = None
     collections: Optional[list[Collection]] = None
+    tools_enabled: Optional[bool] = Field(
+        True, description='Whether to attach MCP tools (search_collection, etc.). Set False for pure-LLM bots.'
+    )
 
 
 class BotConfig(BaseModel):
@@ -2887,6 +2890,28 @@ class AgentMessage(BaseModel):
 class ContinueImportRequest(BaseModel):
     """Request to continue a paused import task."""
     action: str = Field(..., description="'reindex' to rebuild with target model, 'cancel' to abort")
+
+
+class Ontology(BaseModel):
+    """User-level ontology library entry."""
+
+    id: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    file_path: Optional[str] = None
+    status: Optional[str] = None
+    preview: Optional[dict] = None
+    created: Optional[datetime] = None
+    updated: Optional[datetime] = None
+
+
+class OntologyList(BaseModel):
+    items: list[Ontology] = Field(default_factory=list)
+
+
+class OntologyBotSession(BaseModel):
+    bot_id: str
+    chat_id: str
 
 
 class ImportTaskResponse(BaseModel):

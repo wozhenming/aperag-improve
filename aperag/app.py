@@ -56,6 +56,7 @@ from aperag.views.llm import router as llm_router
 from aperag.views.main import router as main_router
 from aperag.views.marketplace import router as marketplace_router
 from aperag.views.marketplace_collections import router as marketplace_collections_router
+from aperag.views.ontology_view import router as ontology_router
 from aperag.views.openai import router as openai_router
 from aperag.views.prompts import router as prompts_router
 from aperag.views.settings import router as settings_router
@@ -119,6 +120,7 @@ app.include_router(llm_router, prefix="/api/v1")
 app.include_router(graph_router, prefix="/api/v1")
 app.include_router(import_router, prefix="/api/v1")
 app.include_router(marketplace_router, prefix="/api/v1")  # Add marketplace router
+app.include_router(ontology_router, prefix="/api/v1")  # Add ontology router
 app.include_router(marketplace_collections_router, prefix="/api/v1")  # Add marketplace collections router
 app.include_router(settings_router, prefix="/api/v1")
 app.include_router(prompts_router, prefix="/api/v1")  # Add prompts router

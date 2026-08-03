@@ -190,7 +190,7 @@ class QuotaService:
                 .where(
                     Bot.user == user_id,
                     Bot.gmt_deleted.is_(None),
-                    Bot.title != "Default Agent Bot",  # Exclude system default bot
+                    Bot.title.notin_(["Default Agent Bot", "Ontology Engineer"]),  # Exclude system bots
                 )
             )
             bot_count = await session.scalar(stmt)

@@ -1,0 +1,57 @@
+{
+  "metadata": {
+    "title": "My Ontologies",
+    "description": "Manage your OWL ontology files — import or generate with AI guidance"
+  },
+  "search": "Search ontologies",
+  "no_ontologies_found": "No ontologies yet. Import or add one from the top right.",
+  "import_ontology": "Import Ontology",
+  "add_ontology": "Add Ontology",
+  "add_ontology_desc": "AI Guided",
+  "save_ontology": "Save as Ontology",
+  "saved_success": "Ontology saved",
+  "owl_preview": "Ontology Preview",
+  "view_graph": "View Graph",
+  "delete_ontology": "Delete Ontology",
+  "delete_confirm": "Delete this ontology?",
+  "delete_success": "Ontology deleted",
+  "copied": "Copied to clipboard",
+  "undefined": {
+    "metadata": {
+      "title": "My Ontologies",
+      "description": "Manage your OWL ontology files — import or generate with AI guidance"
+    },
+    "search": "Search ontologies",
+    "no_ontologies_found": "No ontologies yet. Import or add one from the top right.",
+    "import_ontology": "Import Ontology",
+    "add_ontology": "Add Ontology",
+    "add_ontology_desc": "AI Guided",
+    "save_ontology": "Save as Ontology",
+    "saved_success": "Ontology saved",
+    "owl_preview": "Ontology Preview",
+    "view_graph": "View Graph",
+    "delete_ontology": "Delete Ontology",
+    "delete_confirm": "Delete this ontology?",
+    "delete_success": "Ontology deleted",
+    "copied": "Copied to clipboard",
+    "undefined": {
+      "metadata": {
+        "title": "My Ontologies",
+        "description": "Manage your OWL ontology files — import or generate with AI guidance"
+      },
+      "search": "Search ontologies",
+      "no_ontologies_found": "No ontologies yet. Import or add one from the top right.",
+      "import_ontology": "Import Ontology",
+      "add_ontology": "Add Ontology",
+      "add_ontology_desc": "AI Guided",
+      "save_ontology": "Save as Ontology",
+      "saved_success": "Ontology saved",
+      "owl_preview": "Ontology Preview",
+      "view_graph": "View Graph",
+      "delete_ontology": "Delete Ontology",
+      "delete_confirm": "Delete this ontology?",
+      "delete_success": "Ontology deleted",
+      "copied": "Copied to clipboard"
+    }
+  }
+}

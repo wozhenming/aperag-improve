@@ -4,9 +4,13 @@ import { ChatDetails, ChatMessage, Feedback, Reference } from '@/api';
 
 import { useWebSocket } from 'ahooks';
 import { animateScroll as scroll } from 'react-scroll';
+import axios from 'axios';
 
+import { Button } from '@/components/ui/button';
 import { useBotContext } from '@/components/providers/bot-provider';
 import { apiClient } from '@/lib/api/client';
+import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { ReadyState } from 'ahooks/lib/useWebSocket';
 import { motion } from 'framer-motion';
 import _ from 'lodash';
@@ -16,7 +20,13 @@ import { ChatInput, ChatInputSubmitParams } from './chat-input';
 import { MessagePartsAi } from './message-parts-ai';
 import { MessagePartsUser } from './message-parts-user';
 
-export const ChatMessages = ({ chat }: { chat: ChatDetails }) => {
+export const ChatMessages = ({
+  chat,
+  ontologyMode = false,
+}: {
+  chat: ChatDetails;
+  ontologyMode?: boolean;
+}) => {
   const { chatRename } = useBotContext();
   const { botId, chatId } = useParams<{ botId: string; chatId: string }>();
   const [messages, setMessages] = useState<Array<Array<ChatMessage>>>(
@@ -225,6 +235,9 @@ export const ChatMessages = ({ chat }: { chat: ChatDetails }) => {
             ) : (
               <MessagePartsUser parts={parts} />
             )}
+            {ontologyMode && !loading && isAI && (
+              <OwlDetectPanel parts={parts} />
+            )}
           </motion.div>
         );
       })}
@@ -239,3 +252,77 @@ export const ChatMessages = ({ chat }: { chat: ChatDetails }) => {
     </div>
   );
 };
+
+/** Detect ```owl code blocks in AI messages and offer save + Mermaid preview. */
+function OwlDetectPanel({ parts }: { parts: ChatMessage[] }) {
+  const t = useTranslations('page_ontologies');
+  const [saving, setSaving] = useState(false);
+  const fullText = parts
+    .filter((p) => p.type === 'message')
+    .map((p) => p.data || '')
+    .join('');
+
+  const owlMatch = fullText.match(/```owl\s*([\s\S]*?)```/);
+  const mermaidMatch = fullText.match(/```mermaid\s*([\s\S]*?)```/);
+  if (!owlMatch) return null;
+
+  const owlCode = owlMatch[1];
+  const mermaidCode = mermaidMatch ? mermaidMatch[1] : '';
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const blob = new Blob([owlCode.trim()], { type: 'application/xml' });
+      const fd = new FormData();
+      fd.append('file', blob, `ontology-${Date.now()}.owl`);
+      fd.append('title', `本体-${new Date().toLocaleDateString()}`);
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+      await axios.post(`${basePath}/api/v1/ontologies`, fd);
+      toast.success(t('saved_success'));
+    } catch {
+      toast.error('Save failed');
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="mt-4 rounded-lg border bg-muted/30 p-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-medium">{t('owl_preview')}</span>
+        <Button size="sm" onClick={handleSave} disabled={saving}>
+          {t('save_ontology')}
+        </Button>
+      </div>
+      {mermaidCode ? (
+        <div className="overflow-auto rounded bg-white/60 p-2">
+          <MermaidPreview code={mermaidCode} />
+        </div>
+      ) : (
+        <pre className="max-h-64 overflow-auto rounded bg-background p-2 text-xs">
+          {owlCode.trim().slice(0, 2000)}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+function MermaidPreview({ code }: { code: string }) {
+  const [svg, setSvg] = useState('');
+  const [id] = useState(() => 'mp-' + String(Math.floor(Math.random() * 100000)));
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { default: mermaid } = await import('mermaid');
+      mermaid.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'loose' });
+      try {
+        const r = await mermaid.render(id, code);
+        if (!cancelled) setSvg(r.svg);
+      } catch {
+        /* invalid mermaid */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [code, id]);
+  if (!svg) return <p className="text-xs text-muted-foreground">...</p>;
+  return <div dangerouslySetInnerHTML={{ __html: svg }} />;
+}

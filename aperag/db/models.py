@@ -1194,6 +1194,23 @@ class ImportTask(Base):
     gmt_completed = Column(DateTime(timezone=True), nullable=True)
 
 
+class Ontology(Base):
+    """User-level ontology library entry. The .owl file lives in object store."""
+
+    __tablename__ = "ontology"
+    __table_args__ = (Index("idx_ontology_user_status", "user", "status"),)
+
+    id = Column(String(24), primary_key=True, default=lambda: "onto" + random_id())
+    user = Column(String(256), nullable=False, index=True)
+    title = Column(String(256), nullable=False)
+    description = Column(Text, nullable=True)
+    file_path = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, default="ACTIVE")
+    gmt_created = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    gmt_updated = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    gmt_deleted = Column(DateTime(timezone=True), nullable=True)
+
+
 class PromptTemplate(Base):
     __tablename__ = "prompt_template"
 

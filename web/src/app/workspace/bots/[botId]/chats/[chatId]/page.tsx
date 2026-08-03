@@ -11,13 +11,16 @@ import { notFound } from 'next/navigation';
 
 export default async function Page({
   params,
+  searchParams,
 }: {
   params: Promise<{
     botId: string;
     chatId: string;
   }>;
+  searchParams: Promise<{ ontology?: string }>;
 }) {
   const { botId, chatId } = await params;
+  const sp = await searchParams;
   const serverApi = await getServerApi();
   const page_chat = await getTranslations('page_chat');
 
@@ -49,7 +52,7 @@ export default async function Page({
         ]}
       />
       <PageContent>
-        <ChatMessages chat={chat} />
+        <ChatMessages chat={chat} ontologyMode={sp.ontology === '1'} />
       </PageContent>
     </PageContainer>
   );

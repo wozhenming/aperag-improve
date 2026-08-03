@@ -393,7 +393,8 @@ class AgentChatService:
             raise
 
     async def _get_agent_session(
-        self, agent_message: view_models.AgentMessage, user: str, chat_id: str, resolved_system_prompt: str
+        self, agent_message: view_models.AgentMessage, user: str, chat_id: str, resolved_system_prompt: str,
+        bot_config: view_models.BotConfig | None = None,
     ):
         """Get or create chat session using AgentConfig."""
         # Query provider details and API key from database
@@ -439,7 +440,8 @@ class AgentChatService:
             default_model=agent_message.completion.model,
             language=agent_message.language if agent_message.language else "en-US",
             instruction=system_prompt,
-            server_names=["aperag"],
+            # tools_enabled=False → pure LLM bot without MCP tools
+            server_names=["aperag"] if (bot_config and bot_config.agent and bot_config.agent.tools_enabled is not False) else [],
             aperag_api_key=aperag_api_key,
             aperag_mcp_url=os.getenv("APERAG_MCP_URL", "http://localhost:8000/mcp/"),
             temperature=0.7,
@@ -500,7 +502,9 @@ class AgentChatService:
             memory = await self.memory_manager.create_memory_from_history(history, context_limit=4)
 
             # Get chat session using merged agent message and resolved system prompt
-            session = await self._get_agent_session(merged_agent_message, user, chat_id, resolved_system_prompt)
+            session = await self._get_agent_session(
+                merged_agent_message, user, chat_id, resolved_system_prompt, bot_config=bot_config
+            )
             llm = await session.get_llm(final_completion.model)
 
             llm.history = memory

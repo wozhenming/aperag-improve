@@ -799,6 +799,134 @@
     "api_keys": "API密钥",
     "audit_logs": "审计日志",
     "quotas": "配额",
-    "prompts": "提示词"
+    "prompts": "提示词",
+    "ontologies": "我的知识库本体",
+    "undefined": {
+      "repositories": "知识库",
+      "marketplace": "市场",
+      "collections": "我的知识库",
+      "bots": "机器人",
+      "chats": "会话",
+      "chats_new": "新建会话",
+      "display_empty_title": "新会话",
+      "more": "更多",
+      "settings": "设置",
+      "models": "模型",
+      "api_keys": "API密钥",
+      "audit_logs": "审计日志",
+      "quotas": "配额",
+      "prompts": "提示词",
+      "ontologies": "我的知识库本体",
+      "undefined": {
+        "repositories": "知识库",
+        "marketplace": "市场",
+        "collections": "我的知识库",
+        "bots": "机器人",
+        "chats": "会话",
+        "chats_new": "新建会话",
+        "display_empty_title": "新会话",
+        "more": "更多",
+        "settings": "设置",
+        "models": "模型",
+        "api_keys": "API密钥",
+        "audit_logs": "审计日志",
+        "quotas": "配额",
+        "prompts": "提示词",
+        "ontologies": "我的知识库本体",
+        "undefined": {
+          "repositories": "知识库",
+          "marketplace": "市场",
+          "collections": "我的知识库",
+          "bots": "机器人",
+          "chats": "会话",
+          "chats_new": "新建会话",
+          "display_empty_title": "新会话",
+          "more": "更多",
+          "settings": "设置",
+          "models": "模型",
+          "api_keys": "API密钥",
+          "audit_logs": "审计日志",
+          "quotas": "配额",
+          "prompts": "提示词",
+          "ontologies": "我的知识库本体"
+        }
+      }
+    }
+  },
+  "page_ontologies": {
+    "metadata": {
+      "title": "我的知识库本体",
+      "description": "管理你的 OWL 本体文件，支持导入和 AI 引导生成"
+    },
+    "search": "搜索本体",
+    "no_ontologies_found": "暂无本体，点击右上角导入或添加",
+    "import_ontology": "导入本体",
+    "add_ontology": "添加本体",
+    "add_ontology_desc": "AI 引导生成",
+    "save_ontology": "保存为本体",
+    "saved_success": "本体保存成功",
+    "owl_preview": "本体预览",
+    "view_graph": "查看关系图",
+    "delete_ontology": "删除本体",
+    "delete_confirm": "确认删除此本体？",
+    "delete_success": "本体已删除",
+    "copied": "已复制到剪贴板",
+    "undefined": {
+      "metadata": {
+        "title": "我的知识库本体",
+        "description": "管理你的 OWL 本体文件，支持导入和 AI 引导生成"
+      },
+      "search": "搜索本体",
+      "no_ontologies_found": "暂无本体，点击右上角导入或添加",
+      "import_ontology": "导入本体",
+      "add_ontology": "添加本体",
+      "add_ontology_desc": "AI 引导生成",
+      "save_ontology": "保存为本体",
+      "saved_success": "本体保存成功",
+      "owl_preview": "本体预览",
+      "view_graph": "查看关系图",
+      "delete_ontology": "删除本体",
+      "delete_confirm": "确认删除此本体？",
+      "delete_success": "本体已删除",
+      "copied": "已复制到剪贴板",
+      "undefined": {
+        "metadata": {
+          "title": "我的知识库本体",
+          "description": "管理你的 OWL 本体文件，支持导入和 AI 引导生成"
+        },
+        "search": "搜索本体",
+        "no_ontologies_found": "暂无本体，点击右上角导入或添加",
+        "import_ontology": "导入本体",
+        "add_ontology": "添加本体",
+        "add_ontology_desc": "AI 引导生成",
+        "save_ontology": "保存为本体",
+        "saved_success": "本体保存成功",
+        "owl_preview": "本体预览",
+        "view_graph": "查看关系图",
+        "delete_ontology": "删除本体",
+        "delete_confirm": "确认删除此本体？",
+        "delete_success": "本体已删除",
+        "copied": "已复制到剪贴板",
+        "undefined": {
+          "metadata": {
+            "title": "我的知识库本体",
+            "description": "管理你的 OWL 本体文件，支持导入和 AI 引导生成"
+          },
+          "search": "搜索本体",
+          "no_ontologies_found": "暂无本体，点击右上角导入或添加",
+          "import_ontology": "导入本体",
+          "add_ontology": "添加本体",
+          "add_ontology_desc": "AI 引导生成",
+          "save_ontology": "保存为本体",
+          "saved_success": "本体保存成功",
+          "owl_preview": "本体预览",
+          "view_graph": "查看关系图",
+          "delete_ontology": "删除本体",
+          "delete_confirm": "确认删除此本体？",
+          "delete_success": "本体已删除",
+          "copied": "已复制到剪贴板"
+        }
+      }
+    }
   }
 }
