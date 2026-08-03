@@ -27,13 +27,16 @@ class PropertyDef:
 
 @dataclass
 class ObjectPropertyDef:
-    """An object property with optional inverse."""
+    """An object property with optional inverse and characteristics."""
     name: str
     label: str | None = None
     comment: str | None = None
     domain: str | None = None
     range_: str | None = None
     inverse: str | None = None
+    transitive: bool = False
+    symmetric: bool = False
+    functional: bool = False
 
 
 @dataclass
@@ -75,7 +78,7 @@ def parse_owl(file_path: str) -> OntologySchema:
             content = f.read()
         import re
 
-        # Extract inverseOf pairs before stripping (they're valid RDF/XML)
+        # Extract inverseOf pairs + property characteristics before stripping
         inverse_pairs: list[tuple[str, str]] = []
         for m in re.finditer(
             r'<owl:ObjectProperty\s+rdf:about="([^"]+)">\s*<owl:inverseOf\s+rdf:resource="([^"]+)"/>\s*</owl:ObjectProperty>',
@@ -83,12 +86,44 @@ def parse_owl(file_path: str) -> OntologySchema:
         ):
             inverse_pairs.append((m.group(1), m.group(2)))
 
+        # Functional/Transitive/Symmetric/InverseFunctional markers on ObjectProperty
+        functional_props: set[str] = set()
+        transitive_props: set[str] = set()
+        symmetric_props: set[str] = set()
+        inverse_func_props: set[str] = set()
+        for m in re.finditer(
+            r'<owl:(ObjectProperty|DatatypeProperty)\s+rdf:about="([^"]+)"[^>]*>(.*?)</owl:\1>',
+            content,
+            re.DOTALL,
+        ):
+            prop_name, body = m.group(2), m.group(3)
+            if '<owl:FunctionalProperty/>' in body:
+                functional_props.add(prop_name)
+            if '<owl:TransitiveProperty/>' in body:
+                transitive_props.add(prop_name)
+            if '<owl:SymmetricProperty/>' in body:
+                symmetric_props.add(prop_name)
+            if '<owl:InverseFunctionalProperty/>' in body:
+                inverse_func_props.add(prop_name)
+
         # Strip non-standard nested tags + XML comments (RDFLib parser issues)
-        content = re.sub(r'\s*<owl:FunctionalProperty\s*/>', '', content)
+        content = re.sub(r'\s*<owl:(FunctionalProperty|TransitiveProperty|SymmetricProperty|AsymmetricProperty|ReflexiveProperty|IrreflexiveProperty|InverseFunctionalProperty)\s*/>', '', content)
         content = re.sub(r'\s*<owl:inverseOf\s+[^>]+/>', '', content)
         content = re.sub(r'<!--[\s\S]*?-->', '', content)
         g = Graph()
         g.parse(data=content.encode("utf-8"), format="xml")
+
+        # Apply extracted property characteristics to schema
+        for pname in functional_props:
+            # functional data/object property — mark in functional_properties global list
+            schema.functional_properties.setdefault('*', [])
+            if pname not in schema.functional_properties['*']:
+                schema.functional_properties['*'].append(pname)
+            schema.obj_prop_details.setdefault(pname, ObjectPropertyDef(name=pname)).functional = True
+        for pname in transitive_props:
+            schema.obj_prop_details.setdefault(pname, ObjectPropertyDef(name=pname)).__dict__['transitive'] = True
+        for pname in symmetric_props:
+            schema.obj_prop_details.setdefault(pname, ObjectPropertyDef(name=pname)).__dict__['symmetric'] = True
 
         # Add extracted inverse pairs
         for prop_a, prop_b in inverse_pairs:

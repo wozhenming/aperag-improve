@@ -41,8 +41,18 @@ def build_ontology_guide(schema: OntologySchema) -> str:
             d = domain or "*"
             r = range_ or "*"
             inv = schema.inverse_map.get(name)
+            detail = schema.obj_prop_details.get(name)
             inv_hint = f" [inverse: {inv}]" if inv else ""
-            lines.append(f"- {name}({d} → {r}){inv_hint}")
+            char_hints = []
+            if detail:
+                if detail.transitive:
+                    char_hints.append("transitive")
+                if detail.symmetric:
+                    char_hints.append("symmetric")
+                if detail.functional:
+                    char_hints.append("functional")
+            char_hint = f" [{' + '.join(char_hints)}]" if char_hints else ""
+            lines.append(f"- {name}({d} → {r}){inv_hint}{char_hint}")
         lines.append("")
 
     if schema.inverse_map:
