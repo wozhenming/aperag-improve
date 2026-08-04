@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import re
 from typing import Optional
 
@@ -21,6 +22,8 @@ from aperag.db.ops import AsyncDatabaseOps, async_db_ops
 from aperag.exceptions import BusinessException, ErrorCode
 from aperag.service.default_model_service import default_model_service
 from aperag.utils.history import RedisChatMessageHistory, get_async_redis_client
+
+logger = logging.getLogger(__name__)
 
 
 class ChatTitleService:
@@ -112,7 +115,9 @@ class ChatTitleService:
                         )
                         break
         if not (model and provider_name and custom_provider):
-            raise BusinessException(ErrorCode.LLM_MODEL_NOT_FOUND, "Background task default model not configured")
+            # Never block the chat — fall back to a static title
+            logger.warning(f"Title generation skipped: no completion model configured for user {user_id}")
+            return "New Chat"
 
         # Resolve provider base_url and api_key
         provider = await self.db_ops.query_llm_provider_by_name(provider_name)
