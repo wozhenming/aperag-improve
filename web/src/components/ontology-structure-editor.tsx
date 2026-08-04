@@ -321,12 +321,13 @@ export function OntologyStructureEditor({ structure, onChange }: Props) {
                 </SelectContent>
               </Select>
               <Select
-                value={p.inverse || ''}
-                onValueChange={(v) => updateObjProp(i, { inverse: v || undefined })}
+                value={p.inverse || '__none__'}
+                onValueChange={(v) => updateObjProp(i, { inverse: v === '__none__' ? undefined : v })}
               >
                 <SelectTrigger size="sm" className="text-xs"><SelectValue placeholder={t('editor.inverse')} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{t('editor.none')}</SelectItem>
+                  {/* Radix Select.Item must not use an empty string value — use a sentinel */}
+                  <SelectItem value="__none__">{t('editor.none')}</SelectItem>
                   {objProps.filter((o) => o.name !== p.name).map((o) => (
                     <SelectItem key={o.name} value={o.name}>{o.name}</SelectItem>
                   ))}
