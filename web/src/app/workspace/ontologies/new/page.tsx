@@ -1,19 +1,22 @@
 import { serverRequest } from '@/lib/api/server';
-import { redirect } from 'next/navigation';
+import { permanentRedirect, redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
+  let botId: string | undefined;
+  let chatId: string | undefined;
   try {
-    // Get or create the Ontology Engineer bot + a fresh chat
-    // (SDK not regenerated yet — call via raw axios)
     const res = await serverRequest.post('/ontologies/bot/session');
-    const { bot_id, chat_id } = res.data || {};
-    if (bot_id && chat_id) {
-      redirect(`/workspace/bots/${bot_id}/chats/${chat_id}?ontology=1`);
-    }
+    botId = res.data?.bot_id;
+    chatId = res.data?.chat_id;
   } catch {
-    /* fall through */
+    // bot/session failed — fall through to the library page
   }
-  redirect('/workspace/ontologies');
+
+  if (botId && chatId) {
+    // redirect() throws internally; must be called OUTSIDE the try/catch
+    redirect(`/workspace/bots/${botId}/chats/${chatId}?ontology=1`);
+  }
+  permanentRedirect('/workspace/ontologies');
 }
