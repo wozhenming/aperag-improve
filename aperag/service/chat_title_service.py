@@ -52,8 +52,18 @@ class ChatTitleService:
         if not chat:
             raise BusinessException(ErrorCode.CHAT_NOT_FOUND, "Chat not found")
 
-        # Load default model configuration
+        # Load default model configuration with fallback chain:
+        # background_task → agent_completion → collection_completion
         model, provider_name, custom_provider = await default_model_service.get_default_background_task_config(user_id)
+        if not (model and provider_name and custom_provider):
+            default_models = await default_model_service.get_default_models(user_id)
+            for fallback_scenario in ("default_for_agent_completion", "default_for_collection_completion"):
+                for config in default_models.items:
+                    if config.scenario == fallback_scenario and config.provider_name and config.model:
+                        model, provider_name, custom_provider = config.model, config.provider_name, config.custom_llm_provider
+                        break
+                if model and provider_name:
+                    break
         if not (model and provider_name and custom_provider):
             raise BusinessException(ErrorCode.LLM_MODEL_NOT_FOUND, "Background task default model not configured")
 
