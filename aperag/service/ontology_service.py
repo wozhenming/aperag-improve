@@ -33,14 +33,26 @@ class OntologyService:
     def __init__(self, db_ops: AsyncDatabaseOps = async_db_ops):
         self.db_ops = db_ops
 
+    def _parse_schema_content(self, content: str):
+        """Parse OWL XML content into an OntologySchema (RDFLib, via temp file)."""
+        import os
+        import tempfile
+
+        from aperag.ontology.parser import parse_owl
+
+        with tempfile.NamedTemporaryFile(suffix=".owl", delete=False, mode="w", encoding="utf-8") as tmp:
+            tmp.write(content)
+            tmp.flush()
+            try:
+                return parse_owl(tmp.name)
+            finally:
+                os.unlink(tmp.name)
+
     async def _to_view(self, row: db_models.Ontology) -> view_models.Ontology:
         preview = None
         if row.file_path:
             try:
-                import tempfile
-
                 from aperag.objectstore.base import get_object_store
-                from aperag.ontology.parser import parse_owl
 
                 store = get_object_store()
                 content = store.get(row.file_path)
@@ -48,15 +60,16 @@ class OntologyService:
                     content = content.read()
                 if isinstance(content, bytes):
                     content = content.decode("utf-8")
-                with tempfile.NamedTemporaryFile(suffix=".owl", delete=False, mode="w", encoding="utf-8") as tmp:
-                    tmp.write(content)
-                    tmp.flush()
-                    schema = parse_owl(tmp.name)
+                schema = self._parse_schema_content(content)
                 if schema and not schema.is_empty():
                     preview = {
                         "classes_count": len(schema.classes),
                         "classes": [
-                            {"name": n, "label": schema.class_labels.get(n), "parents": schema.class_hierarchy.get(n, [])}
+                            {
+                                "name": n,
+                                "label": schema.class_labels.get(n),
+                                "parents": schema.class_hierarchy.get(n, []),
+                            }
                             for n in schema.classes[:50]
                         ],
                         "object_properties_count": len(set(name for _, name, _ in schema.object_properties)),
@@ -96,9 +109,7 @@ class OntologyService:
         final_title = title or filename.rsplit(".", 1)[0]
 
         async def _create(session):
-            row = db_models.Ontology(
-                user=user_id, title=final_title, file_path=obj_path, status="ACTIVE"
-            )
+            row = db_models.Ontology(user=user_id, title=final_title, file_path=obj_path, status="ACTIVE")
             session.add(row)
             await session.flush()
             return row
@@ -143,6 +154,7 @@ class OntologyService:
 
     async def get_ontology_content(self, user_id: str, ontology_id: str) -> tuple[str | None, str | None]:
         """Return (title, owl_content) for editing."""
+
         async def _query(session):
             from sqlalchemy import select
 
@@ -167,8 +179,79 @@ class OntologyService:
             content = content.decode("utf-8")
         return row.title, content
 
+    async def get_ontology_structure(self, user_id: str, ontology_id: str) -> Optional[dict]:
+        """Parse the .owl content and return the full structure — same shape as the
+        collection OWL preview (classes with labels/comments/parents, object properties
+        with domain/range, data properties). Used by the edit page to render the graph."""
+        title, content = await self.get_ontology_content(user_id, ontology_id)
+        if content is None:
+            return None
+        try:
+            schema = self._parse_schema_content(content)
+        except Exception as e:
+            logger.warning(f"OWL structure parse failed for {ontology_id}: {e}")
+            return {"error": str(e)}
+        if not schema or schema.is_empty():
+            return {"error": "empty"}
+
+        classes_info = []
+        for name in schema.classes[:200]:
+            info = {"name": name}
+            if name in schema.class_labels:
+                info["label"] = schema.class_labels[name]
+            if name in schema.class_comments:
+                info["comment"] = schema.class_comments[name]
+            if name in schema.class_hierarchy:
+                info["parents"] = schema.class_hierarchy[name]
+            classes_info.append(info)
+
+        obj_props_info = []
+        seen = set()
+        for _, name, _ in schema.object_properties:
+            if name in seen:
+                continue
+            seen.add(name)
+            detail = schema.obj_prop_details.get(name)
+            entry = {"name": name}
+            if detail:
+                if detail.label:
+                    entry["label"] = detail.label
+                if detail.comment:
+                    entry["comment"] = detail.comment
+                if detail.domain:
+                    entry["domain"] = detail.domain
+                if detail.range_:
+                    entry["range"] = detail.range_
+                if detail.inverse:
+                    entry["inverse"] = detail.inverse
+            obj_props_info.append(entry)
+
+        dp_info: dict[str, list[dict]] = {}
+        for cls, props in list(schema.data_properties.items())[:50]:
+            dp_info[cls] = [
+                {
+                    "name": p.name,
+                    "label": p.label,
+                    "comment": p.comment,
+                    "range": p.range_,
+                    "functional": p.functional,
+                }
+                for p in props[:100]
+            ]
+
+        return {
+            "classes_count": len(schema.classes),
+            "classes": classes_info,
+            "object_properties_count": len(obj_props_info),
+            "object_properties": obj_props_info,
+            "data_properties_count": sum(len(v) for v in schema.data_properties.values()),
+            "data_properties": dp_info,
+            "disjoint_pairs": schema.disjoint_pairs[:50],
+        }
+
     async def update_ontology_content(self, user_id: str, ontology_id: str, content: str) -> bool:
         """Overwrite the .owl file for an ontology."""
+
         async def _query(session):
             from sqlalchemy import select
 
@@ -191,6 +274,7 @@ class OntologyService:
 
     async def update_ontology_meta(self, user_id: str, ontology_id: str, title: str | None = None) -> bool:
         """Update ontology metadata (title)."""
+
         async def _operation(session):
             from sqlalchemy import select
 
@@ -279,9 +363,7 @@ class OntologyService:
                 agent["tools_enabled"] = False
                 changed = True
             if changed:
-                await self.db_ops.update_bot_config_by_id(
-                    str(user_id), existing.id, _json.dumps(cfg_dict)
-                )
+                await self.db_ops.update_bot_config_by_id(str(user_id), existing.id, _json.dumps(cfg_dict))
             import json as _json
 
             config_val: view_models.BotConfig | None = None
@@ -293,10 +375,13 @@ class OntologyService:
                 except Exception:
                     config_val = None
             return view_models.Bot(
-                id=existing.id, title=existing.title, description=existing.description,
+                id=existing.id,
+                title=existing.title,
+                description=existing.description,
                 type=existing.type.value if hasattr(existing.type, "value") else str(existing.type),
                 config=config_val,
-                created=existing.gmt_created, updated=existing.gmt_updated,
+                created=existing.gmt_created,
+                updated=existing.gmt_updated,
             )
 
         # Create the Ontology Engineer bot

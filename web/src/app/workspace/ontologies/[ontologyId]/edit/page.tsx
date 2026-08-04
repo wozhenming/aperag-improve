@@ -3,12 +3,14 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { MermaidView, exportMermaidPng } from '@/components/mermaid-view';
+import { buildOwlMermaid } from '@/lib/owl-mermaid';
 import { Textarea } from '@/components/ui/textarea';
 import axios from 'axios';
-import { ArrowLeft, Download, Eye, LoaderCircle, Pencil, Save } from 'lucide-react';
+import { ArrowLeft, Copy, Download, Eye, LoaderCircle, Pencil, Save } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 export default function EditOntologyPage() {
@@ -20,7 +22,7 @@ export default function EditOntologyPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(false);
-  const [mermaidCode, setMermaidCode] = useState('');
+  const [structure, setStructure] = useState<any>(null);
 
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
@@ -38,11 +40,27 @@ export default function EditOntologyPage() {
     })();
   }, [params.ontologyId, basePath]);
 
-  // Parse Mermaid from OWL code blocks if present in content (e.g. saved from chat)
+  // Full parsed structure (same shape as the collection owl-graph preview)
   useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await axios.get(`${basePath}/api/v1/ontologies/${params.ontologyId}/structure`);
+        setStructure(data);
+      } catch {
+        setStructure(null);
+      }
+    })();
+  }, [params.ontologyId, basePath]);
+
+  // Primary: mermaid generated from the parsed structure like the owl-graph page.
+  // Fallback: embedded ```mermaid block saved in the content from the chat.
+  const mermaidCode = useMemo(() => {
+    if (structure && !structure.error && structure.classes?.length) {
+      return buildOwlMermaid(structure);
+    }
     const m = content.match(/```mermaid\s*([\s\S]*?)```/);
-    if (m) setMermaidCode(m[1]);
-  }, [content]);
+    return m ? m[1] : '';
+  }, [structure, content]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -52,6 +70,9 @@ export default function EditOntologyPage() {
         title,
       });
       toast.success(t('saved_success'));
+      // Re-parse the structure so the graph reflects the saved OWL
+      const { data } = await axios.get(`${basePath}/api/v1/ontologies/${params.ontologyId}/structure`);
+      setStructure(data);
       router.refresh();
     } catch {
       toast.error('Save failed');
@@ -70,6 +91,20 @@ export default function EditOntologyPage() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const handleCopyMermaid = async () => {
+    try {
+      await navigator.clipboard.writeText(mermaidCode);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = mermaidCode;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    toast.success(t('copied'));
   };
 
   if (loading) {
@@ -117,10 +152,25 @@ export default function EditOntologyPage() {
             </CardContent>
           </Card>
           <Card className="flex flex-col min-h-0">
-            <CardHeader><CardTitle className="text-sm">Mermaid</CardTitle></CardHeader>
-            <CardContent className="flex-1 min-h-0 overflow-auto p-2">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-sm">Mermaid</CardTitle>
+              {mermaidCode && (
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopyMermaid}>
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-6 w-6"
+                    onClick={() => exportMermaidPng(mermaidCode, `${title || 'ontology'}-mermaid.png`)}>
+                    <Download className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+            </CardHeader>
+            <CardContent className="flex-1 min-h-0 p-0 flex">
               {mermaidCode ? (
-                <OwlMermaid code={mermaidCode} />
+                <div className="flex-1 min-h-0">
+                  <MermaidView code={mermaidCode} />
+                </div>
               ) : (
                 <p className="text-muted-foreground text-sm p-4">{t('no_mermaid_hint')}</p>
               )}
@@ -130,25 +180,4 @@ export default function EditOntologyPage() {
       )}
     </div>
   );
-}
-
-function OwlMermaid({ code }: { code: string }) {
-  const [svg, setSvg] = useState('');
-  const [id] = useState(() => 'edit-mermaid-' + String(Math.floor(Math.random() * 100000)));
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { default: mermaid } = await import('mermaid');
-      mermaid.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'loose' });
-      try {
-        const r = await mermaid.render(id, code);
-        if (!cancelled) setSvg(r.svg);
-      } catch {
-        /* invalid */
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [code, id]);
-  if (!svg) return <p className="text-muted-foreground text-sm p-4">...</p>;
-  return <div dangerouslySetInnerHTML={{ __html: svg }} className="overflow-auto" />;
 }

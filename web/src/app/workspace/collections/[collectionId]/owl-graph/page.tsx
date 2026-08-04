@@ -1,8 +1,8 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { ChartMermaid } from '@/components/chart-mermaid';
-import mermaid from 'mermaid';
+import { MermaidView, exportMermaidPng } from '@/components/mermaid-view';
+import { buildOwlMermaid } from '@/lib/owl-mermaid';
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle,
 } from '@/components/ui/drawer';
@@ -16,31 +16,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d').then((r) => r), { ssr: false });
-
-/* Full-size Mermaid renderer with pan/zoom */
-function MermaidView({ code }: { code: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [svg, setSvg] = useState('');
-  const [id] = useState(() => 'mv-' + String(Math.floor(Math.random() * 100000)));
-  useEffect(() => {
-    mermaid.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'loose' });
-    mermaid.render(id, code).then((r) => setSvg(r.svg)).catch(() => {});
-  }, [code, id]);
-  useEffect(() => {
-    if (!svg || !ref.current) return;
-    let zoomInstance: any;
-    import('panzoom').then(({ default: panzoom }) => {
-      const el = ref.current;
-      if (el) zoomInstance = panzoom(el, { minZoom: 0.2, maxZoom: 10, smoothScroll: false });
-    });
-    return () => { if (zoomInstance && typeof zoomInstance.dispose === 'function') zoomInstance.dispose(); };
-  }, [svg]);
-  if (!svg) return null;
-  return <div className="w-full h-full overflow-hidden">
-    <div ref={ref} className="w-full h-full flex items-center justify-center cursor-move"
-      dangerouslySetInnerHTML={{ __html: svg.replace(/<svg/, '<svg style="max-width:100%;max-height:100%"') }} />
-  </div>;
-}
 
 export default function OwlGraphPage() {
   const params = useParams();
@@ -81,62 +56,10 @@ export default function OwlGraphPage() {
     setLoading(false);
   }, [params.collectionId]);
 
-  const mermaidCode = useMemo(() => {
-    if (!graphData?.preview) return '';
-    const classes: any[] = graphData.preview.classes || [];
-    const objProps: any[] = graphData.preview.object_properties || [];
-    const classMap = new Map(classes.map((c: any) => [c.name, c]));
-    function esc(s: string) { return s.replace(/"/g, '&quot;'); }
-    function label(c: any) { return `${esc(c.label || c.name)}<br/>${c.comment ? esc(c.comment.slice(0, 40)) + (c.comment.length > 40 ? '...' : '') : ''}`; }
-    let nextCode = 0; const codes: Record<string, string> = {}; const getCode = (n: string) => { if (!codes[n]) codes[n] = 'C' + (nextCode++); return codes[n]; };
-    const children: Record<string, string[]> = {};
-    for (const c of classes) { for (const p of c.parents || []) { if (!children[p]) children[p] = []; children[p].push(c.name); } }
-    const classSet = new Set(classes.map((c: any) => c.name));
-    const roots = classes.filter((c: any) => !c.parents || c.parents.length === 0 || !c.parents.some((p: string) => classSet.has(p)));
-    const lines: string[] = ['graph TB'];
-    for (const c of classes) getCode(c.name);
-    const doneNodes = new Set<string>();
-
-    // Recursively emit a node and its children inside nested subgraphs.
-    // Subgraph IDs must NOT collide with node IDs — use a distinct prefix.
-    const emitNode = (name: string, depth: number) => {
-      if (doneNodes.has(name)) return;
-      doneNodes.add(name);
-      const c = classMap.get(name);
-      const kids = children[name] || [];
-      const indent = '  '.repeat(depth + 1);
-      if (kids.length === 0) {
-        lines.push(`${indent}${getCode(name)}["${label(c || { name, label: name, comment: '' })}"]`);
-      } else {
-        // Parent class is BOTH a node (for inheritance edges) and a subgraph container.
-        // Declare the node inside its own subgraph.
-        lines.push(`${indent}subgraph SG_${getCode(name)}["${c ? (c.label || c.name) : name}"]`);
-        lines.push(`${indent}  ${getCode(name)}["${label(c || { name, label: name, comment: '' })}"]`);
-        for (const kid of kids) emitNode(kid, depth + 1);
-        lines.push(`${indent}end`);
-      }
-    };
-
-    for (const root of roots) {
-      const c = classMap.get(root.name);
-      const kids = children[root.name] || [];
-      lines.push(`  ${getCode(root.name)}["${c ? label(c) : root.name}"]`);
-      doneNodes.add(root.name);
-      if (kids.length > 0) {
-        lines.push(`  subgraph SG_${getCode(root.name)}["${c ? (c.label || c.name) : root.name} - 子类"]`);
-        for (const kid of kids) emitNode(kid, 1);
-        lines.push('  end');
-      }
-    }
-    for (const c of classes) { for (const p of c.parents || []) { if (classSet.has(p)) lines.push(`  ${getCode(c.name)} -->|"继承"| ${getCode(p)}`); } }
-    const addedEdges = new Set<string>();
-    for (const p of objProps) { if (!p.domain || !p.range || !classSet.has(p.domain) || !classSet.has(p.range)) continue; const key = `${p.domain}|${p.range}|${p.label || p.name}`; if (addedEdges.has(key)) continue; addedEdges.add(key); lines.push(`  ${getCode(p.domain)} -->|"${esc(p.label || p.name)}"| ${getCode(p.range)}`); }
-    lines.push('');
-    const colorPalette2 = ['#e8eaf6,#3f51b5', '#e3f2fd,#1565c0', '#e8f5e9,#2e7d32', '#fff3e0,#e65100', '#fce4ec,#c62828', '#f3e5f5,#6a1b9a'];
-    let ci = 0;
-    for (const root of roots) { const [bg, border] = colorPalette2[ci % colorPalette2.length].split(','); const allNodes = [getCode(root.name)]; for (const kid of children[root.name] || []) allNodes.push(getCode(kid)); lines.push(`  classDef group${ci} fill:${bg},stroke:${border},stroke-width:2px;`); lines.push(`  class ${allNodes.join(',')} group${ci};`); ci++; }
-    return lines.join('\n');
-  }, [graphData]);
+  const mermaidCode = useMemo(
+    () => (graphData?.preview ? buildOwlMermaid(graphData.preview) : ''),
+    [graphData],
+  );
 
   useEffect(() => { loadGraph(); }, [loadGraph]);
 
@@ -193,30 +116,7 @@ export default function OwlGraphPage() {
                 <Copy className="h-3 w-3" />
               </Button>
               <Button variant="ghost" size="icon" className="h-6 w-6"
-                onClick={async () => {
-                const { default: mermaid } = await import('mermaid');
-                mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
-                const id = 'mermaid-export-' + Date.now();
-                const { svg: cleanSvg } = await mermaid.render(id, mermaidCode);
-                document.getElementById('d' + id)?.remove();
-                // Use SVG's natural viewBox for accurate cropping, scale 4x
-                const wrapper = document.createElement('div'); wrapper.innerHTML = cleanSvg;
-                const cleanEl = wrapper.querySelector('svg')!;
-                const vb = (cleanEl.getAttribute('viewBox') || '0 0 800 600').split(' ').map(Number);
-                const vbw = vb[2] || 800; const vbh = vb[3] || 600;
-                const scale = 4; const w = Math.round(vbw * scale); const h = Math.round(vbh * scale);
-                cleanEl.setAttribute('width', String(w)); cleanEl.setAttribute('height', String(h));
-                const data = new XMLSerializer().serializeToString(cleanEl);
-                const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(data);
-                const img = new Image();
-                img.onload = () => {
-                  const c = document.createElement('canvas'); c.width = w; c.height = h;
-                  const ctx = c.getContext('2d')!; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); ctx.drawImage(img, 0, 0, w, h);
-                  const a = document.createElement('a'); a.download = 'owl-mermaid.png'; a.href = c.toDataURL('image/png');
-                  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                };
-                img.src = url;
-              }}>
+                onClick={() => exportMermaidPng(mermaidCode, 'owl-mermaid.png')}>
                 <Download className="h-3 w-3" />
               </Button>
             </div>

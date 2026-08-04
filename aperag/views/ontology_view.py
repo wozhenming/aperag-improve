@@ -84,6 +84,19 @@ async def update_ontology_content(
     return {"success": True}
 
 
+@router.get("/ontologies/{ontology_id}/structure", tags=["Ontology"])
+async def get_ontology_structure(
+    request: Request,
+    ontology_id: str,
+    user: User = Depends(required_user),
+):
+    """Parse the .owl file and return its full structure (classes, object/data properties)."""
+    structure = await ontology_service.get_ontology_structure(str(user.id), ontology_id)
+    if structure is None:
+        raise HTTPException(status_code=404, detail="Ontology not found")
+    return structure
+
+
 @router.get("/ontologies/{ontology_id}/download", tags=["Ontology"])
 async def download_ontology(
     request: Request,
@@ -135,7 +148,9 @@ async def get_ontology_bot_session(
         chat = await chat_service_global.create_chat(str(user.id), bot.id, category="ontology")
         if title and title.strip():
             await chat_service_global.update_chat(
-                str(user.id), bot.id, chat.id,
+                str(user.id),
+                bot.id,
+                chat.id,
                 view_models.ChatUpdate(title=title.strip()[:100]),
             )
         logger.info(f"ONTOLOGY-SESSION chat: {chat.id}")
