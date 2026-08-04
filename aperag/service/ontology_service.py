@@ -186,12 +186,14 @@ class OntologyService:
         if existing:
             import json as _json
 
-            config_val = existing.config
-            if isinstance(config_val, str):
+            config_val: view_models.BotConfig | None = None
+            raw = existing.config
+            if raw:
                 try:
-                    config_val = _json.loads(config_val)
+                    raw_dict = _json.loads(raw) if isinstance(raw, str) else raw
+                    config_val = view_models.BotConfig(**raw_dict)
                 except Exception:
-                    config_val = {}
+                    config_val = None
             return view_models.Bot(
                 id=existing.id, title=existing.title, description=existing.description,
                 type=existing.type.value if hasattr(existing.type, "value") else str(existing.type),
