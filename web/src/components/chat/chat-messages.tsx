@@ -60,7 +60,14 @@ export const ChatMessages = ({
         if (fragment.type === 'stop') {
           setLoading(false);
           if (chatRename && chat) {
-            chatRename(chat);
+            // Title generation is best-effort; never block or error the chat
+            (async () => {
+              try {
+                await chatRename(chat);
+              } catch {
+                /* ignore title failures */
+              }
+            })();
           }
         }
         setMessages((msgs) => {

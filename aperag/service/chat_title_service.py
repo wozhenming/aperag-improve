@@ -77,24 +77,40 @@ class ChatTitleService:
                     .where(
                         LLMProvider.gmt_deleted.is_(None),
                         LLMProviderModel.gmt_deleted.is_(None),
-                        LLMProviderModel.api == "completion",
                         (LLMProvider.user_id == "public") | (LLMProvider.user_id == user_id),
                     )
-                    .limit(50)
+                    .limit(100)
                 )
                 result = await session.execute(stmt)
                 return result.all()
 
             rows = await self.db_ops._execute_query(_find_any_completion_model)
+            # Prefer completion-api models, fall back to any model on a keyed provider
+            keyed_providers: set = set()
             for provider, provider_model in rows:
                 api_key = await self.db_ops.query_provider_api_key(provider.name, user_id, True)
-                if api_key and provider_model.model:
+                if api_key:
+                    keyed_providers.add(provider.name)
+            for provider, provider_model in rows:
+                if provider.name not in keyed_providers:
+                    continue
+                if provider_model.api in ("completion", None) and provider_model.model:
                     model, provider_name, custom_provider = (
                         provider_model.model,
                         provider.name,
                         provider_model.custom_llm_provider,
                     )
                     break
+            if not (model and provider_name):
+                # No completion-tagged model on keyed provider — take the first model
+                for provider, provider_model in rows:
+                    if provider.name in keyed_providers and provider_model.model:
+                        model, provider_name, custom_provider = (
+                            provider_model.model,
+                            provider.name,
+                            provider_model.custom_llm_provider,
+                        )
+                        break
         if not (model and provider_name and custom_provider):
             raise BusinessException(ErrorCode.LLM_MODEL_NOT_FOUND, "Background task default model not configured")
 
