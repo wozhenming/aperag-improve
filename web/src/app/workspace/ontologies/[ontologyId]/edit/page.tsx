@@ -4,14 +4,19 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { MermaidView, exportMermaidPng } from '@/components/mermaid-view';
+import { OntologyStructureEditor } from '@/components/ontology-structure-editor';
 import { buildOwlMermaid } from '@/lib/owl-mermaid';
 import { Textarea } from '@/components/ui/textarea';
 import axios from 'axios';
-import { ArrowLeft, Copy, Download, Eye, LoaderCircle, Pencil, Save } from 'lucide-react';
+import {
+  ArrowLeft, Code2, Copy, Download, Eye, LoaderCircle, Save, Shapes,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+
+type EditMode = 'visual' | 'source';
 
 export default function EditOntologyPage() {
   const params = useParams<{ ontologyId: string }>();
@@ -21,7 +26,7 @@ export default function EditOntologyPage() {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [preview, setPreview] = useState(false);
+  const [mode, setMode] = useState<EditMode>('visual');
   const [structure, setStructure] = useState<any>(null);
 
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
@@ -40,7 +45,7 @@ export default function EditOntologyPage() {
     })();
   }, [params.ontologyId, basePath]);
 
-  // Full parsed structure (same shape as the collection owl-graph preview)
+  // Initial parsed structure for the visual editor + graph
   useEffect(() => {
     (async () => {
       try {
@@ -52,7 +57,21 @@ export default function EditOntologyPage() {
     })();
   }, [params.ontologyId, basePath]);
 
-  // Primary: mermaid generated from the parsed structure like the owl-graph page.
+  // In source mode: live-parse the raw OWL text (debounced) so the graph stays in sync
+  useEffect(() => {
+    if (mode !== 'source') return;
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await axios.post(`${basePath}/api/v1/ontologies/parse`, { content });
+        setStructure(data);
+      } catch {
+        /* transient parse errors — keep last good structure */
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [mode, content, basePath]);
+
+  // Primary: mermaid generated from the structure (live in both modes).
   // Fallback: embedded ```mermaid block saved in the content from the chat.
   const mermaidCode = useMemo(() => {
     if (structure && !structure.error && structure.classes?.length) {
@@ -65,14 +84,20 @@ export default function EditOntologyPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await axios.put(`${basePath}/api/v1/ontologies/${params.ontologyId}/content`, {
-        content,
-        title,
-      });
+      if (mode === 'visual') {
+        // Rebuild canonical OWL from the edited structure
+        const { data } = await axios.post(
+          `${basePath}/api/v1/ontologies/${params.ontologyId}/rebuild`,
+          { structure, title },
+        );
+        setContent(data.content);
+      } else {
+        await axios.put(`${basePath}/api/v1/ontologies/${params.ontologyId}/content`, {
+          content,
+          title,
+        });
+      }
       toast.success(t('saved_success'));
-      // Re-parse the structure so the graph reflects the saved OWL
-      const { data } = await axios.get(`${basePath}/api/v1/ontologies/${params.ontologyId}/structure`);
-      setStructure(data);
       router.refresh();
     } catch {
       toast.error('Save failed');
@@ -126,58 +151,68 @@ export default function EditOntologyPage() {
         <Button variant="outline" onClick={handleDownload}>
           <Download className="h-4 w-4 mr-1" /> {t('export_ontology')}
         </Button>
-        <Button variant="outline" onClick={() => setPreview(!preview)}>
-          {preview ? <Pencil className="h-4 w-4 mr-1" /> : <Eye className="h-4 w-4 mr-1" />}
-          {preview ? t('edit_mode') : t('preview_mode')}
+        <Button
+          variant="outline"
+          onClick={() => setMode(mode === 'visual' ? 'source' : 'visual')}
+          className="gap-1"
+        >
+          {mode === 'visual' ? <Code2 className="h-4 w-4" /> : <Shapes className="h-4 w-4" />}
+          {mode === 'visual' ? t('edit_mode') : t('preview_mode')}
         </Button>
         <Button onClick={handleSave} disabled={saving}>
           <Save className="h-4 w-4 mr-1" /> {t('save_ontology')}
         </Button>
       </div>
 
-      {preview ? (
-        <div className="flex-1 overflow-auto rounded-lg border p-4">
-          <pre className="text-xs leading-relaxed whitespace-pre-wrap font-mono">{content}</pre>
-        </div>
-      ) : (
-        <div className="grid gap-4 flex-1 md:grid-cols-2 min-h-0">
-          <Card className="flex flex-col min-h-0">
-            <CardHeader><CardTitle className="text-sm">OWL</CardTitle></CardHeader>
-            <CardContent className="flex-1 min-h-0 p-2">
+      <div className="grid gap-4 flex-1 md:grid-cols-2 min-h-0">
+        <Card className="flex flex-col min-h-0">
+          <CardHeader className="flex flex-row items-center justify-between py-3">
+            <CardTitle className="text-sm">
+              {mode === 'visual' ? t('editor.classes') : 'OWL'}
+            </CardTitle>
+            {mode === 'source' && (
+              <span className="text-xs text-muted-foreground">{t('editor.source_hint')}</span>
+            )}
+          </CardHeader>
+          <CardContent className="flex-1 min-h-0 p-0">
+            {mode === 'visual' ? (
+              <OntologyStructureEditor structure={structure} onChange={setStructure} />
+            ) : (
               <Textarea
-                className="h-full min-h-[300px] font-mono text-xs"
+                className="h-full min-h-[300px] font-mono text-xs rounded-none border-0"
                 value={content}
                 onChange={(e) => setContent(e.currentTarget.value)}
               />
-            </CardContent>
-          </Card>
-          <Card className="flex flex-col min-h-0">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm">Mermaid</CardTitle>
-              {mermaidCode && (
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopyMermaid}>
-                    <Copy className="h-3 w-3" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-6 w-6"
-                    onClick={() => exportMermaidPng(mermaidCode, `${title || 'ontology'}-mermaid.png`)}>
-                    <Download className="h-3 w-3" />
-                  </Button>
-                </div>
-              )}
-            </CardHeader>
-            <CardContent className="flex-1 min-h-0 p-0 flex">
-              {mermaidCode ? (
-                <div className="flex-1 min-h-0">
-                  <MermaidView code={mermaidCode} />
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-sm p-4">{t('no_mermaid_hint')}</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="flex flex-col min-h-0">
+          <CardHeader className="flex flex-row items-center justify-between py-3">
+            <CardTitle className="text-sm">Mermaid</CardTitle>
+            {mermaidCode && (
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopyMermaid}>
+                  <Copy className="h-3 w-3" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-6 w-6"
+                  onClick={() => exportMermaidPng(mermaidCode, `${title || 'ontology'}-mermaid.png`)}>
+                  <Download className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent className="flex-1 min-h-0 p-0 flex">
+            {mermaidCode ? (
+              <div className="flex-1 min-h-0">
+                <MermaidView code={mermaidCode} />
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm p-4">{t('no_mermaid_hint')}</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

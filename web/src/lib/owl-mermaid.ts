@@ -17,9 +17,22 @@ interface OwlObjPropPreview {
   inverse?: string;
 }
 
+interface OwlDataPropPreview {
+  name: string;
+  label?: string;
+  comment?: string;
+  range?: string;
+  functional?: boolean;
+}
+
 export interface OwlPreview {
   classes?: OwlClassPreview[];
   object_properties?: OwlObjPropPreview[];
+  data_properties?: Record<string, OwlDataPropPreview[]>;
+  classes_count?: number;
+  object_properties_count?: number;
+  data_properties_count?: number;
+  error?: string;
   [key: string]: unknown;
 }
 

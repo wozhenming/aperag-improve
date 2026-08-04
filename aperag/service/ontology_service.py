@@ -179,23 +179,13 @@ class OntologyService:
             content = content.decode("utf-8")
         return row.title, content
 
-    async def get_ontology_structure(self, user_id: str, ontology_id: str) -> Optional[dict]:
-        """Parse the .owl content and return the full structure — same shape as the
-        collection OWL preview (classes with labels/comments/parents, object properties
-        with domain/range, data properties). Used by the edit page to render the graph."""
-        title, content = await self.get_ontology_content(user_id, ontology_id)
-        if content is None:
-            return None
-        try:
-            schema = self._parse_schema_content(content)
-        except Exception as e:
-            logger.warning(f"OWL structure parse failed for {ontology_id}: {e}")
-            return {"error": str(e)}
-        if not schema or schema.is_empty():
-            return {"error": "empty"}
-
+    def _schema_to_structure(self, schema) -> dict:
+        """Convert a parsed OntologySchema into the frontend structure dict
+        (classes with labels/comments/parents, object properties with domain/range,
+        data properties). Used by the edit page to render the graph and by the
+        visual editor to edit the ontology."""
         classes_info = []
-        for name in schema.classes[:200]:
+        for name in schema.classes[:1000]:
             info = {"name": name}
             if name in schema.class_labels:
                 info["label"] = schema.class_labels[name]
@@ -227,7 +217,7 @@ class OntologyService:
             obj_props_info.append(entry)
 
         dp_info: dict[str, list[dict]] = {}
-        for cls, props in list(schema.data_properties.items())[:50]:
+        for cls, props in list(schema.data_properties.items())[:200]:
             dp_info[cls] = [
                 {
                     "name": p.name,
@@ -236,7 +226,7 @@ class OntologyService:
                     "range": p.range_,
                     "functional": p.functional,
                 }
-                for p in props[:100]
+                for p in props[:200]
             ]
 
         return {
@@ -248,6 +238,63 @@ class OntologyService:
             "data_properties": dp_info,
             "disjoint_pairs": schema.disjoint_pairs[:50],
         }
+
+    async def get_ontology_structure(self, user_id: str, ontology_id: str) -> Optional[dict]:
+        """Parse the .owl file and return its full structure — used by the edit page."""
+        title, content = await self.get_ontology_content(user_id, ontology_id)
+        if content is None:
+            return None
+        return self.parse_owl_content(content)
+
+    def parse_owl_content(self, content: str) -> dict:
+        """Parse arbitrary OWL text and return the structure dict, or {"error": ...}."""
+        try:
+            schema = self._parse_schema_content(content)
+        except Exception as e:
+            logger.warning(f"OWL structure parse failed: {e}")
+            return {"error": str(e)}
+        if not schema or schema.is_empty():
+            return {"error": "empty"}
+        return self._schema_to_structure(schema)
+
+    async def rebuild_ontology(
+        self,
+        user_id: str,
+        ontology_id: str,
+        structure: dict,
+        title: str | None = None,
+    ) -> tuple[bool, str | None]:
+        """Regenerate the .owl file from an edited structure dict (canonical form)
+        and return the new content. Optionally updates the title."""
+        from aperag.ontology.generator import structure_to_owl
+
+        content = structure_to_owl(structure)
+
+        async def _operation(session):
+            from sqlalchemy import select
+
+            stmt = select(db_models.Ontology).where(
+                db_models.Ontology.id == ontology_id,
+                db_models.Ontology.user == user_id,
+                db_models.Ontology.status == "ACTIVE",
+                db_models.Ontology.gmt_deleted.is_(None),
+            )
+            result = await session.execute(stmt)
+            row = result.scalars().first()
+            if not row or not row.file_path:
+                return None
+            if title and title.strip():
+                row.title = title.strip()[:100]
+            await session.flush()
+            return row.file_path
+
+        file_path = await self.db_ops.execute_with_transaction(_operation)
+        if not file_path:
+            return False, None
+        from aperag.objectstore.base import get_object_store
+
+        get_object_store().put(file_path, content.encode("utf-8"))
+        return True, content
 
     async def update_ontology_content(self, user_id: str, ontology_id: str, content: str) -> bool:
         """Overwrite the .owl file for an ontology."""

@@ -17,6 +17,7 @@ RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 @dataclass
 class PropertyDef:
     """A data property from the ontology."""
+
     name: str
     label: str | None = None
     comment: str | None = None
@@ -28,6 +29,7 @@ class PropertyDef:
 @dataclass
 class ObjectPropertyDef:
     """An object property with optional inverse and characteristics."""
+
     name: str
     label: str | None = None
     comment: str | None = None
@@ -42,6 +44,7 @@ class ObjectPropertyDef:
 @dataclass
 class OntologySchema:
     """Parsed OWL ontology schema."""
+
     classes: list[str] = field(default_factory=list)
     class_labels: dict[str, str] = field(default_factory=dict)
     class_comments: dict[str, str] = field(default_factory=dict)
@@ -97,33 +100,49 @@ def parse_owl(file_path: str) -> OntologySchema:
             re.DOTALL,
         ):
             prop_name, body = m.group(2), m.group(3)
-            if '<owl:FunctionalProperty/>' in body:
+            if "<owl:FunctionalProperty/>" in body:
                 functional_props.add(prop_name)
-            if '<owl:TransitiveProperty/>' in body:
+            if "<owl:TransitiveProperty/>" in body:
                 transitive_props.add(prop_name)
-            if '<owl:SymmetricProperty/>' in body:
+            if "<owl:SymmetricProperty/>" in body:
                 symmetric_props.add(prop_name)
-            if '<owl:InverseFunctionalProperty/>' in body:
+            if "<owl:InverseFunctionalProperty/>" in body:
                 inverse_func_props.add(prop_name)
 
-        # Strip non-standard nested tags + XML comments (RDFLib parser issues)
-        content = re.sub(r'\s*<owl:(FunctionalProperty|TransitiveProperty|SymmetricProperty|AsymmetricProperty|ReflexiveProperty|IrreflexiveProperty|InverseFunctionalProperty)\s*/>', '', content)
-        content = re.sub(r'\s*<owl:inverseOf\s+[^>]+/>', '', content)
-        content = re.sub(r'<!--[\s\S]*?-->', '', content)
-        g = Graph()
-        g.parse(data=content.encode("utf-8"), format="xml")
+        # Strip XML comments (RDFLib's expat parser can choke on them in some files).
+        # NOTE: nested self-closing tags like <owl:inverseOf/> and <owl:FunctionalProperty/>
+        # parse fine with the current RDFLib — do NOT strip them, or the triples are lost
+        # from the graph and inverse/functional extraction falls back to fragile regexes.
+        content = re.sub(r"<!--[\s\S]*?-->", "", content)
+
+        def _build_graph(text: str) -> Graph:
+            g = Graph()
+            g.parse(data=text.encode("utf-8"), format="xml")
+            return g
+
+        g = _build_graph(content)
+        if len(g) == 0:
+            # Legacy fallback: old RDFLib versions failed on some nested tags — strip them
+            # and re-parse (extracted via regexes below).
+            stripped = re.sub(
+                r"\s*<owl:(FunctionalProperty|TransitiveProperty|SymmetricProperty|AsymmetricProperty|ReflexiveProperty|IrreflexiveProperty|InverseFunctionalProperty)\s*/>",
+                "",
+                content,
+            )
+            stripped = re.sub(r"\s*<owl:inverseOf\s+[^>]+/>", "", stripped)
+            g = _build_graph(stripped)
 
         # Apply extracted property characteristics to schema
         for pname in functional_props:
             # functional data/object property — mark in functional_properties global list
-            schema.functional_properties.setdefault('*', [])
-            if pname not in schema.functional_properties['*']:
-                schema.functional_properties['*'].append(pname)
+            schema.functional_properties.setdefault("*", [])
+            if pname not in schema.functional_properties["*"]:
+                schema.functional_properties["*"].append(pname)
             schema.obj_prop_details.setdefault(pname, ObjectPropertyDef(name=pname)).functional = True
         for pname in transitive_props:
-            schema.obj_prop_details.setdefault(pname, ObjectPropertyDef(name=pname)).__dict__['transitive'] = True
+            schema.obj_prop_details.setdefault(pname, ObjectPropertyDef(name=pname)).__dict__["transitive"] = True
         for pname in symmetric_props:
-            schema.obj_prop_details.setdefault(pname, ObjectPropertyDef(name=pname)).__dict__['symmetric'] = True
+            schema.obj_prop_details.setdefault(pname, ObjectPropertyDef(name=pname)).__dict__["symmetric"] = True
 
         # Add extracted inverse pairs
         for prop_a, prop_b in inverse_pairs:
@@ -157,7 +176,7 @@ def parse_owl(file_path: str) -> OntologySchema:
             # Try exact namespace match first
             for ns in sorted(base_ns, key=len, reverse=True):
                 if s.startswith(ns):
-                    local = s[len(ns):]
+                    local = s[len(ns) :]
                     if local:
                         return local
             return _short_name(s)
@@ -210,9 +229,18 @@ def parse_owl(file_path: str) -> OntologySchema:
                 schema.inverse_map[prop_name] = inv
                 schema.inverse_map[inv] = prop_name  # bidirectional
 
+            # Functional marker — parsed as a real rdf:type triple
+            if (prop_uri, RDFLIB_RDF.type, RDFLIB_OWL.FunctionalProperty) in g:
+                if prop_name not in schema.functional_properties.setdefault("*", []):
+                    schema.functional_properties["*"].append(prop_name)
+
             detail = ObjectPropertyDef(
-                name=prop_name, label=label, comment=comment,
-                domain=domain, range_=range_, inverse=inv,
+                name=prop_name,
+                label=label,
+                comment=comment,
+                domain=domain,
+                range_=range_,
+                inverse=inv,
             )
             schema.obj_prop_details[prop_name] = detail
             schema.object_properties.append((domain or "", prop_name, range_ or ""))
@@ -247,8 +275,9 @@ def parse_owl(file_path: str) -> OntologySchema:
                 continue
             seen_data_props.add(dedup_key)
 
-            dp = PropertyDef(name=prop_name, label=label, comment=comment,
-                             domain=domain, range_=range_, functional=functional)
+            dp = PropertyDef(
+                name=prop_name, label=label, comment=comment, domain=domain, range_=range_, functional=functional
+            )
 
             cls_key = domain or "*"
             if cls_key not in schema.data_properties:
@@ -260,7 +289,6 @@ def parse_owl(file_path: str) -> OntologySchema:
                     schema.functional_properties[domain] = []
                 if prop_name not in schema.functional_properties[domain]:
                     schema.functional_properties[domain].append(prop_name)
-
 
     except ImportError:
         logger.warning("rdflib not installed, OWL parsing skipped")

@@ -84,6 +84,37 @@ async def update_ontology_content(
     return {"success": True}
 
 
+@router.post("/ontologies/parse", tags=["Ontology"])
+async def parse_ontology_content(
+    request: Request,
+    user: User = Depends(required_user),
+):
+    """Parse arbitrary OWL text and return its structure (used for live preview while
+    editing the raw source)."""
+    body = await request.json()
+    content = (body or {}).get("content")
+    if not content or not content.strip():
+        raise HTTPException(status_code=400, detail="content is required")
+    return ontology_service.parse_owl_content(content)
+
+
+@router.post("/ontologies/{ontology_id}/rebuild", tags=["Ontology"])
+async def rebuild_ontology(
+    request: Request,
+    ontology_id: str,
+    user: User = Depends(required_user),
+):
+    """Regenerate the .owl file from an edited structure dict (visual editor save)."""
+    body = await request.json() or {}
+    structure = body.get("structure")
+    if not structure:
+        raise HTTPException(status_code=400, detail="structure is required")
+    ok, content = await ontology_service.rebuild_ontology(str(user.id), ontology_id, structure, title=body.get("title"))
+    if not ok:
+        raise HTTPException(status_code=404, detail="Ontology not found")
+    return {"content": content}
+
+
 @router.get("/ontologies/{ontology_id}/structure", tags=["Ontology"])
 async def get_ontology_structure(
     request: Request,
