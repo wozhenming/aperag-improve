@@ -72,5 +72,10 @@
         "copied": "已复制到剪贴板"
       }
     }
-  }
+  },
+  "add_ontology_title_desc": "为你的本体起个名字，AI 将引导你逐步构建 OWL 本体",
+  "ontology_title": "本体名称",
+  "ontology_title_placeholder": "例如：公路工程造价本体",
+  "start_guide": "开始引导",
+  "title_required": "请输入本体名称"
 }

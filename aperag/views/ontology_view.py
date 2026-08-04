@@ -66,6 +66,7 @@ async def delete_ontology(
 async def get_ontology_bot_session(
     request: Request,
     user: User = Depends(required_user),
+    title: str | None = Form(None),
 ) -> view_models.OntologyBotSession:
     """Get or create the Ontology Engineer bot + a fresh chat for guided OWL generation."""
     import logging
@@ -78,6 +79,11 @@ async def get_ontology_bot_session(
         from aperag.service.chat_service import chat_service_global
 
         chat = await chat_service_global.create_chat(str(user.id), bot.id, category="ontology")
+        if title and title.strip():
+            await chat_service_global.update_chat(
+                str(user.id), bot.id, chat.id,
+                view_models.ChatUpdate(title=title.strip()[:100]),
+            )
         logger.info(f"ONTOLOGY-SESSION chat: {chat.id}")
         return view_models.OntologyBotSession(bot_id=bot.id, chat_id=chat.id)
     except Exception as e:

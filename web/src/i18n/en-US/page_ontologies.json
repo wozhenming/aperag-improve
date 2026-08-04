@@ -53,5 +53,10 @@
       "delete_success": "Ontology deleted",
       "copied": "Copied to clipboard"
     }
-  }
+  },
+  "add_ontology_title_desc": "Name your ontology. AI will guide you step by step to build an OWL ontology.",
+  "ontology_title": "Ontology Title",
+  "ontology_title_placeholder": "e.g. Highway Cost Estimation Ontology",
+  "start_guide": "Start Guide",
+  "title_required": "Please enter an ontology title"
 }
