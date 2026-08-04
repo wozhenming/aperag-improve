@@ -70,12 +70,38 @@ async def update_ontology_content(
 ):
     body = await request.json()
     content = (body or {}).get("content")
-    if not content:
-        raise HTTPException(status_code=400, detail="content is required")
-    ok = await ontology_service.update_ontology_content(str(user.id), ontology_id, content)
-    if not ok:
-        raise HTTPException(status_code=404, detail="Ontology not found")
+    title = (body or {}).get("title")
+    if content:
+        ok = await ontology_service.update_ontology_content(str(user.id), ontology_id, content)
+        if not ok:
+            raise HTTPException(status_code=404, detail="Ontology not found")
+    if title:
+        ok = await ontology_service.update_ontology_meta(str(user.id), ontology_id, title)
+        if not ok:
+            raise HTTPException(status_code=404, detail="Ontology not found")
+    if not content and not title:
+        raise HTTPException(status_code=400, detail="content or title is required")
     return {"success": True}
+
+
+@router.get("/ontologies/{ontology_id}/download", tags=["Ontology"])
+async def download_ontology(
+    request: Request,
+    ontology_id: str,
+    user: User = Depends(required_user),
+):
+    """Download the .owl file for an ontology."""
+    from fastapi.responses import Response
+
+    title, content = await ontology_service.get_ontology_content(str(user.id), ontology_id)
+    if content is None:
+        raise HTTPException(status_code=404, detail="Ontology not found")
+    filename = f"{title or 'ontology'}.owl"
+    return Response(
+        content=content,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.delete("/ontologies/{ontology_id}", tags=["Ontology"])

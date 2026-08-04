@@ -896,6 +896,7 @@
     "title_required": "Please enter an ontology title",
     "edit_mode": "Edit",
     "preview_mode": "Preview",
-    "no_mermaid_hint": "No embedded Mermaid code. You can append a ```mermaid block in the OWL to preview the diagram."
+    "no_mermaid_hint": "No embedded Mermaid code. You can append a ```mermaid block in the OWL to preview the diagram.",
+    "export_ontology": "Export OWL"
   }
 }

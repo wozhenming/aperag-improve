@@ -2,12 +2,13 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import axios from 'axios';
-import { ArrowLeft, Eye, LoaderCircle, Pencil, Save } from 'lucide-react';
+import { ArrowLeft, Download, Eye, LoaderCircle, Pencil, Save } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useParams, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 export default function EditOntologyPage() {
@@ -48,6 +49,7 @@ export default function EditOntologyPage() {
     try {
       await axios.put(`${basePath}/api/v1/ontologies/${params.ontologyId}/content`, {
         content,
+        title,
       });
       toast.success(t('saved_success'));
       router.refresh();
@@ -56,6 +58,18 @@ export default function EditOntologyPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleDownload = () => {
+    const blob = new Blob([content], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title || 'ontology'}.owl`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   if (loading) {
@@ -68,8 +82,15 @@ export default function EditOntologyPage() {
         <Button variant="ghost" size="icon" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h2 className="font-semibold text-lg truncate">{title}</h2>
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.currentTarget.value)}
+          className="max-w-xs font-semibold"
+        />
         <div className="flex-1" />
+        <Button variant="outline" onClick={handleDownload}>
+          <Download className="h-4 w-4 mr-1" /> {t('export_ontology')}
+        </Button>
         <Button variant="outline" onClick={() => setPreview(!preview)}>
           {preview ? <Pencil className="h-4 w-4 mr-1" /> : <Eye className="h-4 w-4 mr-1" />}
           {preview ? t('edit_mode') : t('preview_mode')}

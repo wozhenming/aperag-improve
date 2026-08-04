@@ -936,6 +936,7 @@
     "title_required": "请输入本体名称",
     "edit_mode": "编辑模式",
     "preview_mode": "预览模式",
-    "no_mermaid_hint": "此本体没有内嵌 Mermaid 代码，可在编辑 OWL 时附加 ```mermaid 代码块用于预览"
+    "no_mermaid_hint": "此本体没有内嵌 Mermaid 代码，可在编辑 OWL 时附加 ```mermaid 代码块用于预览",
+    "export_ontology": "导出 OWL"
   }
 }

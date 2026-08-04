@@ -189,6 +189,28 @@ class OntologyService:
         get_object_store().put(row.file_path, content.encode("utf-8"))
         return True
 
+    async def update_ontology_meta(self, user_id: str, ontology_id: str, title: str | None = None) -> bool:
+        """Update ontology metadata (title)."""
+        async def _operation(session):
+            from sqlalchemy import select
+
+            stmt = select(db_models.Ontology).where(
+                db_models.Ontology.id == ontology_id,
+                db_models.Ontology.user == user_id,
+                db_models.Ontology.status == "ACTIVE",
+                db_models.Ontology.gmt_deleted.is_(None),
+            )
+            result = await session.execute(stmt)
+            row = result.scalars().first()
+            if not row:
+                return False
+            if title:
+                row.title = title.strip()[:100]
+            await session.flush()
+            return True
+
+        return await self.db_ops.execute_with_transaction(_operation)
+
     async def delete_ontology(self, user_id: str, ontology_id: str) -> bool:
         async def _operation(session):
             from sqlalchemy import select
