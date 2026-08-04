@@ -53,7 +53,7 @@ class ChatTitleService:
             raise BusinessException(ErrorCode.CHAT_NOT_FOUND, "Chat not found")
 
         # Load default model configuration with fallback chain:
-        # background_task → agent_completion → collection_completion
+        # background_task → agent_completion → collection_completion → any completion model
         model, provider_name, custom_provider = await default_model_service.get_default_background_task_config(user_id)
         if not (model and provider_name and custom_provider):
             default_models = await default_model_service.get_default_models(user_id)
@@ -63,6 +63,37 @@ class ChatTitleService:
                         model, provider_name, custom_provider = config.model, config.provider_name, config.custom_llm_provider
                         break
                 if model and provider_name:
+                    break
+        if not (model and provider_name and custom_provider):
+            # Last resort: pick the first completion model from any accessible provider with an API key
+            from aperag.db.models import LLMProvider, LLMProviderModel
+
+            async def _find_any_completion_model(session):
+                from sqlalchemy import select
+
+                stmt = (
+                    select(LLMProvider, LLMProviderModel)
+                    .join(LLMProvider, LLMProviderModel.provider_name == LLMProvider.name)
+                    .where(
+                        LLMProvider.gmt_deleted.is_(None),
+                        LLMProviderModel.gmt_deleted.is_(None),
+                        LLMProviderModel.api == "completion",
+                        (LLMProvider.user_id == "public") | (LLMProvider.user_id == user_id),
+                    )
+                    .limit(50)
+                )
+                result = await session.execute(stmt)
+                return result.all()
+
+            rows = await self.db_ops._execute_query(_find_any_completion_model)
+            for provider, provider_model in rows:
+                api_key = await self.db_ops.query_provider_api_key(provider.name, user_id, True)
+                if api_key and provider_model.model:
+                    model, provider_name, custom_provider = (
+                        provider_model.model,
+                        provider.name,
+                        provider_model.custom_llm_provider,
+                    )
                     break
         if not (model and provider_name and custom_provider):
             raise BusinessException(ErrorCode.LLM_MODEL_NOT_FOUND, "Background task default model not configured")

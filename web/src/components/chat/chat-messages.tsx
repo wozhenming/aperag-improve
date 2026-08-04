@@ -101,6 +101,14 @@ export const ChatMessages = ({
               } else {
                 parts.push(fragment);
               }
+            } else if (fragment.type === 'thinking') {
+              // Accumulate thinking chunks into the last thinking part (collapsible)
+              const lastThinking = [...parts].reverse().find((p) => p.type === 'thinking');
+              if (lastThinking) {
+                lastThinking.data = (lastThinking.data || '') + fragment.data;
+              } else {
+                parts.push(fragment);
+              }
             } else {
               const part = parts.find(
                 (p) => fragment.part_id && fragment.part_id === p.part_id,

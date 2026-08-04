@@ -539,14 +539,16 @@ class AgentChatService:
                         temperature=0.7,
                         max_tokens=8192,
                     )
-                    full_content = ""
-                    async for text_chunk in completion_service._acompletion_stream_raw(
+                    from aperag.agent.stream_formatters import format_thinking
+
+                    async for kind, text_chunk in completion_service.agenerate_stream_typed(
                         history=memory if isinstance(memory, list) else [],
                         prompt=comprehensive_prompt,
                     ):
-                        full_content += text_chunk
-                        await message_queue.put(format_stream_content(message_id, text_chunk, streamed=True))
-                    await message_queue.put(format_stream_content(message_id, full_content, streamed=True))
+                        if kind == "thinking":
+                            await message_queue.put(format_thinking(message_id, text_chunk))
+                        else:
+                            await message_queue.put(format_stream_content(message_id, text_chunk, streamed=True))
                 except Exception as e:
                     logger.error(f"Streaming generation failed: {e}")
                     await message_queue.put(format_stream_content(message_id, "No response generated"))
