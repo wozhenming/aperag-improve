@@ -58,6 +58,10 @@ class JinaReaderProvider(BaseReaderProvider):
         url: str,
         timeout: int = 30,
         locale: str = "en-US",
+        method: str = "GET",
+        body: dict = None,
+        body_type: str = "form",
+        extra_headers: dict = None,
     ) -> WebReadResultItem:
         """
         Read content from a single URL using JINA Reader API.
@@ -69,6 +73,11 @@ class JinaReaderProvider(BaseReaderProvider):
             url: URL to read content from
             timeout: Request timeout in seconds
             locale: Browser locale (converted to Accept-Language header)
+            method: HTTP method — JINA can only proxy GET requests; non-GET
+                methods (e.g. AJAX POST endpoints) return an error item
+            body: Request body (unused for JINA)
+            body_type: Request body encoding (unused for JINA)
+            extra_headers: Additional HTTP headers (unused for JINA)
 
         Returns:
             Web read result item
@@ -76,6 +85,15 @@ class JinaReaderProvider(BaseReaderProvider):
         Raises:
             ReaderProviderError: If reading fails
         """
+        if (method or "GET").upper() != "GET":
+            return WebReadResultItem(
+                url=url,
+                status="error",
+                error=f"JINA Reader only supports GET requests (requested {method}). "
+                "Use the Trafilatura provider for POST/PUT/PATCH endpoints.",
+                error_code="METHOD_NOT_SUPPORTED",
+            )
+
         if not url or not url.strip():
             return WebReadResultItem(url=url, status="error", error="URL cannot be empty", error_code="INVALID_URL")
 
@@ -169,6 +187,10 @@ class JinaReaderProvider(BaseReaderProvider):
         timeout: int = 30,
         locale: str = "en-US",
         max_concurrent: int = 3,
+        method: str = "GET",
+        body: dict = None,
+        body_type: str = "form",
+        extra_headers: dict = None,
     ) -> List[WebReadResultItem]:
         """
         Read content from multiple URLs concurrently using JINA Reader API.
@@ -178,6 +200,10 @@ class JinaReaderProvider(BaseReaderProvider):
             timeout: Request timeout in seconds
             locale: Browser locale (converted to Accept-Language header)
             max_concurrent: Maximum concurrent requests
+            method: HTTP method (JINA only supports GET)
+            body: Request body (unused for JINA)
+            body_type: Request body encoding (unused for JINA)
+            extra_headers: Additional HTTP headers (unused for JINA)
 
         Returns:
             List of web read result items
@@ -197,6 +223,10 @@ class JinaReaderProvider(BaseReaderProvider):
                     url=url,
                     timeout=timeout,
                     locale=locale,
+                    method=method,
+                    body=body,
+                    body_type=body_type,
+                    extra_headers=extra_headers,
                 )
 
         # Execute all requests concurrently

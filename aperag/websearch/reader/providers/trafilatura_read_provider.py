@@ -59,6 +59,10 @@ class TrafilaturaProvider(BaseReaderProvider):
         url: str,
         timeout: int = 30,
         locale: str = "zh-CN",
+        method: str = "GET",
+        body: dict = None,
+        body_type: str = "form",
+        extra_headers: dict = None,
     ) -> WebReadResultItem:
         """
         Read content from a single URL using Trafilatura.
@@ -67,6 +71,11 @@ class TrafilaturaProvider(BaseReaderProvider):
             url: URL to read content from
             timeout: Request timeout in seconds
             locale: Browser locale (used for User-Agent)
+            method: HTTP method (GET/POST/PUT/PATCH/DELETE) — POST is useful for
+                AJAX search/query endpoints that render results via JS
+            body: Request body (JSON object) for POST/PUT/PATCH
+            body_type: "form" (x-www-form-urlencoded) or "json"
+            extra_headers: Additional HTTP headers merged over defaults
 
         Returns:
             Web read result item
@@ -77,8 +86,12 @@ class TrafilaturaProvider(BaseReaderProvider):
         if not url or not url.strip():
             raise ReaderProviderError("URL cannot be empty")
 
-        # Normalize and validate URL
-        url = URLValidator.normalize_url(url.strip())
+        # Normalize and validate URL. NOTE: only normalize for GET — normalize_url
+        # strips the trailing slash, which breaks AJAX endpoints where the slash is
+        # part of the route (e.g. POST /search/news/ vs /search/news → 404/homepage).
+        url = url.strip()
+        if (method or "GET").upper() == "GET":
+            url = URLValidator.normalize_url(url)
         if not URLValidator.is_valid_url(url):
             return WebReadResultItem(
                 url=url,
@@ -89,7 +102,9 @@ class TrafilaturaProvider(BaseReaderProvider):
 
         try:
             # Fetch HTML content
-            html_content = await self._fetch_html(url, timeout, locale)
+            html_content = await self._fetch_html(
+                url, timeout, locale, method=method, body=body, body_type=body_type, extra_headers=extra_headers
+            )
             if not html_content:
                 return WebReadResultItem(
                     url=url,
@@ -119,13 +134,28 @@ class TrafilaturaProvider(BaseReaderProvider):
                     favor_recall=True,
                 )
 
-                if not extracted_text:
+            if not extracted_text:
+                # Final fallback for AJAX endpoints: they often return HTML
+                # fragments or JSON without a full page structure that
+                # Trafilatura can extract — return the raw payload instead.
+                stripped_content = html_content.strip()
+                if not stripped_content:
                     return WebReadResultItem(
                         url=url,
                         status="error",
                         error="Failed to extract content",
                         error_code="EXTRACTION_ERROR",
                     )
+                if stripped_content.startswith(("{", "[")):
+                    import json as _json
+
+                    try:
+                        data = _json.loads(stripped_content)
+                        extracted_text = _json.dumps(data, ensure_ascii=False, indent=2)
+                    except Exception:
+                        extracted_text = stripped_content
+                else:
+                    extracted_text = stripped_content
 
             # Convert to Markdown
             content = self._to_markdown(extracted_text)
@@ -161,14 +191,27 @@ class TrafilaturaProvider(BaseReaderProvider):
                 error_code="READ_ERROR",
             )
 
-    async def _fetch_html(self, url: str, timeout: int, locale: str) -> str:
+    async def _fetch_html(
+        self,
+        url: str,
+        timeout: int,
+        locale: str,
+        method: str = "GET",
+        body: dict = None,
+        body_type: str = "form",
+        extra_headers: dict = None,
+    ) -> str:
         """
-        Fetch HTML content from URL.
+        Fetch HTML content from URL, optionally with a POST/PUT/PATCH body.
 
         Args:
             url: URL to fetch
             timeout: Request timeout
             locale: Locale for User-Agent
+            method: HTTP method (GET/POST/PUT/PATCH/DELETE)
+            body: Request body (JSON object) for POST/PUT/PATCH
+            body_type: "form" (x-www-form-urlencoded) or "json"
+            extra_headers: Additional HTTP headers merged over defaults
 
         Returns:
             HTML content string
@@ -182,18 +225,33 @@ class TrafilaturaProvider(BaseReaderProvider):
             "Connection": "keep-alive",
             "Upgrade-Insecure-Requests": "1",
         }
+        if extra_headers:
+            headers.update({str(k): str(v) for k, v in extra_headers.items()})
 
         try:
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout), headers=headers) as session:
-                async with session.get(url) as response:
-                    if response.status == 200:
-                        return await response.text()
+                method = (method or "GET").upper()
+                if method in ("POST", "PUT", "PATCH"):
+                    if body_type == "json":
+                        req_kwargs = {"json": body or {}}
                     else:
-                        logger.warning(f"HTTP {response.status} for {url}")
-                        return ""
+                        req_kwargs = {"data": body or {}}
+                    async with session.request(method, url, **req_kwargs) as response:
+                        return await self._read_response(response, url)
+                else:
+                    async with session.get(url) as response:
+                        return await self._read_response(response, url)
         except Exception as e:
             logger.error(f"Failed to fetch {url}: {e}")
             return ""
+
+    @staticmethod
+    async def _read_response(response, url: str) -> str:
+        """Read a successful response body, or log and return empty on failure."""
+        if response.status == 200:
+            return await response.text()
+        logger.warning(f"HTTP {response.status} for {url}")
+        return ""
 
     def _to_markdown(self, extracted_content: str) -> str:
         """
@@ -230,6 +288,10 @@ class TrafilaturaProvider(BaseReaderProvider):
         timeout: int = 30,
         locale: str = "zh-CN",
         max_concurrent: int = 3,
+        method: str = "GET",
+        body: dict = None,
+        body_type: str = "form",
+        extra_headers: dict = None,
     ) -> List[WebReadResultItem]:
         """
         Read content from multiple URLs concurrently.
@@ -239,6 +301,10 @@ class TrafilaturaProvider(BaseReaderProvider):
             timeout: Request timeout in seconds
             locale: Browser locale
             max_concurrent: Maximum concurrent requests
+            method: HTTP method (GET/POST/PUT/PATCH/DELETE)
+            body: Request body (JSON object) for POST/PUT/PATCH
+            body_type: "form" (x-www-form-urlencoded) or "json"
+            extra_headers: Additional HTTP headers merged over defaults
 
         Returns:
             List of web read result items
@@ -258,6 +324,10 @@ class TrafilaturaProvider(BaseReaderProvider):
                     url=url,
                     timeout=timeout,
                     locale=locale,
+                    method=method,
+                    body=body,
+                    body_type=body_type,
+                    extra_headers=extra_headers,
                 )
 
         # Execute all reads concurrently

@@ -105,6 +105,12 @@ class ReaderService:
             # Track timing
             start_time = self._get_current_time()
 
+            # HTTP method / body for AJAX endpoints (JS-rendered pages)
+            method = getattr(request, "method", None) or "GET"
+            body = getattr(request, "body", None) or None
+            body_type = getattr(request, "body_type", None) or "form"
+            extra_headers = getattr(request, "extra_headers", None) or None
+
             # Read content based on number of URLs
             if len(urls) == 1:
                 # Single URL - use read method
@@ -112,6 +118,10 @@ class ReaderService:
                     url=urls[0],
                     timeout=request.timeout,
                     locale=request.locale,
+                    method=method,
+                    body=body,
+                    body_type=body_type,
+                    extra_headers=extra_headers,
                 )
                 results = [result]
             else:
@@ -121,6 +131,10 @@ class ReaderService:
                     timeout=request.timeout,
                     locale=request.locale,
                     max_concurrent=request.max_concurrent,
+                    method=method,
+                    body=body,
+                    body_type=body_type,
+                    extra_headers=extra_headers,
                 )
 
             processing_time = self._get_current_time() - start_time

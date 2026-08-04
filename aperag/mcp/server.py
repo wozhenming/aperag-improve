@@ -416,6 +416,10 @@ async def web_read(
     timeout: int = 30,
     locale: str = "en-US",
     max_concurrent: int = 5,
+    method: str = "GET",
+    body: dict = None,
+    body_type: str = "form",
+    extra_headers: dict = None,
 ) -> Dict[str, Any]:
     """Read and extract content from web pages.
 
@@ -424,6 +428,16 @@ async def web_read(
         timeout: Request timeout in seconds (default: 30)
         locale: Browser locale (default: en-US)
         max_concurrent: Maximum concurrent requests for multiple URLs (default: 5)
+        method: HTTP method (default: GET). Use POST for AJAX/JS-rendered pages
+            whose data comes from an API endpoint — e.g. a search page that
+            loads results via POST /search/news with {key, page}. When method
+            is not GET, the request is sent directly with the given body.
+        body: JSON object sent as the request body for POST/PUT/PATCH
+            (e.g. {"key": "search keyword", "page": 1})
+        body_type: How to encode the body — "form" (application/x-www-form-urlencoded,
+            default) or "json" (application/json)
+        extra_headers: Additional HTTP headers as a JSON object (e.g.
+            {"Referer": "https://example.com/search", "X-Requested-With": "XMLHttpRequest"})
 
     Returns:
         Web content reading results with extracted text, titles, word counts, and metadata
@@ -444,6 +458,10 @@ async def web_read(
             "timeout": timeout,
             "locale": locale,
             "max_concurrent": max_concurrent,
+            "method": method,
+            "body": body or {},
+            "body_type": body_type,
+            "extra_headers": extra_headers or {},
         }
 
         # Use longer timeout for web content reading operations

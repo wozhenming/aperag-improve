@@ -2612,6 +2612,24 @@ class WebReadRequest(BaseModel):
     max_concurrent: Optional[int] = Field(
         3, description='Maximum concurrent requests for multiple URLs', examples=[3]
     )
+    method: Optional[Literal['GET', 'POST', 'PUT', 'PATCH', 'DELETE']] = Field(
+        'GET',
+        description='HTTP method to use. POST/PUT/PATCH are useful for JS-rendered pages '
+        'whose data comes from AJAX endpoints (e.g. search result APIs)',
+    )
+    body: Optional[dict[str, Any]] = Field(
+        None,
+        description='Request body for POST/PUT/PATCH methods (JSON object, keys and values are sent as-is)',
+    )
+    body_type: Optional[Literal['form', 'json']] = Field(
+        'form',
+        description='"form" sends application/x-www-form-urlencoded, "json" sends application/json',
+    )
+    extra_headers: Optional[dict[str, Any]] = Field(
+        None,
+        description='Additional HTTP headers (e.g. Referer, X-Requested-With, Cookie). '
+        'Merged over the default headers.',
+    )
 
 
 class WebReadResultItem(BaseModel):
