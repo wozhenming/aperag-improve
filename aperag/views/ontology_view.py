@@ -77,7 +77,7 @@ async def get_ontology_bot_session(
 
         from aperag.service.chat_service import chat_service_global
 
-        chat = await chat_service_global.create_chat(str(user.id), bot.id)
+        chat = await chat_service_global.create_chat(str(user.id), bot.id, category="ontology")
         logger.info(f"ONTOLOGY-SESSION chat: {chat.id}")
         return view_models.OntologyBotSession(bot_id=bot.id, chat_id=chat.id)
     except Exception as e:

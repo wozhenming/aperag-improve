@@ -456,6 +456,7 @@ class Chat(Base):
     status = Column(EnumColumn(ChatStatus), nullable=False, index=True)  # Add index for status queries
     bot_id = Column(String(24), nullable=False, index=True)  # Add index for bot queries
     title = Column(String(256), nullable=True)
+    category = Column(String(50), nullable=True, index=True)  # e.g. "ontology" for AI-guided ontology chats
     gmt_created = Column(DateTime(timezone=True), default=utc_now, nullable=False)
     gmt_updated = Column(DateTime(timezone=True), default=utc_now, nullable=False)
     gmt_deleted = Column(DateTime(timezone=True), nullable=True, index=True)  # Add index for soft delete queries

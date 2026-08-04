@@ -830,7 +830,8 @@
         "prompts": "Prompts",
         "ontologies": "My Ontologies"
       }
-    }
+    },
+    "ontology": "Ontology"
   },
   "page_ontologies": {
     "metadata": {

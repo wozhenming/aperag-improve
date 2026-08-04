@@ -64,6 +64,11 @@ export const SideBarMenuChats = () => {
                 >
                   <Link href={url}>
                     <div className="truncate">
+                      {(chat as any).category === 'ontology' && (
+                        <span className="mr-1 rounded bg-primary/10 px-1 py-0.5 text-[10px] text-primary">
+                          {sidebar_workspace('ontology')}
+                        </span>
+                      )}
                       {_.isEmpty(chat.title) || chat.title === 'New Chat'
                         ? sidebar_workspace('display_empty_title')
                         : chat.title}

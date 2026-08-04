@@ -55,7 +55,8 @@ export interface Chat {
      * @type {string}
      * @memberof Chat
      */
-    'status'?: ChatStatusEnum;
+  'category'?: string;
+    'status'?:  ChatStatusEnum;
     /**
      * 
      * @type {string}

@@ -563,6 +563,7 @@ class Chat(BaseModel):
         Literal['system', 'feishu', 'weixin', 'weixin_official', 'web', 'dingtalk']
     ] = None
     status: Optional[Literal['active', 'archived']] = None
+    category: Optional[str] = None
     created: Optional[datetime] = None
     updated: Optional[datetime] = None
 

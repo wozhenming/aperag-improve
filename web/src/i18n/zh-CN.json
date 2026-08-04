@@ -851,7 +851,8 @@
           "ontologies": "我的知识库本体"
         }
       }
-    }
+    },
+    "ontology": "本体"
   },
   "page_ontologies": {
     "metadata": {

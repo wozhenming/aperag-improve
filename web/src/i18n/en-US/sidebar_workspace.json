@@ -47,5 +47,6 @@
       "prompts": "Prompts",
       "ontologies": "My Ontologies"
     }
-  }
+  },
+  "ontology": "Ontology"
 }
