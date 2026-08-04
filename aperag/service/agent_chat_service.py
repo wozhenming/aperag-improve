@@ -541,6 +541,7 @@ class AgentChatService:
                     )
                     from aperag.agent.stream_formatters import format_thinking
 
+                    full_content = ""
                     async for kind, text_chunk in completion_service.agenerate_stream_typed(
                         history=memory if isinstance(memory, list) else [],
                         prompt=comprehensive_prompt,
@@ -548,9 +549,11 @@ class AgentChatService:
                         if kind == "thinking":
                             await message_queue.put(format_thinking(message_id, text_chunk))
                         else:
+                            full_content += text_chunk
                             await message_queue.put(format_stream_content(message_id, text_chunk, streamed=True))
                 except Exception as e:
                     logger.error(f"Streaming generation failed: {e}")
+                    full_content = "No response generated"
                     await message_queue.put(format_stream_content(message_id, "No response generated"))
             else:
                 request_params = RequestParams(
