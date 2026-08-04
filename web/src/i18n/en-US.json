@@ -893,6 +893,9 @@
     "ontology_title": "Ontology Title",
     "ontology_title_placeholder": "e.g. Highway Cost Estimation Ontology",
     "start_guide": "Start Guide",
-    "title_required": "Please enter an ontology title"
+    "title_required": "Please enter an ontology title",
+    "edit_mode": "Edit",
+    "preview_mode": "Preview",
+    "no_mermaid_hint": "No embedded Mermaid code. You can append a ```mermaid block in the OWL to preview the diagram."
   }
 }

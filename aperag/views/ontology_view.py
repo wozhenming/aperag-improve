@@ -50,6 +50,34 @@ async def get_ontology(
     return ontology
 
 
+@router.get("/ontologies/{ontology_id}/content", tags=["Ontology"])
+async def get_ontology_content(
+    request: Request,
+    ontology_id: str,
+    user: User = Depends(required_user),
+):
+    title, content = await ontology_service.get_ontology_content(str(user.id), ontology_id)
+    if content is None:
+        raise HTTPException(status_code=404, detail="Ontology not found")
+    return {"title": title, "content": content}
+
+
+@router.put("/ontologies/{ontology_id}/content", tags=["Ontology"])
+async def update_ontology_content(
+    request: Request,
+    ontology_id: str,
+    user: User = Depends(required_user),
+):
+    body = await request.json()
+    content = (body or {}).get("content")
+    if not content:
+        raise HTTPException(status_code=400, detail="content is required")
+    ok = await ontology_service.update_ontology_content(str(user.id), ontology_id, content)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Ontology not found")
+    return {"success": True}
+
+
 @router.delete("/ontologies/{ontology_id}", tags=["Ontology"])
 async def delete_ontology(
     request: Request,

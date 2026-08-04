@@ -141,6 +141,54 @@ class OntologyService:
         row = await self.db_ops._execute_query(_query)
         return await self._to_view(row) if row else None
 
+    async def get_ontology_content(self, user_id: str, ontology_id: str) -> tuple[str | None, str | None]:
+        """Return (title, owl_content) for editing."""
+        async def _query(session):
+            from sqlalchemy import select
+
+            stmt = select(db_models.Ontology).where(
+                db_models.Ontology.id == ontology_id,
+                db_models.Ontology.user == user_id,
+                db_models.Ontology.status == "ACTIVE",
+                db_models.Ontology.gmt_deleted.is_(None),
+            )
+            result = await session.execute(stmt)
+            return result.scalars().first()
+
+        row = await self.db_ops._execute_query(_query)
+        if not row or not row.file_path:
+            return None, None
+        from aperag.objectstore.base import get_object_store
+
+        content = get_object_store().get(row.file_path)
+        if hasattr(content, "read"):
+            content = content.read()
+        if isinstance(content, bytes):
+            content = content.decode("utf-8")
+        return row.title, content
+
+    async def update_ontology_content(self, user_id: str, ontology_id: str, content: str) -> bool:
+        """Overwrite the .owl file for an ontology."""
+        async def _query(session):
+            from sqlalchemy import select
+
+            stmt = select(db_models.Ontology).where(
+                db_models.Ontology.id == ontology_id,
+                db_models.Ontology.user == user_id,
+                db_models.Ontology.status == "ACTIVE",
+                db_models.Ontology.gmt_deleted.is_(None),
+            )
+            result = await session.execute(stmt)
+            return result.scalars().first()
+
+        row = await self.db_ops._execute_query(_query)
+        if not row or not row.file_path:
+            return False
+        from aperag.objectstore.base import get_object_store
+
+        get_object_store().put(row.file_path, content.encode("utf-8"))
+        return True
+
     async def delete_ontology(self, user_id: str, ontology_id: str) -> bool:
         async def _operation(session):
             from sqlalchemy import select

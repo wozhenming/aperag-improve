@@ -7,7 +7,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import axios from 'axios';
-import { Boxes, FileUp, Plus, Trash2 } from 'lucide-react';
+import { Boxes, FileUp, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -115,17 +115,30 @@ export const OntologyList = ({ ontologies }: { ontologies: OntologyItem[] }) => 
                   <Boxes className="h-4 w-4 text-muted-foreground shrink-0" />
                   <CardTitle className="truncate text-base">{o.title}</CardTitle>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete(o.id);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/workspace/ontologies/${o.id}/edit`);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(o.id);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </CardHeader>
               <CardDescription className="px-4 pb-3 text-xs text-muted-foreground">
                 {o.preview
