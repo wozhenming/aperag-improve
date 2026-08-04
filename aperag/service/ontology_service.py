@@ -55,8 +55,17 @@ class OntologyService:
                 if schema and not schema.is_empty():
                     preview = {
                         "classes_count": len(schema.classes),
+                        "classes": [
+                            {"name": n, "label": schema.class_labels.get(n), "parents": schema.class_hierarchy.get(n, [])}
+                            for n in schema.classes[:50]
+                        ],
                         "object_properties_count": len(set(name for _, name, _ in schema.object_properties)),
+                        "object_properties": list(set(name for _, name, _ in schema.object_properties))[:50],
                         "data_properties_count": sum(len(v) for v in schema.data_properties.values()),
+                        "data_properties": {
+                            cls: [{"name": p.name, "label": p.label, "range": p.range_} for p in props[:20]]
+                            for cls, props in list(schema.data_properties.items())[:10]
+                        },
                     }
             except Exception as e:
                 logger.warning(f"Ontology preview parse failed for {row.id}: {e}")
