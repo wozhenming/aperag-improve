@@ -68,9 +68,18 @@ async def get_ontology_bot_session(
     user: User = Depends(required_user),
 ) -> view_models.OntologyBotSession:
     """Get or create the Ontology Engineer bot + a fresh chat for guided OWL generation."""
-    bot = await ontology_service.get_or_create_ontology_bot(str(user.id))
+    import logging
 
-    from aperag.service.chat_service import chat_service
+    logger = logging.getLogger(__name__)
+    try:
+        bot = await ontology_service.get_or_create_ontology_bot(str(user.id))
+        logger.info(f"ontology bot: {bot.id}")
 
-    chat = await chat_service.create_chat(str(user.id), bot.id)
-    return view_models.OntologyBotSession(bot_id=bot.id, chat_id=chat.id)
+        from aperag.service.chat_service import chat_service_global
+
+        chat = await chat_service_global.create_chat(str(user.id), bot.id)
+        logger.info(f"ontology chat: {chat.id}")
+        return view_models.OntologyBotSession(bot_id=bot.id, chat_id=chat.id)
+    except Exception as e:
+        logger.error(f"ontology bot session failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
