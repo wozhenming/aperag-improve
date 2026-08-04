@@ -63,13 +63,14 @@ def format_stream_start(msg_id: str) -> AgentStartResponse:
     )
 
 
-def format_stream_content(msg_id: str, content: str) -> AgentMessageResponse:
+def format_stream_content(msg_id: str, content: str, streamed: bool = False) -> AgentMessageResponse:
     """Format stream content event - backward compatibility"""
     return AgentMessageResponse(
         type="message",
         id=msg_id,
         data=content,
         timestamp=int(time.time()),
+        streamed=streamed,
     )
 
 

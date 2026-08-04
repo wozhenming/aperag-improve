@@ -379,7 +379,11 @@ class AgentChatService:
 
                 # Special handling for type="message" - stream it in chunks
                 if isinstance(message, dict) and message.get("type") == "message":
-                    await self._stream_message_content(message, websocket)
+                    if message.get("streamed"):
+                        # Already real-time streamed chunks — send as-is
+                        await websocket.send_text(json.dumps(message))
+                    else:
+                        await self._stream_message_content(message, websocket)
                     logger.debug(f"Streamed message content: {message.get('type', 'unknown')}")
                 else:
                     # Send other message types normally (start, stop, tool_call_result, etc.)
@@ -514,21 +518,54 @@ class AgentChatService:
                 chat_id, agent_message=merged_agent_message, user=user, template=resolved_query_prompt
             )
 
-            request_params = RequestParams(
-                maxTokens=8192,
-                model=final_completion.model,
-                use_history=True,
-                max_iterations=10,
-                parallel_tool_calls=True,
-                temperature=0.7,
-                user=user,
-            )
-            response = await llm.generate_str(comprehensive_prompt, request_params)
-            full_content = response if response else "No response generated"
+            # Pure-LLM bots (tools_enabled=False) stream directly via litellm
+            if bot_config and bot_config.agent and bot_config.agent.tools_enabled is False:
+                try:
+                    from aperag.llm.completion.completion_service import CompletionService
 
-            await asyncio.sleep(0.1)  # Allow time for the message to be processed in listener
+                    stream_provider = await self.db_ops.query_llm_provider_by_name(
+                        final_completion.model_service_provider
+                    )
+                    stream_api_key = await self.db_ops.query_provider_api_key(
+                        final_completion.model_service_provider, user_id=user, need_public=True
+                    )
+                    if not stream_provider or not stream_api_key:
+                        raise RuntimeError("Provider or API key not found for streaming")
+                    completion_service = CompletionService(
+                        provider=final_completion.custom_llm_provider,
+                        model=final_completion.model,
+                        base_url=stream_provider.base_url,
+                        api_key=stream_api_key,
+                        temperature=0.7,
+                        max_tokens=8192,
+                    )
+                    full_content = ""
+                    async for text_chunk in completion_service._acompletion_stream_raw(
+                        history=memory if isinstance(memory, list) else [],
+                        prompt=comprehensive_prompt,
+                    ):
+                        full_content += text_chunk
+                        await message_queue.put(format_stream_content(message_id, text_chunk, streamed=True))
+                    await message_queue.put(format_stream_content(message_id, full_content, streamed=True))
+                except Exception as e:
+                    logger.error(f"Streaming generation failed: {e}")
+                    await message_queue.put(format_stream_content(message_id, "No response generated"))
+            else:
+                request_params = RequestParams(
+                    maxTokens=8192,
+                    model=final_completion.model,
+                    use_history=True,
+                    max_iterations=10,
+                    parallel_tool_calls=True,
+                    temperature=0.7,
+                    user=user,
+                )
+                response = await llm.generate_str(comprehensive_prompt, request_params)
+                full_content = response if response else "No response generated"
 
-            await message_queue.put(format_stream_content(message_id, full_content))
+                await asyncio.sleep(0.1)  # Allow time for the message to be processed in listener
+
+                await message_queue.put(format_stream_content(message_id, full_content))
 
             tool_references = extract_tool_call_references(llm.history)
             urls = []
