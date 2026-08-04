@@ -542,8 +542,10 @@ class AgentChatService:
                     from aperag.agent.stream_formatters import format_thinking
 
                     full_content = ""
+                    # SimpleMemory holds history in .history (OpenAI-format message list)
+                    stream_history = getattr(memory, "history", None) or []
                     async for kind, text_chunk in completion_service.agenerate_stream_typed(
-                        history=memory if isinstance(memory, list) else [],
+                        history=stream_history,
                         prompt=comprehensive_prompt,
                     ):
                         if kind == "thinking":
