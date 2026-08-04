@@ -6,6 +6,12 @@ from aperag.ontology.parser import OntologySchema
 
 logger = logging.getLogger(__name__)
 
+# Simplified query prompt for the ontology bot — no search/tool instructions.
+ONTOLOGY_ENGINEER_QUERY_PROMPT = """**User Query**: {{ query }}
+
+Follow your ontology engineering instructions. Respond in the language the user is asking in.
+Do NOT mention or attempt to use any search tools, collections, or knowledge bases — you are a pure conversation partner guiding ontology construction. Ask questions step by step; when enough information is gathered, output the OWL ontology (```owl code block) and Mermaid diagram (```mermaid code block)."""
+
 ONTOLOGY_ENGINEER_SYSTEM_PROMPT = """你是专业的知识图谱本体工程师，帮助用户一步步构建 OWL 本体。
 
 ## 工作方式

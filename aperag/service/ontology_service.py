@@ -184,6 +184,34 @@ class OntologyService:
 
         existing = await self.db_ops._execute_query(_find)
         if existing:
+            # Ensure the existing bot has the latest ontology-engineer prompts
+            import json as _json
+
+            from aperag.ontology.prompt import (
+                ONTOLOGY_ENGINEER_QUERY_PROMPT,
+                ONTOLOGY_ENGINEER_SYSTEM_PROMPT,
+            )
+
+            raw_config = existing.config or "{}"
+            try:
+                cfg_dict = _json.loads(raw_config) if isinstance(raw_config, str) else raw_config
+            except Exception:
+                cfg_dict = {}
+            agent = cfg_dict.setdefault("agent", {})
+            changed = False
+            if agent.get("system_prompt_template") != ONTOLOGY_ENGINEER_SYSTEM_PROMPT:
+                agent["system_prompt_template"] = ONTOLOGY_ENGINEER_SYSTEM_PROMPT
+                changed = True
+            if agent.get("query_prompt_template") != ONTOLOGY_ENGINEER_QUERY_PROMPT:
+                agent["query_prompt_template"] = ONTOLOGY_ENGINEER_QUERY_PROMPT
+                changed = True
+            if agent.get("tools_enabled") is not False:
+                agent["tools_enabled"] = False
+                changed = True
+            if changed:
+                await self.db_ops.update_bot_config_by_id(
+                    str(user_id), existing.id, _json.dumps(cfg_dict)
+                )
             import json as _json
 
             config_val: view_models.BotConfig | None = None
@@ -202,10 +230,11 @@ class OntologyService:
             )
 
         # Create the Ontology Engineer bot
-        from aperag.ontology.prompt import ONTOLOGY_ENGINEER_SYSTEM_PROMPT
+        from aperag.ontology.prompt import ONTOLOGY_ENGINEER_QUERY_PROMPT, ONTOLOGY_ENGINEER_SYSTEM_PROMPT
 
         agent_config = view_models.Agent(
             system_prompt_template=ONTOLOGY_ENGINEER_SYSTEM_PROMPT,
+            query_prompt_template=ONTOLOGY_ENGINEER_QUERY_PROMPT,
             tools_enabled=False,
             collections=[],
         )
