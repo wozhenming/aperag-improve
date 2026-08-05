@@ -546,16 +546,22 @@ class AgentChatService:
                         base_url=stream_provider.base_url,
                         api_key=stream_api_key,
                         temperature=0.7,
-                        max_tokens=8192,
+                        # Large OWL + Mermaid outputs can exceed 8k tokens — don't
+                        # truncate the assistant reply mid-ontology.
+                        max_tokens=16384,
                     )
                     from aperag.agent.stream_formatters import format_thinking
 
                     full_content = ""
-                    # SimpleMemory holds history in .history (OpenAI-format message list)
+                    # SimpleMemory holds history in .history (OpenAI-format message list).
+                    # memory=True is REQUIRED — _build_messages drops history entirely
+                    # when memory is False, which made the model forget every previous
+                    # turn (the "attention lapse" in long guided conversations).
                     stream_history = getattr(memory, "history", None) or []
                     async for kind, text_chunk in completion_service.agenerate_stream_typed(
                         history=stream_history,
                         prompt=comprehensive_prompt,
+                        memory=True,
                     ):
                         if kind == "thinking":
                             await message_queue.put(format_thinking(message_id, text_chunk))
