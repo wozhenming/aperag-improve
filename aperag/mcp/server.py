@@ -485,6 +485,53 @@ async def web_read(
         return {"error": str(e)}
 
 
+@mcp_server.tool
+async def list_scm_categories() -> Dict[str, Any]:
+    """List all browsable categories of 广东计量 (www.scm.com.cn), the Guangdong
+    Metrology Institute website.
+
+    Each category has a type: "list" categories contain article lists (browse
+    them with scm_list), "static" categories are plain info pages (read them
+    directly with web_read).
+
+    Returns:
+        Categories with name, type (list/static) and URL.
+    """
+    try:
+        from aperag.websearch.scm.scm_catalog import scm_catalog
+
+        return {"base_url": scm_catalog.base_url, "categories": scm_catalog.list_categories()}
+    except Exception as e:
+        logger.error(f"Failed to list scm categories: {e}")
+        return {"error": str(e)}
+
+
+@mcp_server.tool
+async def scm_list(category: str, page: int = 1, keyword: str = "") -> Dict[str, Any]:
+    """Browse the article list of a category on 广东计量 (www.scm.com.cn).
+
+    Args:
+        category: Category name, e.g. 能力验证-计划通知, 型式评价-相关规范, 常见问题.
+            Use list_scm_categories() to see all available categories.
+        page: Page number (default 1, 10 articles per page).
+        keyword: Optional keyword to filter article titles (e.g. 耐电压, 校准).
+
+    Returns:
+        Articles with title, date and URL. Read the article body with web_read(url).
+
+    Note:
+        Only works for "list" type categories. For static info pages, read them
+        directly with web_read.
+    """
+    try:
+        from aperag.websearch.scm.scm_catalog import scm_catalog
+
+        return await scm_catalog.list_articles(category, page=page, keyword=keyword)
+    except Exception as e:
+        logger.error(f"scm_list failed: {e}")
+        return {"error": f"scm_list failed: {str(e)}"}
+
+
 # Add a resource for ApeRAG usage information
 @mcp_server.resource("aperag://usage-guide")
 async def aperag_usage_guide() -> str:
