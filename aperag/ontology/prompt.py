@@ -35,13 +35,14 @@ ONTOLOGY_ENGINEER_SYSTEM_PROMPT = """你是专业的知识图谱本体工程师�
 
 当信息收集完成，输出两部分：
 
-1. **OWL 本体**（RDF/XML 格式）放在 ```owl 代码块中。规范：
-   - 类用 <owl:Class rdf:about="类名"> + <rdfs:comment>描述</rdfs:comment>
+1. **OWL 本体**，**只能使用 OWL 2 (RDF/XML) 序列化格式**，放在 ```owl 代码块中。规范：
+   - **严禁输出 Turtle（.ttl）、N-Triples、JSON-LD 或 Manchester Syntax**。不要使用 `@prefix`、`@base`、`a owl:Class` 等 Turtle 语法。必须以 `<?xml version="1.0"?>` 开头，以 `</rdf:RDF>` 结尾，形如 `<rdf:RDF xmlns:owl="..." xmlns:rdfs="..." ...>`。
+   - 类用 <owl:Class rdf:about="类名">；**每个类必须带 <rdfs:label>（中文显示名）和 <rdfs:comment>（中文描述）**
    - 继承用 <rdfs:subClassOf rdf:resource="父类"/>
-   - 数据属性用 <owl:DatatypeProperty rdf:about="属性名"> + <rdfs:domain> + <rdfs:range>（xsd:string/integer/decimal/date）
-   - 对象属性用 <owl:ObjectProperty rdf:about="关系名"> + <rdfs:domain> + <rdfs:range>
+   - 数据属性用 <owl:DatatypeProperty rdf:about="属性名"> + <rdfs:domain> + <rdfs:range>（xsd:string/integer/decimal/date），**同样带中文 <rdfs:label> 和 <rdfs:comment>**
+   - 对象属性用 <owl:ObjectProperty rdf:about="关系名"> + <rdfs:domain> + <rdfs:range>，**带中文 <rdfs:label> 和 <rdfs:comment>**
    - **不要使用 <owl:FunctionalProperty/> 嵌套标签**（解析器不兼容）；用 <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/> 代替
-   - 类名和属性名使用中文（与领域语言一致）
+   - 类名和属性名使用中文（与领域语言一致）；label 和 comment 一律使用中文
 2. **Mermaid 关系图** 放在 ```mermaid 代码块中（graph TB 语法，类作为节点，继承和对象属性作为连线）。
 
 输出示例结构：
@@ -88,9 +89,7 @@ def build_ontology_guide(schema: OntologySchema) -> str:
 
     # 3. Object properties + inverse
     if schema.object_properties:
-        lines.append(
-            "Object Properties (relationship constraints — only use these relation keywords):"
-        )
+        lines.append("Object Properties (relationship constraints — only use these relation keywords):")
         for domain, name, range_ in schema.object_properties:
             d = domain or "*"
             r = range_ or "*"
@@ -117,9 +116,7 @@ def build_ontology_guide(schema: OntologySchema) -> str:
 
     # 4. Data properties + functional
     if schema.data_properties:
-        lines.append(
-            "Data Properties (structured attributes — MUST extract these for each entity):"
-        )
+        lines.append("Data Properties (structured attributes — MUST extract these for each entity):")
         for class_name, props in schema.data_properties.items():
             cls_label = class_name if class_name != "*" else "All classes"
             lines.append(f"--- {cls_label} ---")
@@ -145,8 +142,8 @@ def build_ontology_guide(schema: OntologySchema) -> str:
         lines.append("Entity Format (includes structured properties as JSON):")
         lines.append(
             '("entity"{tuple_delimiter}<entity_name>{tuple_delimiter}<entity_type>'
-            '{tuple_delimiter}<entity_description>'
-            '{tuple_delimiter}<properties_json>)'
+            "{tuple_delimiter}<entity_description>"
+            "{tuple_delimiter}<properties_json>)"
         )
         lines.append("")
         lines.append(
@@ -154,9 +151,7 @@ def build_ontology_guide(schema: OntologySchema) -> str:
             "For non-functional properties, use an array if multiple values exist."
         )
         lines.append("properties_json must be a valid JSON object, e.g.")
-        lines.append(
-            '{"文号":"交公路发[2018]123号","发布机关":"交通运输部","生效日期":"2018-05-01"}'
-        )
+        lines.append('{"文号":"交公路发[2018]123号","发布机关":"交通运输部","生效日期":"2018-05-01"}')
         lines.append("If a property value is unknown, omit that key. Do NOT fabricate values.")
         lines.append("")
 

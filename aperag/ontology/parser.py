@@ -117,7 +117,16 @@ def parse_owl(file_path: str) -> OntologySchema:
 
         def _build_graph(text: str) -> Graph:
             g = Graph()
-            g.parse(data=text.encode("utf-8"), format="xml")
+            try:
+                g.parse(data=text.encode("utf-8"), format="xml")
+            except Exception:
+                # Not RDF/XML — tolerate Turtle (models sometimes emit OWL DL
+                # serialized as Turtle despite the RDF/XML instruction).
+                try:
+                    g = Graph()
+                    g.parse(data=text.encode("utf-8"), format="turtle")
+                except Exception:
+                    g = Graph()
             return g
 
         g = _build_graph(content)
