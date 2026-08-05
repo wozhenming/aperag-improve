@@ -135,15 +135,16 @@ class TrafilaturaProvider(BaseReaderProvider):
                     favor_recall=True,
                 )
 
-            # Low-confidence fallback: when Trafilatura returns nothing or very
-            # little, the page body often lives in unsemantic containers
-            # (e.g. div.Work_Text on scm.com.cn info pages, plain-text divs with
-            # no <p> structure) that Trafilatura's precision mode discards.
-            # Merge the text of known content containers instead.
-            if not extracted_text or len(extracted_text.strip()) < 300:
-                container_text = self._extract_content_containers(html_content)
-                if container_text and len(container_text) > len(extracted_text or ""):
-                    extracted_text = container_text
+            # Container fallback: the page body often lives in unsemantic
+            # containers (div.Work_Text / div.Trends_Ct on scm.com.cn) that
+            # Trafilatura's precision mode discards or only partially extracts
+            # (e.g. stops mid-page on Word-exported content). If the known
+            # content containers hold substantially more text than the
+            # Trafilatura result, the extraction was incomplete — use the
+            # containers instead.
+            container_text = self._extract_content_containers(html_content)
+            if container_text and (not extracted_text or len(container_text) > len(extracted_text.strip()) * 1.3):
+                extracted_text = container_text
 
             if not extracted_text:
                 # Final fallback for AJAX endpoints: they often return HTML
@@ -349,7 +350,12 @@ class TrafilaturaProvider(BaseReaderProvider):
         return "\n".join(lines)
 
     def _extract_content_containers(self, html: str) -> str:
-        """Merge the text of known content containers (longest-first dedup)."""
+        """Merge known content containers, preserving paragraph structure.
+
+        Containers are converted to Markdown (so <p> paragraphs, <h2> titles
+        and <li> items survive) and deduped by containment — an outer container
+        (e.g. .Trends_Ct) includes every inner block (e.g. .Work_Text).
+        """
         try:
             from bs4 import BeautifulSoup
         except ImportError:
@@ -366,8 +372,7 @@ class TrafilaturaProvider(BaseReaderProvider):
         except Exception:
             return ""
         for node in nodes:
-            text = node.get_text(" ", strip=True)
-            text = re.sub(r"\s+", " ", text).strip()
+            text = self._container_to_markdown(node)
             if len(text) < 20:
                 continue
             # Dedup by containment: an outer container's text includes its
@@ -379,6 +384,29 @@ class TrafilaturaProvider(BaseReaderProvider):
         parts.sort(key=len, reverse=True)
         # The largest containers are the page body; tiny ones are nav/footer fragments
         return "\n\n".join(parts[:3])
+
+    @staticmethod
+    def _container_to_markdown(node) -> str:
+        """Convert a container element to Markdown, preserving paragraphs/lists.
+
+        Falls back to newline-separated text if markdownify is unavailable.
+        """
+        try:
+            import markdownify
+
+            md = markdownify.markdownify(
+                str(node),
+                heading_style="ATX",
+                bullets="-",
+                escape_asterisks=False,
+                escape_underscores=False,
+            )
+            md = re.sub(r"\n{3,}", "\n\n", md)
+            md = re.sub(r"[ \t]+", " ", md)
+            return md.strip()
+        except Exception:
+            text = node.get_text("\n", strip=True)
+            return re.sub(r"\n{3,}", "\n\n", text).strip()
 
     def _to_markdown(self, extracted_content: str) -> str:
         """
