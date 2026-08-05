@@ -99,6 +99,9 @@ export function buildOwlMermaid(preview: OwlPreview): string {
   const addedEdges = new Set<string>();
   for (const p of objProps) {
     if (!p.domain || !p.range || !classSet.has(p.domain) || !classSet.has(p.range)) continue;
+    // Self-loop edges (domain === range, e.g. a revision/version relation) do
+    // not render in Mermaid — skip them.
+    if (p.domain === p.range) continue;
     const key = `${p.domain}|${p.range}|${p.label || p.name}`;
     if (addedEdges.has(key)) continue;
     addedEdges.add(key);
