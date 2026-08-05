@@ -68,6 +68,9 @@
   "preview_mode": "Source Edit",
   "no_mermaid_hint": "No structure to preview. Switch to source mode to inspect the OWL content.",
   "export_ontology": "Export OWL",
+  "welcome_title": "I'm your ontology engineer assistant",
+  "welcome_desc": "I'll guide you step by step to build an OWL ontology — describe your domain and I'll help you design classes, properties and relations",
+  "input_placeholder": "Describe your ontology, e.g. build a highway cost estimation ontology",
   "editor": {
     "visual": "Visual Edit",
     "source": "Source Edit",

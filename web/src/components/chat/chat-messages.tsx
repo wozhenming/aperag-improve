@@ -263,6 +263,7 @@ export const ChatMessages = ({
         disabled={readyState !== ReadyState.Open}
         loading={loading}
         onCancel={handleCancel}
+        ontologyMode={ontologyMode}
       />
     </div>
   );

@@ -501,9 +501,18 @@ class AgentChatService:
             # Send start message
             await message_queue.put(format_stream_start(message_id))
 
-            # Create memory from chat history
+            # Create memory from chat history.
+            # Pure-LLM bots (e.g. the Ontology Engineer) run long multi-turn
+            # guided conversations where early turns define the domain, classes
+            # and relations — a small context window truncates them and the
+            # model "forgets" what was already agreed. Use a wide window there.
+            is_pure_llm = bool(
+                bot_config and bot_config.agent and bot_config.agent.tools_enabled is False
+            )
             history = await self.history_manager.get_chat_history(chat_id)
-            memory = await self.memory_manager.create_memory_from_history(history, context_limit=4)
+            memory = await self.memory_manager.create_memory_from_history(
+                history, context_limit=50 if is_pure_llm else 4
+            )
 
             # Get chat session using merged agent message and resolved system prompt
             session = await self._get_agent_session(

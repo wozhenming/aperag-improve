@@ -87,6 +87,9 @@
   "preview_mode": "源码编辑",
   "no_mermaid_hint": "此本体没有可预览的结构，可切换到源码模式检查 OWL 内容",
   "export_ontology": "导出 OWL",
+  "welcome_title": "我是你的本体工程师助手",
+  "welcome_desc": "我会一步步引导你构建 OWL 本体：先描述你的业务领域，我将帮你设计类、属性与关系",
+  "input_placeholder": "描述你的本体需求，例如：构建一个工程造价知识本体",
   "editor": {
     "visual": "可视化编辑",
     "source": "源码编辑",
