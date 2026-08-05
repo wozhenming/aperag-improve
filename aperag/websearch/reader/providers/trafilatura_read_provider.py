@@ -7,6 +7,7 @@ No browser dependencies - perfect for lightweight deployments.
 
 import asyncio
 import logging
+import re
 from datetime import datetime
 from typing import List
 
@@ -134,6 +135,16 @@ class TrafilaturaProvider(BaseReaderProvider):
                     favor_recall=True,
                 )
 
+            # Low-confidence fallback: when Trafilatura returns nothing or very
+            # little, the page body often lives in unsemantic containers
+            # (e.g. div.Work_Text on scm.com.cn info pages, plain-text divs with
+            # no <p> structure) that Trafilatura's precision mode discards.
+            # Merge the text of known content containers instead.
+            if not extracted_text or len(extracted_text.strip()) < 300:
+                container_text = self._extract_content_containers(html_content)
+                if container_text and len(container_text) > len(extracted_text or ""):
+                    extracted_text = container_text
+
             if not extracted_text:
                 # Final fallback for AJAX endpoints: they often return HTML
                 # fragments or JSON without a full page structure that
@@ -252,6 +263,53 @@ class TrafilaturaProvider(BaseReaderProvider):
             return await response.text()
         logger.warning(f"HTTP {response.status} for {url}")
         return ""
+
+    # Content containers whose text is page body on legacy/simple sites
+    # (scm.com.cn info pages put body text in div.Work_Text / div.Trends_Ct
+    # without <p> structure, which Trafilatura's precision mode discards).
+    _CONTENT_CONTAINER_CLASSES = [
+        "Work_Text",
+        "Trends_Ct",
+        "Dynamics_Ct",
+        "News_Ct",
+        "Base_Ct",
+        "Article",
+        "Content",
+        "article-content",
+        "news-content",
+    ]
+
+    def _extract_content_containers(self, html: str) -> str:
+        """Merge the text of known content containers (longest-first dedup)."""
+        try:
+            from bs4 import BeautifulSoup
+        except ImportError:
+            return ""
+        try:
+            soup = BeautifulSoup(html, "lxml")
+        except Exception:
+            return ""
+
+        selector = ", ".join(f".{cls}" for cls in self._CONTENT_CONTAINER_CLASSES)
+        parts: list[str] = []
+        try:
+            nodes = soup.select(selector)
+        except Exception:
+            return ""
+        for node in nodes:
+            text = node.get_text(" ", strip=True)
+            text = re.sub(r"\s+", " ", text).strip()
+            if len(text) < 20:
+                continue
+            # Dedup by containment: an outer container's text includes its
+            # children (e.g. .Trends_Ct includes every .Work_Text block).
+            if any(text in p for p in parts):
+                continue
+            parts = [p for p in parts if p not in text]
+            parts.append(text)
+        parts.sort(key=len, reverse=True)
+        # The largest containers are the page body; tiny ones are nav/footer fragments
+        return "\n\n".join(parts[:3])
 
     def _to_markdown(self, extracted_content: str) -> str:
         """
