@@ -2,6 +2,9 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { MermaidView, exportMermaidPng } from '@/components/mermaid-view';
 import { OntologyStructureEditor } from '@/components/ontology-structure-editor';
@@ -9,7 +12,7 @@ import { buildOwlMermaid } from '@/lib/owl-mermaid';
 import { Textarea } from '@/components/ui/textarea';
 import axios from 'axios';
 import {
-  ArrowLeft, Code2, Copy, Download, Eye, LoaderCircle, Save, Shapes,
+  ArrowLeft, ChevronDown, Code2, Copy, Download, Eye, LoaderCircle, Save, Shapes,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useParams, useRouter } from 'next/navigation';
@@ -106,16 +109,32 @@ export default function EditOntologyPage() {
     }
   };
 
-  const handleDownload = () => {
-    const blob = new Blob([content], { type: 'application/xml' });
+  const downloadBlob = (data: string, filename: string, mime: string) => {
+    const blob = new Blob([data], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${title || 'ontology'}.owl`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadOwl = () => {
+    downloadBlob(content, `${title || 'ontology'}.owl`, 'application/xml');
+  };
+
+  const handleDownloadTurtle = async () => {
+    try {
+      const { data } = await axios.get(
+        `${basePath}/api/v1/ontologies/${params.ontologyId}/download?format=turtle`,
+        { responseType: 'text' },
+      );
+      downloadBlob(data, `${title || 'ontology'}.ttl`, 'text/turtle');
+    } catch {
+      toast.error('Export failed');
+    }
   };
 
   const handleCopyMermaid = async () => {
@@ -148,9 +167,18 @@ export default function EditOntologyPage() {
           className="max-w-xs font-semibold"
         />
         <div className="flex-1" />
-        <Button variant="outline" onClick={handleDownload}>
-          <Download className="h-4 w-4 mr-1" /> {t('export_ontology')}
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline">
+              <Download className="h-4 w-4 mr-1" /> {t('export_ontology')}
+              <ChevronDown className="h-3 w-3 ml-1" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleDownloadOwl}>{t('export_owl')}</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleDownloadTurtle}>{t('export_turtle')}</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button
           variant="outline"
           onClick={() => setMode(mode === 'visual' ? 'source' : 'visual')}

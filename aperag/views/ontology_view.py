@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 
 from aperag.db.models import User
 from aperag.schema import view_models
@@ -136,18 +136,52 @@ async def get_ontology_structure(
 async def download_ontology(
     request: Request,
     ontology_id: str,
+    format: str = Query("owl"),
     user: User = Depends(required_user),
 ):
-    """Download the .owl file for an ontology."""
+    """Download an ontology. `format` = "owl" (OWL2 RDF/XML, default) or "turtle"."""
     from fastapi.responses import Response
 
     title, content = await ontology_service.get_ontology_content(str(user.id), ontology_id)
     if content is None:
         raise HTTPException(status_code=404, detail="Ontology not found")
-    filename = f"{title or 'ontology'}.owl"
+
+    fmt = (format or "owl").strip().lower()
+    from rdflib import Graph
+
+    if fmt == "turtle":
+        # Convert to Turtle regardless of the stored format
+        g = Graph()
+        try:
+            g.parse(data=content.encode("utf-8"), format="xml")
+        except Exception:
+            # content might already be Turtle — parse as turtle instead
+            g.parse(data=content.encode("utf-8"), format="turtle")
+        content = g.serialize(format="turtle")
+        filename = f"{title or 'ontology'}.ttl"
+        media_type = "text/turtle"
+    else:
+        # OWL2 RDF/XML: if the stored content is not RDF/XML (e.g. it was saved
+        # as Turtle in the source editor), convert it so the .owl export is
+        # real OWL2 RDF/XML, not just a renamed file.
+        g = Graph()
+        try:
+            g.parse(data=content.encode("utf-8"), format="xml")
+            is_rdfxml = len(g) > 0
+        except Exception:
+            is_rdfxml = False
+        if not is_rdfxml:
+            try:
+                g.parse(data=content.encode("utf-8"), format="turtle")
+                content = g.serialize(format="xml")
+            except Exception:
+                pass  # conversion failed — export the stored content as-is
+        filename = f"{title or 'ontology'}.owl"
+        media_type = "application/octet-stream"
+
     return Response(
         content=content,
-        media_type="application/octet-stream",
+        media_type=media_type,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
