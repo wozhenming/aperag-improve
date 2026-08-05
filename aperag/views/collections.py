@@ -558,9 +558,7 @@ async def get_chunk_preview(
     chunk_content = ""
     try:
         index_name = str(collection_id)
-        all_chunks = fulltext_indexer.get_document_chunks(
-            index_name, document_id, page=1, page_size=10000
-        )
+        all_chunks = fulltext_indexer.get_document_chunks(index_name, document_id, page=1, page_size=10000)
         for ch in all_chunks.get("chunks", []):
             if ch.get("chunk_id") == chunk_id:
                 chunk_content = ch.get("content", "")
@@ -569,6 +567,25 @@ async def get_chunk_preview(
         pass
 
     return {"document_name": document.name, "chunk_content": chunk_content}
+
+
+@router.post("/collections/{collection_id}/owl/from-library", tags=["documents"])
+async def attach_owl_from_library(
+    request: Request,
+    collection_id: str,
+    user: User = Depends(required_user),
+):
+    """Attach an ontology from the user's ontology library to this collection."""
+    body = await request.json() or {}
+    ontology_id = (body or {}).get("ontology_id")
+    if not ontology_id:
+        raise HTTPException(status_code=400, detail="ontology_id is required")
+    from aperag.service.collection_service import collection_service as cs
+
+    try:
+        return await cs.attach_owl_from_library(str(user.id), collection_id, ontology_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @router.post("/collections/{collection_id}/owl", tags=["documents"])
@@ -580,6 +597,7 @@ async def upload_owl(
 ):
     """Upload an OWL ontology file for this collection's KG extraction."""
     from aperag.service.collection_service import collection_service as cs
+
     return await cs.upload_owl(str(user.id), collection_id, file)
 
 
@@ -702,7 +720,5 @@ async def delete_owl(
     config = parseCollectionConfig(collection.config)
     if config.knowledge_graph_config:
         config.knowledge_graph_config.owl_file_path = None
-    await async_db_ops.update_collection_by_id(
-        str(user.id), collection_id, config=dumpCollectionConfig(config)
-    )
+    await async_db_ops.update_collection_by_id(str(user.id), collection_id, config=dumpCollectionConfig(config))
     return {"success": True}

@@ -43,7 +43,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { FileText, GitBranch, Trash2, Eye } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
@@ -314,6 +314,9 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
     disjoint_pairs?: [string, string][];
   } | null>(null);
   const [owlDialogOpen, setOwlDialogOpen] = useState(false);
+  const [ontologies, setOntologies] = useState<{ id: string; title?: string }[]>([]);
+  const [attachingOwl, setAttachingOwl] = useState(false);
+  const owlFileRef = useRef<HTMLInputElement>(null);
   const embeddingModelName = useWatch({
     control: form.control,
     name: 'config.embedding.model',
@@ -374,6 +377,35 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
         .catch(() => {});
     }
   }, [action, collection.id, form]);
+
+  // Load the user's ontology library for the picker
+  useEffect(() => {
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+    axios.get(`${basePath}/api/v1/ontologies`)
+      .then(({ data }) => setOntologies(data.items || []))
+      .catch(() => {});
+  }, []);
+
+  const handleAttachOwl = async (ontologyId: string) => {
+    if (!ontologyId || !collection.id) return;
+    setAttachingOwl(true);
+    try {
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+      const { data } = await axios.post(
+        `${basePath}/api/v1/collections/${collection.id}/owl/from-library`,
+        { ontology_id: ontologyId },
+      );
+      form.setValue('config.knowledge_graph_config.owl_file_path', data.owl_file_path);
+      setOwlInfo(data.filename || 'ontology.owl');
+      toast.success(page_collections('owl_upload_success'));
+      const prevRes = await axios.get(`${basePath}/api/v1/collections/${collection.id}/owl`);
+      if (prevRes.data.preview) setOwlPreview(prevRes.data.preview);
+    } catch {
+      toast.error(page_collections('owl_upload_error'));
+    } finally {
+      setAttachingOwl(false);
+    }
+  };
 
   return (
     <>
@@ -587,6 +619,26 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
                       <Badge variant="secondary" className="gap-1">
                         <FileText className="h-3 w-3" /> {owlInfo}
                       </Badge>
+                      <Select
+                        value=""
+                        onValueChange={(v) => handleAttachOwl(v)}
+                        disabled={attachingOwl || ontologies.length === 0}
+                      >
+                        <SelectTrigger size="sm" className="h-6 w-40 text-xs">
+                          <SelectValue
+                            placeholder={
+                              ontologies.length === 0
+                                ? page_collections('owl_no_ontologies')
+                                : page_collections('owl_change')
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ontologies.map((o) => (
+                            <SelectItem key={o.id} value={o.id}>{o.title || o.id}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <Button variant="ghost" size="sm" className="text-destructive h-6"
                         onClick={async () => {
                           if (!collection.id) return;
@@ -617,25 +669,60 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
                   </>
                 ) : (
                   <>
-                    <Input type="file" accept=".owl,.rdf,.xml"
-                      onChange={async (e) => {
-                        const f = e.target.files?.[0]; if (!f || !collection.id) return;
-                        const fd = new FormData(); fd.append('file', f);
-                        try {
-                          const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-                          const { data } = await axios.post(
-                            `${basePath}/api/v1/collections/${collection.id}/owl`, fd,
-                            { headers: { 'Content-Type': 'multipart/form-data' } }
-                          );
-                          form.setValue('config.knowledge_graph_config.owl_file_path', data.owl_file_path);
-                          setOwlInfo(data.filename || f.name);
-                          toast.success(page_collections('owl_upload_success'));
-                          // Fetch structure preview
-                          const prevRes = await axios.get(`${basePath}/api/v1/collections/${collection.id}/owl`);
-                          if (prevRes.data.preview) setOwlPreview(prevRes.data.preview);
-                        } catch { toast.error(page_collections('owl_upload_error')); }
-                      }}
-                    />
+                    <div className="flex flex-col gap-2">
+                      <Select
+                        value=""
+                        onValueChange={(v) => handleAttachOwl(v)}
+                        disabled={attachingOwl || ontologies.length === 0}
+                      >
+                        <SelectTrigger className="w-full cursor-pointer">
+                          <SelectValue
+                            placeholder={
+                              ontologies.length === 0
+                                ? page_collections('owl_no_ontologies')
+                                : page_collections('owl_select_from_library')
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ontologies.map((o) => (
+                            <SelectItem key={o.id} value={o.id}>{o.title || o.id}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <input
+                        ref={owlFileRef}
+                        type="file"
+                        accept=".owl,.rdf,.xml"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const f = e.target.files?.[0]; if (!f || !collection.id) return;
+                          const fd = new FormData(); fd.append('file', f);
+                          try {
+                            const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+                            const { data } = await axios.post(
+                              `${basePath}/api/v1/collections/${collection.id}/owl`, fd,
+                              { headers: { 'Content-Type': 'multipart/form-data' } }
+                            );
+                            form.setValue('config.knowledge_graph_config.owl_file_path', data.owl_file_path);
+                            setOwlInfo(data.filename || f.name);
+                            toast.success(page_collections('owl_upload_success'));
+                            // Fetch structure preview
+                            const prevRes = await axios.get(`${basePath}/api/v1/collections/${collection.id}/owl`);
+                            if (prevRes.data.preview) setOwlPreview(prevRes.data.preview);
+                          } catch { toast.error(page_collections('owl_upload_error')); }
+                        }}
+                      />
+                      <Button
+                        variant="link"
+                        size="sm"
+                        type="button"
+                        className="justify-start h-auto p-0 text-xs"
+                        onClick={() => owlFileRef.current?.click()}
+                      >
+                        {page_collections('owl_upload_file')}
+                      </Button>
+                    </div>
                     <p className="text-xs text-muted-foreground">{page_collections('owl_no_override_hint')}</p>
                   </>
                 )}
