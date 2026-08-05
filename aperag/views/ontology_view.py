@@ -31,10 +31,14 @@ async def list_ontologies(request: Request, user: User = Depends(required_user))
 @router.post("/ontologies", tags=["Ontology"])
 async def create_ontology(
     request: Request,
-    file: UploadFile = File(...),
+    file: UploadFile | None = File(None),
     title: str | None = Form(None),
     user: User = Depends(required_user),
 ) -> view_models.Ontology:
+    """Create an ontology. Pass a .owl file to import one, or omit the file to
+    create a blank ontology (built from scratch in the visual editor)."""
+    if file is None and not (title and title.strip()):
+        raise HTTPException(status_code=400, detail="file or title is required")
     return await ontology_service.create_ontology(str(user.id), file, title)
 
 

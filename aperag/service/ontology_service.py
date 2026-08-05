@@ -94,10 +94,27 @@ class OntologyService:
             updated=row.gmt_updated,
         )
 
-    async def create_ontology(self, user_id: str, file: UploadFile, title: str | None = None) -> view_models.Ontology:
-        """Store an uploaded .owl file and create an ontology library entry."""
-        content = await file.read()
-        filename = file.filename or "ontology.owl"
+    async def create_ontology(
+        self, user_id: str, file: UploadFile | None = None, title: str | None = None
+    ) -> view_models.Ontology:
+        """Store an uploaded .owl file and create an ontology library entry.
+
+        If `file` is None, create a blank ontology (empty structure) that the
+        user builds from scratch in the visual editor.
+        """
+        from aperag.ontology.generator import structure_to_owl
+
+        if file is not None:
+            content = await file.read()
+            filename = file.filename or "ontology.owl"
+        else:
+            # Blank ontology — canonical OWL with just an empty structure
+            content = structure_to_owl(
+                {"classes": [], "object_properties": [], "data_properties": {}}
+            ).encode("utf-8")
+            safe_title = (title or "ontology").strip()[:50] or "ontology"
+            filename = f"{safe_title}.owl"
+
         safe_user = str(user_id).replace("|", "-")
         obj_path = f"user-{safe_user}/ontology/{filename}"
 
