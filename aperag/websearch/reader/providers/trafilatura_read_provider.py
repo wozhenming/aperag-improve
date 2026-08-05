@@ -173,6 +173,14 @@ class TrafilaturaProvider(BaseReaderProvider):
 
             # Process content
             content = ContentProcessor.sanitize_markdown(content)
+
+            # Append the page's internal links so multi-hop retrieval works:
+            # the model can see which sub-pages exist (e.g. the 国家中心 sidebar
+            # entry on the org intro page) and follow them with another web_read.
+            page_links = self._extract_page_links(html_content, url)
+            if page_links:
+                content = f"{content}\n\n## 页面内链接\n{page_links}"
+
             title = ContentProcessor.extract_title_from_content(content)
 
             # Try to get title from metadata if not found in content
@@ -278,6 +286,67 @@ class TrafilaturaProvider(BaseReaderProvider):
         "article-content",
         "news-content",
     ]
+
+    # Ancestor classes that mark chrome (header/footer/nav) — their links are noise
+    _CHROME_ANCESTORS = [
+        "HeaderFlix",
+        "b_head",
+        "Mb_head",
+        "menu-li",
+        "Footer",
+        "am_subfooterdiv",
+        "am_bootom",
+        "subnav_ul",
+        "Navdown",
+        "Search_Popup",
+        "MaskShow",
+        "go_top",
+    ]
+
+    def _extract_page_links(self, html: str, page_url: str) -> str:
+        """List meaningful in-page links (anchor text → absolute URL) for multi-hop reads.
+
+        Excludes chrome links (header/footer/nav menus) and duplicate/noise anchors.
+        """
+        try:
+            from bs4 import BeautifulSoup
+        except ImportError:
+            return ""
+        try:
+            soup = BeautifulSoup(html, "lxml")
+        except Exception:
+            return ""
+
+        from urllib.parse import urljoin
+
+        base_url = urljoin(page_url, "/")
+        entries: list[tuple[str, str]] = []
+        seen_urls: set[str] = set()
+        for a in soup.find_all("a", href=True):
+            href = a["href"].strip()
+            if not href or href.startswith(("javascript:", "#", "mailto:", "tel:")):
+                continue
+            # skip chrome (header/footer/nav) links
+            chrome = any(a.find_parent(class_=cls) is not None for cls in self._CHROME_ANCESTORS)
+            if chrome:
+                continue
+            text = re.sub(r"\s+", " ", a.get_text(" ", strip=True)).strip()
+            if not text or len(text) > 40:
+                continue
+            url = urljoin(base_url, href)
+            # dedup by URL + anchor text
+            key = (url, text)
+            if key in seen_urls:
+                continue
+            seen_urls.add(key)
+            entries.append((text, url))
+
+        # keep most relevant: sidebar/nav links usually come first in DOM order;
+        # cap at 30 to avoid noise
+        lines = []
+        for text, url in entries[:30]:
+            lines.append(f"- {text}: {url}")
+        return "\n".join(lines)
 
     def _extract_content_containers(self, html: str) -> str:
         """Merge the text of known content containers (longest-first dedup)."""
