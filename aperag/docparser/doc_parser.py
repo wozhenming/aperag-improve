@@ -86,13 +86,15 @@ class DocParser(BaseParser):
                     continue
 
                 token = parser_config.get("mineru_api_token") or os.getenv("MINERU_API_TOKEN")
-                if token:
+                base_url = parser_config.get("mineru_api_base_url") or os.getenv("MINERU_API_BASE_URL")
+                # Enabled with a cloud token OR a local base URL (local MinerU
+                # deployments don't need the official token)
+                if token or base_url:
                     cfg.enabled = True
                     if cfg.settings is None:
                         cfg.settings = {}
-                    cfg.settings["api_token"] = token
-                    # Allow overriding API base URL for local deployments
-                    base_url = parser_config.get("mineru_api_base_url") or os.getenv("MINERU_API_BASE_URL")
+                    if token:
+                        cfg.settings["api_token"] = token
                     if base_url:
                         cfg.settings["api_base"] = base_url
                 else:
