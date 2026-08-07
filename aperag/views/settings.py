@@ -51,6 +51,7 @@ async def toggle_pause_indexing(
     # When resuming, trigger reconciler immediately
     if current:
         from config.celery_tasks import reconcile_indexes_task
+
         reconcile_indexes_task.delay()
     return {"paused": not current}
 
@@ -74,3 +75,37 @@ async def test_mineru_token(
 
     result = await setting_service.test_mineru_token(token_to_test)
     return JSONResponse(status_code=200, content=result)
+
+
+@router.post("/settings/test_mineru_connection", tags=["Settings"])
+async def test_mineru_connection(
+    data: Optional[dict] = Body(None),
+    user: dict = Depends(required_user),
+):
+    """Test connectivity to a (usually local) MinerU service via its /health endpoint."""
+    base_url = None
+    if data and data.get("base_url"):
+        base_url = str(data["base_url"]).strip().rstrip("/")
+    else:
+        stored = await setting_service.get_setting("mineru_api_base_url")
+        base_url = str(stored).strip().rstrip("/") if stored else None
+
+    if not base_url:
+        return JSONResponse(
+            status_code=404,
+            content={"code": -1, "msg": "MinerU API base URL not set"},
+        )
+
+    import httpx
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            response = await client.get(f"{base_url}/health")
+            body = ""
+            try:
+                body = response.json()
+            except Exception:
+                body = response.text[:200] if response.text else ""
+            return {"status_code": response.status_code, "data": body}
+        except httpx.RequestError as e:
+            return {"status_code": 500, "data": {"msg": f"Request failed: {e}"}}

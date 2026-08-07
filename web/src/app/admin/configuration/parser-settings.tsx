@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import axios from 'axios';
 import { apiClient } from '@/lib/api/client';
 import { cn } from '@/lib/utils';
 import { Info, LaptopMinimalCheck, LoaderCircle } from 'lucide-react';
@@ -58,6 +59,8 @@ export const ParserSettings = ({
   const common_tips = useTranslations('common.tips');
   const [checked, setChecked] = useState<boolean>(false);
   const [checking, setChecking] = useState<boolean>(false);
+  const [checkingConn, setCheckingConn] = useState<boolean>(false);
+  const [connOk, setConnOk] = useState<boolean>(false);
 
   const handleSave = useCallback(async () => {
     await apiClient.defaultApi.settingsPut({ settings: data });
@@ -90,6 +93,33 @@ export const ParserSettings = ({
     }
     setChecking(false);
   }, [admin_config, common_tips, data.mineru_api_token]);
+
+  const handleCheckMineruConnection = useCallback(async () => {
+    if (!data.mineru_api_base_url) {
+      toast.error(admin_config('mineru_api_base_url_required'));
+      return;
+    }
+    setCheckingConn(true);
+    try {
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+      const { data: res } = await axios.post(
+        `${basePath}/api/v1/settings/test_mineru_connection`,
+        { base_url: data.mineru_api_base_url },
+      );
+      if (res.status_code === 200) {
+        setConnOk(true);
+        toast.success(admin_config('mineru_connection_ok'));
+      } else {
+        setConnOk(false);
+        toast.error(admin_config('mineru_connection_failed'));
+      }
+    } catch {
+      setConnOk(false);
+      toast.error(admin_config('mineru_connection_failed'));
+    } finally {
+      setCheckingConn(false);
+    }
+  }, [admin_config, data.mineru_api_base_url]);
 
   useEffect(() => {
     setData({ ...defaultValue, ...initData });
@@ -130,12 +160,18 @@ export const ParserSettings = ({
           </div>
           <div className="flex flex-col gap-2 mt-4">
             <HintLabel text={admin_config('mineru_api_base_url')} hint={admin_config('hint_mineru_api_base_url')} />
-            <Input placeholder="https://mineru.net" value={data.mineru_api_base_url || ''}
-              onChange={(e) => setData({ ...data, mineru_api_base_url: e.currentTarget.value })} />
+            <div className="flex flex-row gap-4">
+              <Input placeholder="https://mineru.net" value={data.mineru_api_base_url || ''}
+                onChange={(e) => setData({ ...data, mineru_api_base_url: e.currentTarget.value })} />
+              <Button disabled={checkingConn} variant="outline" onClick={handleCheckMineruConnection}>
+                {checkingConn ? <LoaderCircle className="animate-spin opacity-50" /> : <LaptopMinimalCheck />}
+                {admin_config('check_connection')}
+              </Button>
+            </div>
           </div>
         </CardContent>
         <CardFooter className={cn('justify-end', data.use_mineru ? 'flex' : 'hidden')}>
-          <Button disabled={!checked} onClick={handleSave}>{common_action('save')}</Button>
+          <Button onClick={handleSave}>{common_action('save')}</Button>
         </CardFooter>
       </Card>
 

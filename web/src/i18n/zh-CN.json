@@ -89,7 +89,11 @@
     "hint_max_bot_count": "每个用户允许创建的机器人数量上限",
     "hint_max_collection_count": "每个用户允许创建的知识库集合数量上限",
     "hint_max_document_count": "每个用户允许上传的文档总数量上限",
-    "hint_max_document_count_per_collection": "每个知识库集合中允许包含的文档数量上限"
+    "hint_max_document_count_per_collection": "每个知识库集合中允许包含的文档数量上限",
+    "check_connection": "验证连接",
+    "mineru_connection_ok": "MinerU 服务连接成功",
+    "mineru_connection_failed": "MinerU 服务连接失败",
+    "mineru_api_base_url_required": "请输入 MinerU API 地址"
   },
   "admin_users": {
     "metadata": {

@@ -212,5 +212,9 @@
         "hint_max_document_count_per_collection": "Maximum number of documents allowed per collection"
       }
     }
-  }
+  },
+  "check_connection": "Check Connection",
+  "mineru_connection_ok": "MinerU service connection OK",
+  "mineru_connection_failed": "MinerU service connection failed",
+  "mineru_api_base_url_required": "Please enter the MinerU API base URL"
 }
