@@ -149,7 +149,13 @@ class DocParser(BaseParser):
             if not self._parser_accept(parser_name, extension):
                 continue
             try:
-                return parser.parse_file(path, metadata, **kwargs)
+                result = parser.parse_file(path, metadata, **kwargs)
+                # Tag each part with the parser that produced it, so the
+                # parsing path is traceable (e.g. "mineru", "docray",
+                # "markitdown", "image_parser", "audio_parser").
+                for part in result:
+                    part.metadata = {**part.metadata, "parser": parser_name}
+                return result
             except FallbackError as e:
                 last_err = e
         raise ValueError(f'No parser can handle file with extension "{extension}"') from last_err
