@@ -1,0 +1,16 @@
+# Dependencies / build artifacts — regenerated inside the Docker build
+node_modules
+.next
+build
+docs
+
+# Local environment & deployment files
+.env
+.env.*
+deploy
+
+# Misc
+.git
+.gitignore
+README.md
+*.log
