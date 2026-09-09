@@ -169,3 +169,7 @@ local-storage
 cursorplans
 celerybeat-schedule.db
 frontend/node_modules/
+
+# Local files
+owls/
+CLAUDE.md
