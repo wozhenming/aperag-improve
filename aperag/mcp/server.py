@@ -416,6 +416,10 @@ async def web_read(
     timeout: int = 30,
     locale: str = "en-US",
     max_concurrent: int = 5,
+    method: str = "GET",
+    body: dict = None,
+    body_type: str = "form",
+    extra_headers: dict = None,
 ) -> Dict[str, Any]:
     """Read and extract content from web pages.
 
@@ -424,6 +428,16 @@ async def web_read(
         timeout: Request timeout in seconds (default: 30)
         locale: Browser locale (default: en-US)
         max_concurrent: Maximum concurrent requests for multiple URLs (default: 5)
+        method: HTTP method (default: GET). Use POST for AJAX/JS-rendered pages
+            whose data comes from an API endpoint — e.g. a search page that
+            loads results via POST /search/news with {key, page}. When method
+            is not GET, the request is sent directly with the given body.
+        body: JSON object sent as the request body for POST/PUT/PATCH
+            (e.g. {"key": "search keyword", "page": 1})
+        body_type: How to encode the body — "form" (application/x-www-form-urlencoded,
+            default) or "json" (application/json)
+        extra_headers: Additional HTTP headers as a JSON object (e.g.
+            {"Referer": "https://example.com/search", "X-Requested-With": "XMLHttpRequest"})
 
     Returns:
         Web content reading results with extracted text, titles, word counts, and metadata
@@ -444,6 +458,10 @@ async def web_read(
             "timeout": timeout,
             "locale": locale,
             "max_concurrent": max_concurrent,
+            "method": method,
+            "body": body or {},
+            "body_type": body_type,
+            "extra_headers": extra_headers or {},
         }
 
         # Use longer timeout for web content reading operations
@@ -465,6 +483,53 @@ async def web_read(
                 return {"error": f"Web read failed: {response.status_code}", "details": response.text}
     except ValueError as e:
         return {"error": str(e)}
+
+
+@mcp_server.tool
+async def list_scm_categories() -> Dict[str, Any]:
+    """List all browsable categories of 广东计量 (www.scm.com.cn), the Guangdong
+    Metrology Institute website.
+
+    Each category has a type: "list" categories contain article lists (browse
+    them with scm_list), "static" categories are plain info pages (read them
+    directly with web_read).
+
+    Returns:
+        Categories with name, type (list/static) and URL.
+    """
+    try:
+        from aperag.websearch.scm.scm_catalog import scm_catalog
+
+        return {"base_url": scm_catalog.base_url, "categories": scm_catalog.list_categories()}
+    except Exception as e:
+        logger.error(f"Failed to list scm categories: {e}")
+        return {"error": str(e)}
+
+
+@mcp_server.tool
+async def scm_list(category: str, page: int = 1, keyword: str = "") -> Dict[str, Any]:
+    """Browse the article list of a category on 广东计量 (www.scm.com.cn).
+
+    Args:
+        category: Category name, e.g. 能力验证-计划通知, 型式评价-相关规范, 常见问题.
+            Use list_scm_categories() to see all available categories.
+        page: Page number (default 1, 10 articles per page).
+        keyword: Optional keyword to filter article titles (e.g. 耐电压, 校准).
+
+    Returns:
+        Articles with title, date and URL. Read the article body with web_read(url).
+
+    Note:
+        Only works for "list" type categories. For static info pages, read them
+        directly with web_read.
+    """
+    try:
+        from aperag.websearch.scm.scm_catalog import scm_catalog
+
+        return await scm_catalog.list_articles(category, page=page, keyword=keyword)
+    except Exception as e:
+        logger.error(f"scm_list failed: {e}")
+        return {"error": f"scm_list failed: {str(e)}"}
 
 
 # Add a resource for ApeRAG usage information

@@ -52,7 +52,72 @@ class MinerUParser(BaseParser):
     def supported_extensions(self) -> list[str]:
         return SUPPORTED_EXTENSIONS
 
+    def _is_local(self) -> bool:
+        """True when api_base points to a self-hosted MinerU (not mineru.net cloud)."""
+        host = (self.api_host or "").strip().rstrip("/")
+        return bool(host) and "mineru.net" not in host
+
+    def _parse_local(self, path: Path, metadata: dict[str, Any]) -> list[Part]:
+        """Parse via a self-hosted MinerU service using its local API protocol.
+
+        POST {base}/file_parse with multipart files — synchronous, returns the
+        markdown directly. Falls back (FallbackError) so the next parser can
+        take over if the service is unreachable or returns no markdown.
+        """
+        import requests
+
+        host = self.api_host.rstrip("/")
+        logger.info(f"Parsing {path.name} with local MinerU at {host}")
+        try:
+            with open(path, "rb") as f:
+                files = {"files": (path.name, f)}
+                data = {
+                    "lang_list": '["ch"]',
+                    "backend": "pipeline",
+                    "formula_enable": "true",
+                    "table_enable": "true",
+                    "return_md": "true",
+                }
+                resp = requests.post(f"{host}/file_parse", files=files, data=data, timeout=600)
+                resp.raise_for_status()
+                body = resp.json()
+        except requests.exceptions.RequestException as e:
+            logger.exception(f"Local MinerU file_parse request failed for {path.name}")
+            raise FallbackError(f"Local MinerU request failed: {e}") from e
+        except ValueError as e:
+            logger.warning(f"Local MinerU returned non-JSON for {path.name}: {resp.text[:200]}")
+            raise FallbackError(f"Local MinerU returned non-JSON: {e}") from e
+
+        md = self._extract_markdown(body)
+        if not md:
+            logger.warning(f"Local MinerU response missing markdown for {path.name}: {str(body)[:200]}")
+            raise FallbackError("Local MinerU returned no markdown content")
+
+        from aperag.docparser.base import MarkdownPart
+
+        return [MarkdownPart(markdown=md, metadata=metadata)]
+
+    @staticmethod
+    def _extract_markdown(body) -> str | None:
+        """Pull markdown from the various local MinerU response shapes."""
+        if not isinstance(body, dict):
+            return None
+        for key in ("md_content", "markdown", "content"):
+            val = body.get(key)
+            if val:
+                return str(val)
+        data = body.get("data")
+        if isinstance(data, dict):
+            for key in ("md_content", "markdown", "content"):
+                val = data.get(key)
+                if val:
+                    return str(val)
+        return None
+
     def parse_file(self, path: Path, metadata: dict[str, Any], **kwargs) -> list[Part]:
+        if self._is_local():
+            return self._parse_local(path, metadata)
+
         if not self.api_token:
             raise RuntimeError("MinerU API token is not set")
 

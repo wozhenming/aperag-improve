@@ -43,9 +43,11 @@ import {
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { CollectionDelete } from './collection-delete';
+import { Wrench } from 'lucide-react';
+import { CollectionRepairDialog } from '@/components/collections/collection-repair-dialog';
 
 export const CollectionHeader = ({ className }: { className?: string }) => {
   const badgeColor: {
@@ -62,6 +64,7 @@ export const CollectionHeader = ({ className }: { className?: string }) => {
   const page_documents = useTranslations('page_documents');
   const page_graph = useTranslations('page_graph');
   const page_evaluation = useTranslations('page_evaluation');
+  const [repairOpen, setRepairOpen] = useState(false);
 
   const urls = useMemo(() => {
     return {
@@ -129,6 +132,15 @@ export const CollectionHeader = ({ className }: { className?: string }) => {
                   : page_collections('private')}
               </Badge>
             )}
+
+            <Button
+              size="icon"
+              variant="ghost"
+              title={page_collections('repair')}
+              onClick={() => setRepairOpen(true)}
+            >
+              <Wrench />
+            </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -303,6 +315,11 @@ export const CollectionHeader = ({ className }: { className?: string }) => {
           </Button>
         </div>
       </Card>
+      <CollectionRepairDialog
+        collectionId={collection.id || ''}
+        open={repairOpen}
+        onOpenChange={setRepairOpen}
+      />
     </PageContent>
   );
 };

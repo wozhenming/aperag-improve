@@ -86,13 +86,15 @@ class DocParser(BaseParser):
                     continue
 
                 token = parser_config.get("mineru_api_token") or os.getenv("MINERU_API_TOKEN")
-                if token:
+                base_url = parser_config.get("mineru_api_base_url") or os.getenv("MINERU_API_BASE_URL")
+                # Enabled with a cloud token OR a local base URL (local MinerU
+                # deployments don't need the official token)
+                if token or base_url:
                     cfg.enabled = True
                     if cfg.settings is None:
                         cfg.settings = {}
-                    cfg.settings["api_token"] = token
-                    # Allow overriding API base URL for local deployments
-                    base_url = parser_config.get("mineru_api_base_url") or os.getenv("MINERU_API_BASE_URL")
+                    if token:
+                        cfg.settings["api_token"] = token
                     if base_url:
                         cfg.settings["api_base"] = base_url
                 else:
@@ -147,7 +149,13 @@ class DocParser(BaseParser):
             if not self._parser_accept(parser_name, extension):
                 continue
             try:
-                return parser.parse_file(path, metadata, **kwargs)
+                result = parser.parse_file(path, metadata, **kwargs)
+                # Tag each part with the parser that produced it, so the
+                # parsing path is traceable (e.g. "mineru", "docray",
+                # "markitdown", "image_parser", "audio_parser").
+                for part in result:
+                    part.metadata = {**part.metadata, "parser": parser_name}
+                return result
             except FallbackError as e:
                 last_err = e
         raise ValueError(f'No parser can handle file with extension "{extension}"') from last_err

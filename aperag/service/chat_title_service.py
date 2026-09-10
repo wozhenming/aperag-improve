@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import re
 from typing import Optional
 
@@ -21,6 +22,8 @@ from aperag.db.ops import AsyncDatabaseOps, async_db_ops
 from aperag.exceptions import BusinessException, ErrorCode
 from aperag.service.default_model_service import default_model_service
 from aperag.utils.history import RedisChatMessageHistory, get_async_redis_client
+
+logger = logging.getLogger(__name__)
 
 
 class ChatTitleService:
@@ -52,10 +55,69 @@ class ChatTitleService:
         if not chat:
             raise BusinessException(ErrorCode.CHAT_NOT_FOUND, "Chat not found")
 
-        # Load default model configuration
+        # Load default model configuration with fallback chain:
+        # background_task → agent_completion → collection_completion → any completion model
         model, provider_name, custom_provider = await default_model_service.get_default_background_task_config(user_id)
         if not (model and provider_name and custom_provider):
-            raise BusinessException(ErrorCode.LLM_MODEL_NOT_FOUND, "Background task default model not configured")
+            default_models = await default_model_service.get_default_models(user_id)
+            for fallback_scenario in ("default_for_agent_completion", "default_for_collection_completion"):
+                for config in default_models.items:
+                    if config.scenario == fallback_scenario and config.provider_name and config.model:
+                        model, provider_name, custom_provider = config.model, config.provider_name, config.custom_llm_provider
+                        break
+                if model and provider_name:
+                    break
+        if not (model and provider_name and custom_provider):
+            # Last resort: pick the first completion model from any accessible provider with an API key
+            from aperag.db.models import LLMProvider, LLMProviderModel
+
+            async def _find_any_completion_model(session):
+                from sqlalchemy import select
+
+                stmt = (
+                    select(LLMProvider, LLMProviderModel)
+                    .join(LLMProvider, LLMProviderModel.provider_name == LLMProvider.name)
+                    .where(
+                        LLMProvider.gmt_deleted.is_(None),
+                        LLMProviderModel.gmt_deleted.is_(None),
+                        (LLMProvider.user_id == "public") | (LLMProvider.user_id == user_id),
+                    )
+                    .limit(100)
+                )
+                result = await session.execute(stmt)
+                return result.all()
+
+            rows = await self.db_ops._execute_query(_find_any_completion_model)
+            # Prefer completion-api models, fall back to any model on a keyed provider
+            keyed_providers: set = set()
+            for provider, provider_model in rows:
+                api_key = await self.db_ops.query_provider_api_key(provider.name, user_id, True)
+                if api_key:
+                    keyed_providers.add(provider.name)
+            for provider, provider_model in rows:
+                if provider.name not in keyed_providers:
+                    continue
+                if provider_model.api in ("completion", None) and provider_model.model:
+                    model, provider_name, custom_provider = (
+                        provider_model.model,
+                        provider.name,
+                        provider_model.custom_llm_provider,
+                    )
+                    break
+            if not (model and provider_name):
+                # No completion-tagged model on keyed provider — take the first model
+                for provider, provider_model in rows:
+                    if provider.name in keyed_providers and provider_model.model:
+                        model, provider_name, custom_provider = (
+                            provider_model.model,
+                            provider.name,
+                            provider_model.custom_llm_provider,
+                        )
+                        break
+        if not (model and provider_name and custom_provider):
+            # Never block the chat — fall back to a static title
+            logger.warning(f"Title generation skipped: no completion model configured for user {user_id}")
+            return "New Chat"
 
         # Resolve provider base_url and api_key
         provider = await self.db_ops.query_llm_provider_by_name(provider_name)

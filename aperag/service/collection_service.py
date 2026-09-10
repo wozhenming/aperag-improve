@@ -655,6 +655,35 @@ class CollectionService:
             except httpx.RequestError as e:
                 return {"status_code": 500, "data": {"msg": f"Request failed: {e}"}}
 
+    async def attach_owl_from_library(self, user_id: str, collection_id: str, ontology_id: str) -> dict:
+        """Attach an ontology from the user's ontology library ("我的知识库本体")
+        to this collection's KG extraction, instead of uploading a file."""
+        from aperag.objectstore.base import get_async_object_store
+        from aperag.schema.utils import dumpCollectionConfig, parseCollectionConfig
+        from aperag.service.ontology_service import ontology_service
+
+        collection = await self.db_ops.query_collection(user_id, collection_id)
+        if not collection:
+            raise ValueError("Collection not found")
+
+        title, content = await ontology_service.get_ontology_content(user_id, ontology_id)
+        if content is None:
+            raise ValueError("Ontology not found")
+
+        owl_file_name = f"{title or 'ontology'}.owl"
+        owl_obj_path = f"collections/{collection_id}/ontology/{owl_file_name}"
+        store = get_async_object_store()
+        await store.put(owl_obj_path, content.encode("utf-8"))
+
+        config = parseCollectionConfig(collection.config)
+        if config.knowledge_graph_config is None:
+            from aperag.schema.view_models import KnowledgeGraphConfig
+
+            config.knowledge_graph_config = KnowledgeGraphConfig()
+        config.knowledge_graph_config.owl_file_path = owl_obj_path
+        await self.db_ops.update_collection_by_id(user_id, collection_id, config=dumpCollectionConfig(config))
+        return {"owl_file_path": owl_obj_path, "filename": owl_file_name}
+
     async def upload_owl(self, user_id: str, collection_id: str, file: UploadFile) -> dict:
         """Upload an OWL ontology file and save path to collection config."""
         from aperag.objectstore.base import get_async_object_store
@@ -675,11 +704,10 @@ class CollectionService:
         config = parseCollectionConfig(collection.config)
         if config.knowledge_graph_config is None:
             from aperag.schema.view_models import KnowledgeGraphConfig
+
             config.knowledge_graph_config = KnowledgeGraphConfig()
         config.knowledge_graph_config.owl_file_path = owl_obj_path
-        await self.db_ops.update_collection_by_id(
-            user_id, collection_id, config=dumpCollectionConfig(config)
-        )
+        await self.db_ops.update_collection_by_id(user_id, collection_id, config=dumpCollectionConfig(config))
         return {"owl_file_path": owl_obj_path, "filename": owl_file_name}
 
 

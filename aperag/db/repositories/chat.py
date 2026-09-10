@@ -90,7 +90,8 @@ class AsyncChatRepositoryMixin(AsyncRepositoryProtocol):
 
     # Chat Operations
     async def create_chat(
-        self, user: str, bot_id: str, title: str = "New Chat", peer_type=None, peer_id: str = None
+        self, user: str, bot_id: str, title: str = "New Chat", peer_type=None, peer_id: str = None,
+        category: str = None,
     ) -> Chat:
         """Create a new chat in database with optional peer information"""
         from aperag.db.models import ChatPeerType
@@ -103,6 +104,7 @@ class AsyncChatRepositoryMixin(AsyncRepositoryProtocol):
                 status=ChatStatus.ACTIVE,
                 peer_type=peer_type or ChatPeerType.SYSTEM,
                 peer_id=peer_id,
+                category=category,
             )
             session.add(instance)
             await session.flush()

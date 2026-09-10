@@ -1,0 +1,123 @@
+# 广东省计量科学研究院 (www.scm.com.cn) 站点地图
+# 栏目范围来自 net_catch/需要联网搜索的页面.md（剔除标记删除的栏目）。
+#
+# type 说明:
+#   list   — 文章列表页（静态渲染，每页 10 条，可被 scm_list 工具浏览；
+#             分页格式 {url}/{page}.html）
+#   static — 静态信息页（无文章列表，直接用 web_read 读取该页面即可）
+base_url: "https://www.scm.com.cn"
+
+categories:
+  # 一、关于我们
+  - name: 机构介绍
+    type: static
+    url: /intro/org.html
+  - name: 基地介绍
+    type: static
+    url: /intro/base.html
+  - name: 检测部门
+    type: static
+    url: /#dept
+
+  # 三、技术能力
+  - name: 法定计量检定机构授权项目
+    type: static
+    url: /technology/authorize.html
+  - name: 计量认证(CMA)授权项目
+    type: static
+    url: /technology/cma.html
+  - name: CNAS实验室认可项目
+    type: static
+    url: /technology/cnas.html
+  - name: CNAS能力验证提供者项目
+    type: static
+    url: /technology/cnasptp.html
+  - name: CNAS检验机构认可项目
+    type: static
+    url: /technology/institution.html
+  - name: HOKLAS
+    type: static
+    url: /technology/hoklas.html
+  - name: 标准物质项目
+    type: static
+    url: /technology/mc.html
+  - name: 审定与核查
+    type: static
+    url: /page/audit_and_review.html
+
+  # 四、客户服务
+  - name: 业务受理流程
+    type: static
+    url: /page/business_management.html
+  - name: 询价
+    type: static
+    url: /page/Inquiry.html
+  - name: 委托单下载
+    type: static
+    url: /article/form.html
+  - name: 证书相关
+    type: static
+    url: /page/Certificate%20related.html
+  - name: 收费目录
+    type: static
+    url: /article/Charging.html
+  - name: 常见问题
+    type: list
+    url: /news/question.html
+
+  # 六、联系我们
+  - name: 业务信息
+    type: static
+    url: /service/place.html
+  - name: 建议留言
+    type: static
+    url: /contact/proposal.html
+  - name: 单位宣传册
+    type: static
+    url: /contact/brochure.html
+
+  # 七、型式评价
+  - name: 型式评价-业务指引
+    type: list
+    url: /news/xpywzy.html
+  - name: 型式评价-常见问题
+    type: list
+    url: /news/xpcjwt.html
+  - name: 型式评价-表格下载
+    type: list
+    url: /news/xpbgxz.html
+  - name: 型式评价-相关规范
+    type: list
+    url: /news/xpxggf.html
+  - name: 型式评价-联系方式
+    type: static
+    url: /page/xplxfs.html
+
+  # 八、能力验证
+  - name: 能力验证-服务平台
+    type: static
+    url: /page/ptScm.html
+  - name: 能力验证-公正性和保密承诺
+    type: static
+    url: /page/GZXBMCL.html
+  - name: 能力验证-资质能力
+    type: static
+    url: /page/nlzznl.html
+  - name: 能力验证-计划通知
+    type: list
+    url: /news/nljhtz.html
+  - name: 能力验证-报告使用说明
+    type: static
+    url: /page/ptscmuseinfo.html
+  - name: 能力验证-报告发布信息
+    type: list
+    url: /news/nljgbb.html
+  - name: 能力验证-表格下载
+    type: list
+    url: /news/nlbgxz.html
+  - name: 能力验证-测量审核介绍
+    type: static
+    url: /page/nlclshjs.html
+  - name: 能力验证-联系方式
+    type: static
+    url: /page/nllxfs.html

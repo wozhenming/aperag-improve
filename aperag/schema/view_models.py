@@ -486,6 +486,9 @@ class Agent(BaseModel):
     system_prompt_template: Optional[str] = None
     query_prompt_template: Optional[str] = None
     collections: Optional[list[Collection]] = None
+    tools_enabled: Optional[bool] = Field(
+        True, description='Whether to attach MCP tools (search_collection, etc.). Set False for pure-LLM bots.'
+    )
 
 
 class BotConfig(BaseModel):
@@ -560,6 +563,7 @@ class Chat(BaseModel):
         Literal['system', 'feishu', 'weixin', 'weixin_official', 'web', 'dingtalk']
     ] = None
     status: Optional[Literal['active', 'archived']] = None
+    category: Optional[str] = None
     created: Optional[datetime] = None
     updated: Optional[datetime] = None
 
@@ -2608,6 +2612,24 @@ class WebReadRequest(BaseModel):
     max_concurrent: Optional[int] = Field(
         3, description='Maximum concurrent requests for multiple URLs', examples=[3]
     )
+    method: Optional[Literal['GET', 'POST', 'PUT', 'PATCH', 'DELETE']] = Field(
+        'GET',
+        description='HTTP method to use. POST/PUT/PATCH are useful for JS-rendered pages '
+        'whose data comes from AJAX endpoints (e.g. search result APIs)',
+    )
+    body: Optional[dict[str, Any]] = Field(
+        None,
+        description='Request body for POST/PUT/PATCH methods (JSON object, keys and values are sent as-is)',
+    )
+    body_type: Optional[Literal['form', 'json']] = Field(
+        'form',
+        description='"form" sends application/x-www-form-urlencoded, "json" sends application/json',
+    )
+    extra_headers: Optional[dict[str, Any]] = Field(
+        None,
+        description='Additional HTTP headers (e.g. Referer, X-Requested-With, Cookie). '
+        'Merged over the default headers.',
+    )
 
 
 class WebReadResultItem(BaseModel):
@@ -2887,6 +2909,28 @@ class AgentMessage(BaseModel):
 class ContinueImportRequest(BaseModel):
     """Request to continue a paused import task."""
     action: str = Field(..., description="'reindex' to rebuild with target model, 'cancel' to abort")
+
+
+class Ontology(BaseModel):
+    """User-level ontology library entry."""
+
+    id: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    file_path: Optional[str] = None
+    status: Optional[str] = None
+    preview: Optional[dict] = None
+    created: Optional[datetime] = None
+    updated: Optional[datetime] = None
+
+
+class OntologyList(BaseModel):
+    items: list[Ontology] = Field(default_factory=list)
+
+
+class OntologyBotSession(BaseModel):
+    bot_id: str
+    chat_id: str
 
 
 class ImportTaskResponse(BaseModel):

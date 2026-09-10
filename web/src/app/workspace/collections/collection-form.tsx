@@ -42,8 +42,8 @@ import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
-import { FileText, Trash2, Eye } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { FileText, GitBranch, Trash2, Eye } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
@@ -306,12 +306,17 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
   const [relationTypesText, setRelationTypesText] = useState('');
   const [owlInfo, setOwlInfo] = useState('');
   const [owlPreview, setOwlPreview] = useState<{
-    classes_count: number; classes: string[];
-    object_properties_count: number; object_properties: string[];
+    classes_count: number; classes: { name: string; label?: string; comment?: string; parents?: string[] }[];
+    object_properties_count: number;
+    object_properties: { name: string; label?: string; comment?: string; domain?: string; range?: string; inverse?: string }[];
     data_properties_count: number;
-    data_properties: Record<string, { name: string; range: string }[]>;
+    data_properties: Record<string, { name: string; label?: string; comment?: string; range: string; functional?: boolean }[]>;
+    disjoint_pairs?: [string, string][];
   } | null>(null);
   const [owlDialogOpen, setOwlDialogOpen] = useState(false);
+  const [ontologies, setOntologies] = useState<{ id: string; title?: string; file_path?: string }[]>([]);
+  const [attachingOwl, setAttachingOwl] = useState(false);
+  const owlFileRef = useRef<HTMLInputElement>(null);
   const embeddingModelName = useWatch({
     control: form.control,
     name: 'config.embedding.model',
@@ -372,6 +377,48 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
         .catch(() => {});
     }
   }, [action, collection.id, form]);
+
+  // Load the user's ontology library for the picker
+  useEffect(() => {
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+    axios.get(`${basePath}/api/v1/ontologies`)
+      .then(({ data }) => setOntologies(data.items || []))
+      .catch(() => {});
+  }, []);
+
+  const handleAttachOwl = async (ontologyId: string) => {
+    if (!ontologyId) return;
+    // Create mode: there is no collection yet, so we cannot copy the ontology
+    // into a per-collection path via the API. Instead, persist the ontology's
+    // own object-store path in the (not-yet-created) collection config. It is
+    // read the same way at index time (see _load_owl_schema).
+    if (!collection.id) {
+      const ontology = ontologies.find((o) => o.id === ontologyId);
+      if (ontology?.file_path) {
+        form.setValue('config.knowledge_graph_config.owl_file_path', ontology.file_path);
+        setOwlInfo(ontology.title || ontologyId);
+        setOwlPreview(null);
+      }
+      return;
+    }
+    setAttachingOwl(true);
+    try {
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+      const { data } = await axios.post(
+        `${basePath}/api/v1/collections/${collection.id}/owl/from-library`,
+        { ontology_id: ontologyId },
+      );
+      form.setValue('config.knowledge_graph_config.owl_file_path', data.owl_file_path);
+      setOwlInfo(data.filename || 'ontology.owl');
+      toast.success(page_collections('owl_upload_success'));
+      const prevRes = await axios.get(`${basePath}/api/v1/collections/${collection.id}/owl`);
+      if (prevRes.data.preview) setOwlPreview(prevRes.data.preview);
+    } catch {
+      toast.error(page_collections('owl_upload_error'));
+    } finally {
+      setAttachingOwl(false);
+    }
+  };
 
   return (
     <>
@@ -585,49 +632,113 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
                       <Badge variant="secondary" className="gap-1">
                         <FileText className="h-3 w-3" /> {owlInfo}
                       </Badge>
+                      <Select
+                        value=""
+                        onValueChange={(v) => handleAttachOwl(v)}
+                        disabled={attachingOwl || ontologies.length === 0}
+                      >
+                        <SelectTrigger size="sm" className="h-6 w-40 text-xs">
+                          <SelectValue
+                            placeholder={
+                              ontologies.length === 0
+                                ? page_collections('owl_no_ontologies')
+                                : page_collections('owl_change')
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ontologies.map((o) => (
+                            <SelectItem key={o.id} value={o.id}>{o.title || o.id}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <Button variant="ghost" size="sm" className="text-destructive h-6"
                         onClick={async () => {
-                          if (!collection.id) return;
-                          try {
-                            const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-                            await axios.delete(`${basePath}/api/v1/collections/${collection.id}/owl`);
-                            form.setValue('config.knowledge_graph_config.owl_file_path', undefined);
-                            setOwlInfo('');
-                            toast.success(page_collections('owl_remove_success'));
-                          } catch { toast.error(page_collections('owl_remove_error')); }
+                          if (collection.id) {
+                            try {
+                              const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+                              await axios.delete(`${basePath}/api/v1/collections/${collection.id}/owl`);
+                            } catch { toast.error(page_collections('owl_remove_error')); }
+                          }
+                          // In create mode there is no collection yet; just clear
+                          // the pending config value so the user can pick again.
+                          form.setValue('config.knowledge_graph_config.owl_file_path', undefined);
+                          setOwlInfo('');
+                          setOwlPreview(null);
                         }}>
                         <Trash2 className="h-3 w-3 mr-1" /> {page_collections('owl_remove')}
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">{page_collections('owl_override_hint')}</p>
                     {owlPreview && (
-                      <Button variant="outline" size="sm" type="button"
-                        onClick={() => setOwlDialogOpen(true)}>
-                        <Eye className="h-3 w-3 mr-1" /> {page_collections('owl_view_structure')}
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" type="button"
+                          onClick={() => setOwlDialogOpen(true)}>
+                          <Eye className="h-3 w-3 mr-1" /> {page_collections('owl_view_structure')}
+                        </Button>
+                        <Button variant="outline" size="sm" type="button"
+                          onClick={() => router.push(`/workspace/collections/${collection.id}/owl-graph`)}>
+                          <GitBranch className="h-3 w-3 mr-1" /> {page_collections('owl_view_graph')}
+                        </Button>
+                      </div>
                     )}
                   </>
                 ) : (
                   <>
-                    <Input type="file" accept=".owl,.rdf,.xml"
-                      onChange={async (e) => {
-                        const f = e.target.files?.[0]; if (!f || !collection.id) return;
-                        const fd = new FormData(); fd.append('file', f);
-                        try {
-                          const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-                          const { data } = await axios.post(
-                            `${basePath}/api/v1/collections/${collection.id}/owl`, fd,
-                            { headers: { 'Content-Type': 'multipart/form-data' } }
-                          );
-                          form.setValue('config.knowledge_graph_config.owl_file_path', data.owl_file_path);
-                          setOwlInfo(data.filename || f.name);
-                          toast.success(page_collections('owl_upload_success'));
-                          // Fetch structure preview
-                          const prevRes = await axios.get(`${basePath}/api/v1/collections/${collection.id}/owl`);
-                          if (prevRes.data.preview) setOwlPreview(prevRes.data.preview);
-                        } catch { toast.error(page_collections('owl_upload_error')); }
-                      }}
-                    />
+                    <div className="flex flex-col gap-2">
+                      <Select
+                        value=""
+                        onValueChange={(v) => handleAttachOwl(v)}
+                        disabled={attachingOwl || ontologies.length === 0}
+                      >
+                        <SelectTrigger className="w-full cursor-pointer">
+                          <SelectValue
+                            placeholder={
+                              ontologies.length === 0
+                                ? page_collections('owl_no_ontologies')
+                                : page_collections('owl_select_from_library')
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ontologies.map((o) => (
+                            <SelectItem key={o.id} value={o.id}>{o.title || o.id}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <input
+                        ref={owlFileRef}
+                        type="file"
+                        accept=".owl,.rdf,.xml"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const f = e.target.files?.[0]; if (!f || !collection.id) return;
+                          const fd = new FormData(); fd.append('file', f);
+                          try {
+                            const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+                            const { data } = await axios.post(
+                              `${basePath}/api/v1/collections/${collection.id}/owl`, fd,
+                              { headers: { 'Content-Type': 'multipart/form-data' } }
+                            );
+                            form.setValue('config.knowledge_graph_config.owl_file_path', data.owl_file_path);
+                            setOwlInfo(data.filename || f.name);
+                            toast.success(page_collections('owl_upload_success'));
+                            // Fetch structure preview
+                            const prevRes = await axios.get(`${basePath}/api/v1/collections/${collection.id}/owl`);
+                            if (prevRes.data.preview) setOwlPreview(prevRes.data.preview);
+                          } catch { toast.error(page_collections('owl_upload_error')); }
+                        }}
+                      />
+                      <Button
+                        variant="link"
+                        size="sm"
+                        type="button"
+                        className="justify-start h-auto p-0 text-xs"
+                        onClick={() => owlFileRef.current?.click()}
+                      >
+                        {page_collections('owl_upload_file')}
+                      </Button>
+                    </div>
                     <p className="text-xs text-muted-foreground">{page_collections('owl_no_override_hint')}</p>
                   </>
                 )}
@@ -846,11 +957,35 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
             <div className="flex flex-col gap-4 text-sm">
               <div>
                 <h4 className="font-medium mb-1">{page_collections('owl_classes')} ({owlPreview.classes_count})</h4>
-                <p className="text-muted-foreground">{owlPreview.classes.join(', ')}</p>
+                <div className="space-y-1">
+                  {owlPreview.classes.map((c) => (
+                    <div key={c.name}>
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-medium">{c.label || c.name}</span>
+                        {c.label && <span className="text-muted-foreground text-xs">({c.name})</span>}
+                        {c.parents && c.parents.length > 0 && (
+                          <span className="text-muted-foreground text-xs">→ {c.parents.join(', ')}</span>
+                        )}
+                      </div>
+                      {c.comment && <p className="text-muted-foreground text-xs ml-1">— {c.comment}</p>}
+                    </div>
+                  ))}
+                </div>
               </div>
               <div>
                 <h4 className="font-medium mb-1">{page_collections('owl_obj_props')} ({owlPreview.object_properties_count})</h4>
-                <p className="text-muted-foreground">{owlPreview.object_properties.join(', ')}</p>
+                <div className="space-y-1">
+                  {owlPreview.object_properties.map((p) => (
+                    <div key={p.name} className="flex flex-wrap items-baseline gap-x-2 text-xs">
+                      <span className="font-medium">{p.label || p.name}</span>
+                      {p.label && <span className="text-muted-foreground">({p.name})</span>}
+                      {p.domain && <span className="text-muted-foreground">domain: {p.domain}</span>}
+                      {p.range && <span className="text-muted-foreground">range: {p.range}</span>}
+                      {p.inverse && <span className="text-blue-500">inverse: {p.inverse}</span>}
+                      {p.comment && <span className="text-muted-foreground italic">— {p.comment}</span>}
+                    </div>
+                  ))}
+                </div>
               </div>
               {Object.keys(owlPreview.data_properties).length > 0 && (
                 <div>
@@ -858,21 +993,32 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
                   {Object.entries(owlPreview.data_properties).map(([cls, props]) => (
                     <div key={cls} className="ml-2 mb-2">
                       <span className="font-medium text-xs">{cls}:</span>
-                      <p className="text-muted-foreground text-xs">
+                      <div className="text-muted-foreground text-xs space-y-0.5 mt-0.5">
                         {(() => {
                           const seen = new Set<string>();
                           return props
-                            .filter((p: { name: string; range: string }) => {
-                              const k = `${p.name}|${p.range}`;
-                              if (seen.has(k)) return false;
-                              seen.add(k); return true;
-                            })
-                            .map((p: { name: string; range: string }) => `${p.name}(${p.range})`)
-                            .join(', ');
+                            .filter((p) => { const k = `${p.name}|${p.range}`; if (seen.has(k)) return false; seen.add(k); return true; })
+                            .map((p) => (
+                              <div key={p.name} className="flex flex-wrap gap-x-2">
+                                <span>{p.label || p.name}</span>
+                                {p.label && <span className="text-muted-foreground/60">({p.name})</span>}
+                                <span className="text-muted-foreground/60">({p.range})</span>
+                                {p.functional && <span className="text-amber-500">[单值]</span>}
+                                {p.comment && <span className="text-muted-foreground/60 italic ml-1">— {p.comment}</span>}
+                              </div>
+                            ));
                         })()}
-                      </p>
+                      </div>
                     </div>
                   ))}
+                </div>
+              )}
+              {owlPreview.disjoint_pairs && owlPreview.disjoint_pairs.length > 0 && (
+                <div>
+                  <h4 className="font-medium mb-1">互斥类 (DisjointWith)</h4>
+                  <p className="text-muted-foreground text-xs">
+                    {owlPreview.disjoint_pairs.map(([a, b]) => `${a} ⟂ ${b}`).join(', ')}
+                  </p>
                 </div>
               )}
             </div>

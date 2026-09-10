@@ -130,6 +130,7 @@ myvenv/
 
 # mkdocs documentation
 /site
+/net_catch
 
 # mypy
 .mypy_cache/
@@ -168,3 +169,7 @@ local-storage
 cursorplans
 celerybeat-schedule.db
 frontend/node_modules/
+
+# Local files
+owls/
+CLAUDE.md

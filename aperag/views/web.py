@@ -328,6 +328,13 @@ async def _read_with_jina_fallback(request: WebReadRequest, jina_api_key: str) -
     Raises:
         WebReadError: If both JINA and Trafilatura fail
     """
+    # JINA can only proxy GET requests — for AJAX endpoints (POST/PUT/PATCH with
+    # a body) skip JINA entirely and go straight to Trafilatura.
+    method = getattr(request, "method", None) or "GET"
+    if (method or "GET").upper() != "GET":
+        logger.info(f"method={method} — skipping JINA (GET only), using Trafilatura")
+        return await _read_with_trafilatura_only(request)
+
     # Try JINA first
     try:
         logger.info("Attempting to read with JINA")

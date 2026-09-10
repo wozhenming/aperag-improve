@@ -32,6 +32,10 @@ class BaseReaderProvider(ABC):
         url: str,
         timeout: int = 30,
         locale: str = "zh-CN",
+        method: str = "GET",
+        body: dict = None,
+        body_type: str = "form",
+        extra_headers: dict = None,
     ) -> WebReadResultItem:
         """
         Read content from a single URL.
@@ -40,6 +44,11 @@ class BaseReaderProvider(ABC):
             url: URL to read content from
             timeout: Request timeout in seconds
             locale: Browser locale
+            method: HTTP method (GET/POST/PUT/PATCH/DELETE) — useful for AJAX
+                endpoints that serve data via POST
+            body: Request body (JSON object) for POST/PUT/PATCH
+            body_type: "form" (x-www-form-urlencoded) or "json"
+            extra_headers: Additional HTTP headers merged over defaults
 
         Returns:
             Web read result item
@@ -56,6 +65,10 @@ class BaseReaderProvider(ABC):
         timeout: int = 30,
         locale: str = "zh-CN",
         max_concurrent: int = 3,
+        method: str = "GET",
+        body: dict = None,
+        body_type: str = "form",
+        extra_headers: dict = None,
     ) -> List[WebReadResultItem]:
         """
         Read content from multiple URLs concurrently.
@@ -65,6 +78,10 @@ class BaseReaderProvider(ABC):
             timeout: Request timeout in seconds
             locale: Browser locale
             max_concurrent: Maximum concurrent requests
+            method: HTTP method (GET/POST/PUT/PATCH/DELETE)
+            body: Request body (JSON object) for POST/PUT/PATCH
+            body_type: "form" (x-www-form-urlencoded) or "json"
+            extra_headers: Additional HTTP headers merged over defaults
 
         Returns:
             List of web read result items

@@ -35,6 +35,7 @@ class AgentMessageResponse(BaseAgentResponse):
 
     type: Literal["message"]
     data: str
+    streamed: bool = False  # True = real-time chunk, send without re-chunking
 
 
 class AgentStopResponse(BaseAgentResponse):

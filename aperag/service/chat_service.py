@@ -126,18 +126,19 @@ class ChatService:
             bot_id=chat.bot_id,
             peer_type=chat.peer_type,
             peer_id=chat.peer_id,
+            category=chat.category,
             created=chat.gmt_created.isoformat(),
             updated=chat.gmt_updated.isoformat(),
         )
 
-    async def create_chat(self, user: str, bot_id: str) -> view_models.Chat:
+    async def create_chat(self, user: str, bot_id: str, category: str = None) -> view_models.Chat:
         # First check if bot exists
         bot = await self.db_ops.query_bot(user, bot_id)
         if bot is None:
             raise ResourceNotFoundException("Bot", bot_id)
 
         # Direct call to repository method, which handles its own transaction
-        chat = await self.db_ops.create_chat(user=user, bot_id=bot_id)
+        chat = await self.db_ops.create_chat(user=user, bot_id=bot_id, category=category)
 
         return self.build_chat_response(chat)
 

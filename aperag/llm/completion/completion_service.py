@@ -198,6 +198,44 @@ class CompletionService:
         async for chunk in self._acompletion_stream_raw(history, prompt, images, memory):
             yield chunk
 
+    async def agenerate_stream_typed(
+        self, history: List[Dict], prompt: str, images: Optional[List[str]] = None, memory: bool = False
+    ) -> AsyncGenerator[tuple[str, str], None]:
+        """Generate streaming response with (kind, text) tuples — 'thinking' or 'content'."""
+        try:
+            self._validate_inputs(prompt, images)
+            messages = self._build_messages(history, prompt, images, memory)
+
+            response = await litellm.acompletion(
+                custom_llm_provider=self.provider,
+                model=self.model,
+                base_url=self.base_url,
+                api_key=self.api_key,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+                messages=messages,
+                stream=True,
+                caching=self.caching,
+            )
+
+            async for chunk in response:
+                if not chunk.choices:
+                    continue
+                choice = chunk.choices[0]
+                if choice.finish_reason == "stop":
+                    return
+                delta = choice.delta
+                if delta and delta.content:
+                    yield ("content", delta.content)
+                elif hasattr(delta, "reasoning_content") and delta.reasoning_content:
+                    yield ("thinking", delta.reasoning_content)
+
+        except CompletionError:
+            raise
+        except Exception as e:
+            logger.error(f"Async typed streaming generation failed: {str(e)}")
+            raise wrap_litellm_error(e, "completion", self.provider, self.model) from e
+
     async def agenerate(
         self, history: List[Dict], prompt: str, images: Optional[List[str]] = None, memory: bool = False
     ) -> str:

@@ -1,9 +1,17 @@
-"""Parse OWL ontology files into structured schema for prompt injection."""
+"""Parse OWL ontology files into structured schema for prompt injection.
+
+Uses RDFLib for robust parsing of RDF/XML, handling Chinese IRIs natively.
+"""
 
 import logging
 from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
+
+# OWL namespace
+OWL = "http://www.w3.org/2002/07/owl#"
+RDFS = "http://www.w3.org/2000/01/rdf-schema#"
+RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 
 
 @dataclass
@@ -11,19 +19,26 @@ class PropertyDef:
     """A data property from the ontology."""
 
     name: str
+    label: str | None = None
+    comment: str | None = None
     domain: str | None = None
     range_: str | None = None
-    functional: bool = False  # single-value, don't merge
+    functional: bool = False
 
 
 @dataclass
 class ObjectPropertyDef:
-    """An object property with optional inverse."""
+    """An object property with optional inverse and characteristics."""
 
     name: str
+    label: str | None = None
+    comment: str | None = None
     domain: str | None = None
     range_: str | None = None
     inverse: str | None = None
+    transitive: bool = False
+    symmetric: bool = False
+    functional: bool = False
 
 
 @dataclass
@@ -31,169 +46,262 @@ class OntologySchema:
     """Parsed OWL ontology schema."""
 
     classes: list[str] = field(default_factory=list)
+    class_labels: dict[str, str] = field(default_factory=dict)
+    class_comments: dict[str, str] = field(default_factory=dict)
     class_hierarchy: dict[str, list[str]] = field(default_factory=dict)
     disjoint_pairs: list[tuple[str, str]] = field(default_factory=list)
     object_properties: list[tuple[str, str, str]] = field(default_factory=list)
-    inverse_map: dict[str, str] = field(default_factory=dict)  # name → inverse name
+    obj_prop_details: dict[str, ObjectPropertyDef] = field(default_factory=dict)
+    inverse_map: dict[str, str] = field(default_factory=dict)
     data_properties: dict[str, list[PropertyDef]] = field(default_factory=dict)
-    # Filesystem path for the OWL file
     functional_properties: dict[str, list[str]] = field(default_factory=dict)
-    # class_name → [functional property names]
 
     def is_empty(self) -> bool:
         return not self.classes and not self.data_properties and not self.object_properties
 
 
+def _short_name(uri: str) -> str:
+    """Extract the fragment/localname from a URI, or return as-is if not a URI."""
+    if "#" in uri:
+        return uri.rsplit("#", 1)[-1]
+    return uri.rsplit("/", 1)[-1]
+
+
 def parse_owl(file_path: str) -> OntologySchema:
-    """Parse an OWL ontology file into OntologySchema."""
+    """Parse an OWL ontology file using RDFLib (handles Chinese natively)."""
     schema = OntologySchema()
     try:
-        from owlready2 import Thing, get_ontology
+        from rdflib import OWL as RDFLIB_OWL
+        from rdflib import RDF as RDFLIB_RDF
+        from rdflib import RDFS as RDFLIB_RDFS
+        from rdflib import Graph
 
-        # Pre-process OWL content to resolve XML entities
+        # Strip non-standard nested tags that break RDFLib's XML parser
         with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
-        content = _resolve_owl_entities(content)
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(content)
+        import re
 
-        onto = get_ontology(f"file://{file_path}").load()
+        # Extract inverseOf pairs + property characteristics before stripping
+        inverse_pairs: list[tuple[str, str]] = []
+        for m in re.finditer(
+            r'<owl:ObjectProperty\s+rdf:about="([^"]+)">\s*<owl:inverseOf\s+rdf:resource="([^"]+)"/>\s*</owl:ObjectProperty>',
+            content,
+        ):
+            inverse_pairs.append((m.group(1), m.group(2)))
 
-        with onto:
-            # ----- Classes + hierarchy + disjoint -----
-            for cls in onto.classes():
-                if cls is Thing:
-                    continue
-                name = cls.name.replace("_", " ")
-                schema.classes.append(name)
+        # Functional/Transitive/Symmetric/InverseFunctional markers on ObjectProperty
+        functional_props: set[str] = set()
+        transitive_props: set[str] = set()
+        symmetric_props: set[str] = set()
+        inverse_func_props: set[str] = set()
+        for m in re.finditer(
+            r'<owl:(ObjectProperty|DatatypeProperty)\s+rdf:about="([^"]+)"[^>]*>(.*?)</owl:\1>',
+            content,
+            re.DOTALL,
+        ):
+            prop_name, body = m.group(2), m.group(3)
+            if "<owl:FunctionalProperty/>" in body:
+                functional_props.add(prop_name)
+            if "<owl:TransitiveProperty/>" in body:
+                transitive_props.add(prop_name)
+            if "<owl:SymmetricProperty/>" in body:
+                symmetric_props.add(prop_name)
+            if "<owl:InverseFunctionalProperty/>" in body:
+                inverse_func_props.add(prop_name)
 
-                # Class hierarchy (subClassOf)
-                for parent in cls.is_a:
-                    if hasattr(parent, "name") and parent is not Thing:
-                        parent_name = parent.name.replace("_", " ")
-                        if name not in schema.class_hierarchy:
-                            schema.class_hierarchy[name] = []
-                        schema.class_hierarchy[name].append(parent_name)
+        # Strip XML comments (RDFLib's expat parser can choke on them in some files).
+        # NOTE: nested self-closing tags like <owl:inverseOf/> and <owl:FunctionalProperty/>
+        # parse fine with the current RDFLib — do NOT strip them, or the triples are lost
+        # from the graph and inverse/functional extraction falls back to fragile regexes.
+        content = re.sub(r"<!--[\s\S]*?-->", "", content)
 
-                # Disjoint classes
+        def _build_graph(text: str) -> Graph:
+            g = Graph()
+            try:
+                g.parse(data=text.encode("utf-8"), format="xml")
+            except Exception:
+                # Not RDF/XML — tolerate Turtle (models sometimes emit OWL DL
+                # serialized as Turtle despite the RDF/XML instruction).
                 try:
-                    for disjoint_set in cls.disjoints():
-                        for other in disjoint_set.entities:
-                            if other is cls or other is Thing:
-                                continue
-                            other_name = other.name.replace("_", " ")
-                            pair = tuple(sorted([name, other_name]))
-                            if pair not in schema.disjoint_pairs:
-                                schema.disjoint_pairs.append(pair)
+                    g = Graph()
+                    g.parse(data=text.encode("utf-8"), format="turtle")
                 except Exception:
-                    pass
+                    g = Graph()
+            return g
 
-            # ----- Object properties + inverse -----
-            for prop in onto.object_properties():
-                prop_name = prop.name.replace("_", " ")
-                domains = _get_property_domains(prop)
-                ranges = _get_property_ranges(prop)
+        g = _build_graph(content)
+        if len(g) == 0:
+            # Legacy fallback: old RDFLib versions failed on some nested tags — strip them
+            # and re-parse (extracted via regexes below).
+            stripped = re.sub(
+                r"\s*<owl:(FunctionalProperty|TransitiveProperty|SymmetricProperty|AsymmetricProperty|ReflexiveProperty|IrreflexiveProperty|InverseFunctionalProperty)\s*/>",
+                "",
+                content,
+            )
+            stripped = re.sub(r"\s*<owl:inverseOf\s+[^>]+/>", "", stripped)
+            g = _build_graph(stripped)
 
-                # Inverse
-                try:
-                    inv = prop.inverse_property
-                    if inv and hasattr(inv, "name"):
-                        inv_name = inv.name.replace("_", " ")
-                        schema.inverse_map[prop_name] = inv_name
-                except Exception:
-                    pass
+        # Apply extracted property characteristics to schema
+        for pname in functional_props:
+            # functional data/object property — mark in functional_properties global list
+            schema.functional_properties.setdefault("*", [])
+            if pname not in schema.functional_properties["*"]:
+                schema.functional_properties["*"].append(pname)
+            schema.obj_prop_details.setdefault(pname, ObjectPropertyDef(name=pname)).functional = True
+        for pname in transitive_props:
+            schema.obj_prop_details.setdefault(pname, ObjectPropertyDef(name=pname)).__dict__["transitive"] = True
+        for pname in symmetric_props:
+            schema.obj_prop_details.setdefault(pname, ObjectPropertyDef(name=pname)).__dict__["symmetric"] = True
 
-                for domain_cls in domains or [""]:
-                    for range_cls in ranges or [""]:
-                        schema.object_properties.append((domain_cls, prop_name, range_cls))
+        # Add extracted inverse pairs
+        for prop_a, prop_b in inverse_pairs:
+            schema.inverse_map[prop_a] = prop_b
+            schema.inverse_map[prop_b] = prop_a
+            # Ensure the inverse pair properties exist in obj_prop_details
+            for pname in (prop_a, prop_b):
+                if pname not in schema.obj_prop_details:
+                    schema.obj_prop_details[pname] = ObjectPropertyDef(name=pname)
+                    schema.object_properties.append(("", pname, ""))
 
-            # ----- Data properties + functional -----
-            seen_data_props: set = set()
-            for prop in onto.data_properties():
-                prop_name = prop.name.replace("_", " ")
-                domains = _get_property_domains(prop)
-                ranges = _get_property_ranges(prop)
-                range_str = ranges[0] if ranges else "string"
+        # Collect namespace prefix → full URI, and extract base namespaces
+        ns_prefix_map: dict[str, str] = {}  # URI → prefix
+        all_ns_uris: list[str] = []
+        for prefix, ns in g.namespaces():
+            all_ns_uris.append(str(ns))
+            if prefix:
+                ns_prefix_map[str(ns)] = prefix
 
-                # Check if functional (single value)
-                is_func = False
-                try:
-                    is_func = prop.is_functional
-                except Exception:
-                    pass
+        # Add xml:base variants (with/without #) for relative URI resolution
+        base_ns = set(all_ns_uris)
+        for ns in list(base_ns):
+            if ns.endswith("#"):
+                base_ns.add(ns[:-1])
+            else:
+                base_ns.add(ns + "#")
 
-                dp = PropertyDef(name=prop_name, range_=range_str, functional=is_func)
+        def _qname(uri: str) -> str:
+            """Convert URI to short local name."""
+            s = str(uri)
+            # Try exact namespace match first
+            for ns in sorted(base_ns, key=len, reverse=True):
+                if s.startswith(ns):
+                    local = s[len(ns) :]
+                    if local:
+                        return local
+            return _short_name(s)
 
-                if domains:
-                    for domain_cls in domains:
-                        # Deduplicate by (class, name) pair
-                        dedup_key = (domain_cls, prop_name)
-                        if dedup_key in seen_data_props:
-                            continue
-                        seen_data_props.add(dedup_key)
+        # ----- Classes -----
+        for cls_uri in g.subjects(RDFLIB_RDF.type, RDFLIB_OWL.Class):
+            name = _qname(cls_uri)
+            schema.classes.append(name)
 
-                        if domain_cls not in schema.data_properties:
-                            schema.data_properties[domain_cls] = []
-                        schema.data_properties[domain_cls].append(dp)
-                        if is_func:
-                            if domain_cls not in schema.functional_properties:
-                                schema.functional_properties[domain_cls] = []
-                            if prop_name not in schema.functional_properties[domain_cls]:
-                                schema.functional_properties[domain_cls].append(prop_name)
-                else:
-                    dedup_key = ("*", prop_name)
-                    if dedup_key in seen_data_props:
-                        continue
-                    seen_data_props.add(dedup_key)
-                    if "*" not in schema.data_properties:
-                        schema.data_properties["*"] = []
-                    schema.data_properties["*"].append(dp)
+            # Labels & comments
+            for label in g.objects(cls_uri, RDFLIB_RDFS.label):
+                schema.class_labels[name] = str(label)
+            for cmt in g.objects(cls_uri, RDFLIB_RDFS.comment):
+                schema.class_comments[name] = str(cmt)
+
+            # SubClassOf
+            for parent in g.objects(cls_uri, RDFLIB_RDFS.subClassOf):
+                parent_name = _qname(parent)
+                if parent_name != name and parent_name:
+                    if name not in schema.class_hierarchy:
+                        schema.class_hierarchy[name] = []
+                    schema.class_hierarchy[name].append(parent_name)
+
+            # EquivalentClasses / disjointWith
+            for disjoint in g.objects(cls_uri, RDFLIB_OWL.disjointWith):
+                other = _qname(disjoint)
+                pair = tuple(sorted([name, other]))
+                if pair not in schema.disjoint_pairs:
+                    schema.disjoint_pairs.append(pair)
+
+        # ----- Object Properties -----
+        for prop_uri in g.subjects(RDFLIB_RDF.type, RDFLIB_OWL.ObjectProperty):
+            prop_name = _qname(prop_uri)
+            label = None
+            comment = None
+            domain = None
+            range_ = None
+            inv = None
+
+            for lbl in g.objects(prop_uri, RDFLIB_RDFS.label):
+                label = str(lbl)
+            for cmt in g.objects(prop_uri, RDFLIB_RDFS.comment):
+                comment = str(cmt)
+            for dom in g.objects(prop_uri, RDFLIB_RDFS.domain):
+                domain = _qname(dom)
+            for rng in g.objects(prop_uri, RDFLIB_RDFS.range):
+                range_ = _qname(rng)
+            for inv_obj in g.objects(prop_uri, RDFLIB_OWL.inverseOf):
+                inv = _qname(inv_obj)
+                schema.inverse_map[prop_name] = inv
+                schema.inverse_map[inv] = prop_name  # bidirectional
+
+            # Functional marker — parsed as a real rdf:type triple
+            if (prop_uri, RDFLIB_RDF.type, RDFLIB_OWL.FunctionalProperty) in g:
+                if prop_name not in schema.functional_properties.setdefault("*", []):
+                    schema.functional_properties["*"].append(prop_name)
+
+            detail = ObjectPropertyDef(
+                name=prop_name,
+                label=label,
+                comment=comment,
+                domain=domain,
+                range_=range_,
+                inverse=inv,
+            )
+            schema.obj_prop_details[prop_name] = detail
+            schema.object_properties.append((domain or "", prop_name, range_ or ""))
+
+        # ----- Data Properties -----
+        seen_data_props: set = set()
+        for prop_uri in g.subjects(RDFLIB_RDF.type, RDFLIB_OWL.DatatypeProperty):
+            prop_name = _qname(prop_uri)
+            label = None
+            comment = None
+            range_ = "string"
+            domain = None
+            functional = False
+
+            for lbl in g.objects(prop_uri, RDFLIB_RDFS.label):
+                label = str(lbl)
+            for cmt in g.objects(prop_uri, RDFLIB_RDFS.comment):
+                comment = str(cmt)
+            for rng in g.objects(prop_uri, RDFLIB_RDFS.range):
+                range_ = _qname(rng)
+            for dom in g.objects(prop_uri, RDFLIB_RDFS.domain):
+                domain = _qname(dom)
+
+            # FunctionalProperty marker — <owl:FunctionalProperty/> as nested tag
+            # is parsed by RDFLib as (prop_uri, rdf:type, owl:FunctionalProperty)
+            if (prop_uri, RDFLIB_RDF.type, RDFLIB_OWL.FunctionalProperty) in g:
+                functional = True
+
+            # Deduplicate
+            dedup_key = (domain or "*", prop_name)
+            if dedup_key in seen_data_props:
+                continue
+            seen_data_props.add(dedup_key)
+
+            dp = PropertyDef(
+                name=prop_name, label=label, comment=comment, domain=domain, range_=range_, functional=functional
+            )
+
+            cls_key = domain or "*"
+            if cls_key not in schema.data_properties:
+                schema.data_properties[cls_key] = []
+            schema.data_properties[cls_key].append(dp)
+
+            if functional and domain:
+                if domain not in schema.functional_properties:
+                    schema.functional_properties[domain] = []
+                if prop_name not in schema.functional_properties[domain]:
+                    schema.functional_properties[domain].append(prop_name)
 
     except ImportError:
-        logger.warning("owlready2 not installed, OWL parsing skipped")
+        logger.warning("rdflib not installed, OWL parsing skipped")
     except Exception as e:
         logger.error(f"Failed to parse OWL file {file_path}: {e}")
 
     return schema
-
-
-def _resolve_owl_entities(content: str) -> str:
-    """
-    Pre-process OWL XML content to resolve ALL XML entity references (&xxx;)
-    using their xmlns:xxx namespace declarations.
-    Returns the modified content string.
-    """
-    import re
-
-    # Collect all xmlns:prefix="url" declarations
-    ns_map: dict[str, str] = {}
-    for m in re.finditer(r'xmlns:(\w+)="([^"]+)"', content):
-        ns_map[m.group(1)] = m.group(2)
-
-    # The default xmlns is used for <rdf:about="&ontology;xxx">
-    default_ns = re.search(r'xmlns="([^"]+)"', content)
-    if default_ns:
-        ns_map["ontology"] = default_ns.group(1)
-
-    # Find all &xxx; entity references
-    entity_refs = set(re.findall(r"&([a-zA-Z_]\w*);", content))
-
-    for entity in entity_refs:
-        if entity in ns_map:
-            content = content.replace(f"&{entity};", ns_map[entity])
-
-    return content
-
-
-def _get_property_domains(prop) -> list[str]:
-    try:
-        return [d.name.replace("_", " ") for d in prop.domain if d.name != "Thing"]
-    except Exception:
-        return []
-
-
-def _get_property_ranges(prop) -> list[str]:
-    try:
-        return [r.name.replace("_", " ") for r in prop.range]
-    except Exception:
-        return []

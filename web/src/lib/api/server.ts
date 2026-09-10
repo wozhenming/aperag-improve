@@ -52,3 +52,6 @@ const api = {
 export const getServerApi = async () => {
   return api;
 };
+
+/** Raw axios instance with cookies forwarded (for endpoints not yet in the SDK). */
+export const serverRequest = request;

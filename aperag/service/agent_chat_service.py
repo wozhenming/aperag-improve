@@ -379,7 +379,11 @@ class AgentChatService:
 
                 # Special handling for type="message" - stream it in chunks
                 if isinstance(message, dict) and message.get("type") == "message":
-                    await self._stream_message_content(message, websocket)
+                    if message.get("streamed"):
+                        # Already real-time streamed chunks — send as-is
+                        await websocket.send_text(json.dumps(message))
+                    else:
+                        await self._stream_message_content(message, websocket)
                     logger.debug(f"Streamed message content: {message.get('type', 'unknown')}")
                 else:
                     # Send other message types normally (start, stop, tool_call_result, etc.)
@@ -393,7 +397,8 @@ class AgentChatService:
             raise
 
     async def _get_agent_session(
-        self, agent_message: view_models.AgentMessage, user: str, chat_id: str, resolved_system_prompt: str
+        self, agent_message: view_models.AgentMessage, user: str, chat_id: str, resolved_system_prompt: str,
+        bot_config: view_models.BotConfig | None = None,
     ):
         """Get or create chat session using AgentConfig."""
         # Query provider details and API key from database
@@ -439,7 +444,8 @@ class AgentChatService:
             default_model=agent_message.completion.model,
             language=agent_message.language if agent_message.language else "en-US",
             instruction=system_prompt,
-            server_names=["aperag"],
+            # tools_enabled=False → pure LLM bot without MCP tools
+            server_names=["aperag"] if (bot_config and bot_config.agent and bot_config.agent.tools_enabled is not False) else [],
             aperag_api_key=aperag_api_key,
             aperag_mcp_url=os.getenv("APERAG_MCP_URL", "http://localhost:8000/mcp/"),
             temperature=0.7,
@@ -495,12 +501,23 @@ class AgentChatService:
             # Send start message
             await message_queue.put(format_stream_start(message_id))
 
-            # Create memory from chat history
+            # Create memory from chat history.
+            # Pure-LLM bots (e.g. the Ontology Engineer) run long multi-turn
+            # guided conversations where early turns define the domain, classes
+            # and relations — a small context window truncates them and the
+            # model "forgets" what was already agreed. Use a wide window there.
+            is_pure_llm = bool(
+                bot_config and bot_config.agent and bot_config.agent.tools_enabled is False
+            )
             history = await self.history_manager.get_chat_history(chat_id)
-            memory = await self.memory_manager.create_memory_from_history(history, context_limit=4)
+            memory = await self.memory_manager.create_memory_from_history(
+                history, context_limit=50 if is_pure_llm else 4
+            )
 
             # Get chat session using merged agent message and resolved system prompt
-            session = await self._get_agent_session(merged_agent_message, user, chat_id, resolved_system_prompt)
+            session = await self._get_agent_session(
+                merged_agent_message, user, chat_id, resolved_system_prompt, bot_config=bot_config
+            )
             llm = await session.get_llm(final_completion.model)
 
             llm.history = memory
@@ -510,21 +527,67 @@ class AgentChatService:
                 chat_id, agent_message=merged_agent_message, user=user, template=resolved_query_prompt
             )
 
-            request_params = RequestParams(
-                maxTokens=8192,
-                model=final_completion.model,
-                use_history=True,
-                max_iterations=10,
-                parallel_tool_calls=True,
-                temperature=0.7,
-                user=user,
-            )
-            response = await llm.generate_str(comprehensive_prompt, request_params)
-            full_content = response if response else "No response generated"
+            # Pure-LLM bots (tools_enabled=False) stream directly via litellm
+            if bot_config and bot_config.agent and bot_config.agent.tools_enabled is False:
+                try:
+                    from aperag.llm.completion.completion_service import CompletionService
 
-            await asyncio.sleep(0.1)  # Allow time for the message to be processed in listener
+                    stream_provider = await self.db_ops.query_llm_provider_by_name(
+                        final_completion.model_service_provider
+                    )
+                    stream_api_key = await self.db_ops.query_provider_api_key(
+                        final_completion.model_service_provider, user_id=user, need_public=True
+                    )
+                    if not stream_provider or not stream_api_key:
+                        raise RuntimeError("Provider or API key not found for streaming")
+                    completion_service = CompletionService(
+                        provider=final_completion.custom_llm_provider,
+                        model=final_completion.model,
+                        base_url=stream_provider.base_url,
+                        api_key=stream_api_key,
+                        temperature=0.7,
+                        # Large OWL + Mermaid outputs can exceed 8k tokens — don't
+                        # truncate the assistant reply mid-ontology.
+                        max_tokens=16384,
+                    )
+                    from aperag.agent.stream_formatters import format_thinking
 
-            await message_queue.put(format_stream_content(message_id, full_content))
+                    full_content = ""
+                    # SimpleMemory holds history in .history (OpenAI-format message list).
+                    # memory=True is REQUIRED — _build_messages drops history entirely
+                    # when memory is False, which made the model forget every previous
+                    # turn (the "attention lapse" in long guided conversations).
+                    stream_history = getattr(memory, "history", None) or []
+                    async for kind, text_chunk in completion_service.agenerate_stream_typed(
+                        history=stream_history,
+                        prompt=comprehensive_prompt,
+                        memory=True,
+                    ):
+                        if kind == "thinking":
+                            await message_queue.put(format_thinking(message_id, text_chunk))
+                        else:
+                            full_content += text_chunk
+                            await message_queue.put(format_stream_content(message_id, text_chunk, streamed=True))
+                except Exception as e:
+                    logger.error(f"Streaming generation failed: {e}")
+                    full_content = "No response generated"
+                    await message_queue.put(format_stream_content(message_id, "No response generated"))
+            else:
+                request_params = RequestParams(
+                    maxTokens=8192,
+                    model=final_completion.model,
+                    use_history=True,
+                    max_iterations=10,
+                    parallel_tool_calls=True,
+                    temperature=0.7,
+                    user=user,
+                )
+                response = await llm.generate_str(comprehensive_prompt, request_params)
+                full_content = response if response else "No response generated"
+
+                await asyncio.sleep(0.1)  # Allow time for the message to be processed in listener
+
+                await message_queue.put(format_stream_content(message_id, full_content))
 
             tool_references = extract_tool_call_references(llm.history)
             urls = []

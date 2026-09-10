@@ -14,7 +14,11 @@ ApeRAG is the best choice for building your own Knowledge Graph, Context Enginee
 
 - [Quick Start](#quick-start)
 - [Key Features](#key-features)
-- [Kubernetes Deployment (Recommended for Production)](#kubernetes-deployment-recommended-for-production)
+- [Docker Compose Deployment](#docker-compose-deployment)
+- [Production & Test Environments](#production--test-environments)
+- [MCP (Model Context Protocol) Support](#mcp-model-context-protocol-support)
+- [Ontology (OWL) Management](#ontology-owl-management)
+- [Kubernetes Deployment](#kubernetes-deployment-recommended-for-production)
 - [Development](./docs/en-US/development-guide.md)
 - [Build Docker Image](./docs/en-US/build-docker-image.md)
 - [Acknowledgments](#acknowledgments)
@@ -34,70 +38,13 @@ The easiest way to start ApeRAG is through Docker Compose. Before running the fo
 git clone https://github.com/apecloud/ApeRAG.git
 cd ApeRAG
 cp envs/env.template .env
-docker-compose up -d --pull always
+docker-compose up -d --build
 ```
 
-After running, you can access ApeRAG in your browser at:
-- **Web Interface**: http://localhost:3000/web/
-- **API Documentation**: http://localhost:8000/docs
+The frontend is compiled **inside Docker** (multi-stage build: `yarn install` → `next build` inside the container), so no local build artifacts need to be copied to the server. After running, you can access ApeRAG in your browser at:
 
-#### MCP (Model Context Protocol) Support
-
-ApeRAG supports [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) integration, allowing AI assistants to interact with your knowledge base directly. After starting the services, configure your MCP client with:
-
-```json
-{
-  "mcpServers": {
-    "aperag-mcp": {
-      "url": "http://localhost:8000/mcp/",
-      "headers": {
-        "Authorization": "Bearer your-api-key-here"
-      }
-    }
-  }
-}
-```
-
-**Authentication** (by priority):
-1. **HTTP Authorization Header** (Recommended): `Authorization: Bearer your-api-key`
-2. **Environment Variable** (Fallback): `APERAG_API_KEY=your-api-key`
-
-**Important**: Use your deployed API origin if not local (e.g. `https://your-host/mcp/`). Replace `your-api-key-here` with a valid API key from your ApeRAG settings.
-
-The MCP server provides:
-- **Collection browsing**: List and explore your knowledge collections
-- **Hybrid search**: Search using vector, full-text, and graph methods
-- **Intelligent querying**: Ask natural language questions about your documents
-
-#### Enhanced Document Parsing
-
-For enhanced document parsing capabilities, ApeRAG supports an **advanced document parsing service** powered by MinerU, which provides superior parsing for complex documents, tables, and formulas. 
-
-<details>
-<summary><strong>Enhanced Document Parsing Commands</strong></summary>
-
-```bash
-# Enable advanced document parsing service
-DOCRAY_HOST=http://aperag-docray:8639 docker compose --profile docray up -d
-
-# Enable advanced parsing with GPU acceleration 
-DOCRAY_HOST=http://aperag-docray-gpu:8639 docker compose --profile docray-gpu up -d
-```
-
-Or use the Makefile shortcuts (requires [GNU Make](https://www.gnu.org/software/make/)):
-```bash
-# Enable advanced document parsing service
-make compose-up WITH_DOCRAY=1
-
-# Enable advanced parsing with GPU acceleration (recommended)
-make compose-up WITH_DOCRAY=1 WITH_GPU=1
-```
-
-</details>
-
-#### Development & Contributing
-
-For developers interested in source code development, advanced configurations, or contributing to ApeRAG, please refer to our [Development Guide](./docs/en-US/development-guide.md) for detailed setup instructions.
+- **Web Interface**: http://localhost:3010
+- **API Documentation**: http://localhost:8010/docs
 
 ## Key Features
 
@@ -116,20 +63,126 @@ Complete multimodal document processing including vision capabilities for images
 **5. Hybrid Retrieval Engine**:
 Sophisticated retrieval system combining Graph RAG, vector search, full-text search, summary-based retrieval, and vision-based search for comprehensive document understanding.
 
-**6. MinerU Integration**:
-Advanced document parsing service powered by MinerU technology, providing superior parsing for complex documents, tables, formulas, and scientific content with optional GPU acceleration.
+**6. MinerU Integration (Cloud & Self-Hosted)**:
+Advanced document parsing service powered by MinerU. Supports both the official cloud API (token-based) and **self-hosted MinerU deployments** (local API protocol via `POST /file_parse`, no cloud token required). A connection check button in the admin settings verifies service reachability before use.
 
-**7. Production-Grade Deployment**:
-Full Kubernetes support with Helm charts and KubeBlocks integration for simplified deployment of production-grade databases (PostgreSQL, Redis, Qdrant, Elasticsearch, Neo4j).
+**7. Ontology (OWL) Management**:
+Full OWL ontology lifecycle built in:
+- **My Ontology Library** ("我的知识库本体"): import `.owl` files, or create ontologies via AI-guided chat (Ontology Engineer bot) or from scratch
+- **Visual ontology editor**: add/rename/delete classes, object properties (with domain/range/inverse) and data properties (with XSD types and functional flags) — no XML editing required, with a live Mermaid diagram preview
+- **Protégé integration**: upload OWL 2 (RDF/XML) or Turtle ontologies and attach them to a collection's KG extraction via a dropdown picker
+- **Format conversion on export**: download as OWL 2 (RDF/XML) or Turtle (`.ttl`), converting the stored content automatically
 
-**8. Enterprise Management**:
+**8. Web Content Retrieval Enhancements**:
+`web_read` supports **POST/AJAX endpoints** (form or JSON bodies, custom headers) for JS-rendered pages, appends an in-page **link list** to enable multi-hop retrieval (follow sidebar/sub-page links), and falls back to content-container extraction when page structure is unsemantic.
+
+**9. Production-Grade Deployment**:
+- Docker Compose deployment with separate **production and test environments** (`docker-compose.yml` + `docker-compose.test.yml`)
+- Full Kubernetes support with Helm charts and KubeBlocks integration for production-grade databases (PostgreSQL, Redis, Qdrant, Elasticsearch, Neo4j)
+
+**10. Enterprise Management**:
 Built-in audit logging, LLM model management, graph visualization, comprehensive document management interface, and agent workflow management.
 
-**9. MCP Integration**:
-Full support for Model Context Protocol (MCP), enabling seamless integration with AI assistants and tools for direct knowledge base access and intelligent querying.
+**11. MCP Integration**:
+Full support for Model Context Protocol (MCP), including site-catalog browsing tools (`scm_list` / `list_scm_categories`) for structured retrieval from specific websites.
 
-**10. Developer Friendly**:
+**12. Developer Friendly**:
 FastAPI backend, React frontend, async task processing with Celery, extensive testing, comprehensive development guides, and agent development framework for easy contribution and customization.
+
+## Docker Compose Deployment
+
+> **Recommended for production** — the deployed configuration in this repository
+
+The `docker-compose.yml` in this repository is customized for this deployment:
+
+| Service | Host port | Notes |
+|---------|-----------|-------|
+| **frontend** (Next.js) | `3010:3000` | Built inside Docker (multi-stage), no local artifacts needed |
+| **api** (FastAPI) | `8010:8000` | REST API + MCP server + WebSocket |
+| **celeryworker** | — | Document parsing, indexing, graph building |
+| **celerybeat** | — | Periodic reconciliation tasks |
+| **flower** | `5555` | Celery monitoring |
+| **postgres / redis / qdrant / es** | — | Databases (pgvector, Redis, Qdrant, Elasticsearch) |
+
+```bash
+cp envs/env.template .env
+docker-compose up -d --build
+```
+
+## Production & Test Environments
+
+This project maintains **two isolated environments** on the same host:
+
+```bash
+# Production
+docker compose -p aperag --env-file .env -f docker-compose.yml up -d --build
+
+# Test
+docker compose -p aperag-test --env-file .env.test -f docker-compose.yml -f docker-compose.test.yml up -d --build
+```
+
+- Test environment uses `aperag-test-*` container names and separate ports (e.g. `3012`/`8012`), with local object storage (no S3) to avoid cross-environment conflicts
+- Both environments are fully isolated (databases, Redis, object store paths)
+- Frontend updates are picked up automatically by `--build` — **no manual copying of build artifacts**
+
+## MCP (Model Context Protocol) Support
+
+ApeRAG supports [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) integration, allowing AI assistants to interact with your knowledge base directly. After starting the services, configure your MCP client with:
+
+```json
+{
+  "mcpServers": {
+    "aperag-mcp": {
+      "url": "http://localhost:8010/mcp/",
+      "headers": {
+        "Authorization": "Bearer your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+**Authentication** (by priority):
+1. **HTTP Authorization Header** (Recommended): `Authorization: Bearer your-api-key`
+2. **Environment Variable** (Fallback): `APERAG_API_KEY=your-api-key`
+
+**Important**: Use your deployed API origin if not local (e.g. `https://your-host/mcp/`). Replace `your-api-key-here` with a valid API key from your ApeRAG settings.
+
+### Available MCP Tools
+
+**Knowledge base tools**:
+- `list_collections` — browse your knowledge collections
+- `search_collection` — hybrid search (vector / full-text / graph / summary / vision)
+- `search_chat_files` — search files uploaded in the current chat
+
+**Web tools**:
+- `web_search` — web search (JINA priority, DuckDuckGo fallback)
+- `web_read` — read and extract web page content; supports **POST/AJAX endpoints** for JS-rendered pages:
+
+  ```
+  web_read(url_list=["https://www.scm.com.cn/search/news/"],
+           method="POST",
+           body={"key": "搜索关键字", "page": 1},
+           body_type="form",
+           extra_headers={"Referer": "https://www.scm.com.cn/search",
+                          "X-Requested-With": "XMLHttpRequest"})
+  ```
+
+  Returned content includes an in-page **link list** (`## 页面内链接`) so the model can follow sub-page links for multi-hop retrieval.
+
+**Site catalog tools** (structured browsing of specific websites, e.g. scm.com.cn 广东计量):
+- `list_scm_categories` — list browsable categories of the site (article-list vs static pages)
+- `scm_list(category, page, keyword)` — browse an article-list category (title/date/URL), driven by a site map (`aperag/websearch/scm/scm_site.yaml`)
+
+## Ontology (OWL) Management
+
+ApeRAG ships a complete ontology workflow for constraint-based knowledge graph extraction:
+
+1. **My Ontology Library** (sidebar → 我的知识库本体): import `.owl` files or create new ontologies
+2. **AI-guided creation**: the Ontology Engineer bot walks you through domain → classes → properties → relations, and emits **OWL 2 (RDF/XML) only** (Turtle / N-Triples / JSON-LD are rejected) with Chinese labels/comments
+3. **From scratch**: create a blank ontology and build it in the **visual editor** — classes (with parents/hierarchy), object properties (domain/range/inverse), data properties (XSD types, functional) — with a live Mermaid diagram
+4. **Attach to a collection**: the collection settings page's OWL field is a dropdown of your ontology library; the ontology then constrains KG entity/relation extraction
+5. **Export**: download as OWL 2 (RDF/XML) or Turtle (`.ttl`) — content is converted, not just renamed
 
 ## Kubernetes Deployment (Recommended for Production)
 

@@ -86,6 +86,7 @@ export const ChatInput = ({
   disabled,
   onSubmit,
   onCancel,
+  ontologyMode = false,
 }: {
   chat: ChatDetails;
   welcome: boolean;
@@ -93,7 +94,9 @@ export const ChatInput = ({
   disabled: boolean;
   onSubmit: (params: ChatInputSubmitParams) => void;
   onCancel: () => void;
+  ontologyMode?: boolean;
 }) => {
+  const tOntology = useTranslations('page_ontologies');
   const { mention, bot } = useBotContext();
   const [isComposing, setIsComposing] = useState<boolean>(false);
   const { open, isMobile } = useSidebar();
@@ -361,7 +364,7 @@ export const ChatInput = ({
               }}
               className="mb-2 text-xl font-medium"
             >
-              {page_chat('hello_world')}
+              {ontologyMode ? tOntology('welcome_title') : page_chat('hello_world')}
             </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -373,7 +376,7 @@ export const ChatInput = ({
               }}
               className="text-muted-foreground text-sm"
             >
-              {page_chat('rag_description')}
+              {ontologyMode ? tOntology('welcome_desc') : page_chat('rag_description')}
             </motion.div>
           </div>
         )}
@@ -451,7 +454,7 @@ export const ChatInput = ({
                 <Textarea
                   className="resize-none rounded-xl pb-20"
                   value={query}
-                  placeholder={mention ? page_chat('mention_a_collection') : ''}
+                  placeholder={ontologyMode ? tOntology('input_placeholder') : (mention ? page_chat('mention_a_collection') : '')}
                   disabled={disabled}
                 />
               </MentionInput>

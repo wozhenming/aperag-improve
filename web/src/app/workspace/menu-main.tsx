@@ -8,7 +8,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { BookOpen, ExternalLink, LayoutGrid } from 'lucide-react';
+import { BookOpen, ExternalLink, LayoutGrid, Network } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -40,6 +40,18 @@ export const MenuMain = () => {
             <Link href="/workspace/collections">
               <BookOpen />
               {sidebar_workspace('collections')}
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            className="data-[active=true]:font-normal"
+            asChild
+            isActive={pathname.match('/workspace/ontologies') !== null}
+          >
+            <Link href="/workspace/ontologies">
+              <Network />
+              {sidebar_workspace('ontologies')}
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

@@ -115,6 +115,32 @@ webReadRequest:
       description: Maximum concurrent requests for multiple URLs
       default: 3
       example: 3
+    method:
+      type: string
+      enum: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+      description: HTTP method to use. POST/PUT/PATCH are useful for JS-rendered
+        pages whose data comes from AJAX endpoints (e.g. search result APIs)
+      default: GET
+      example: POST
+    body:
+      type: object
+      description: Request body for POST/PUT/PATCH methods (JSON object, keys and
+        values are sent as-is)
+      default: {}
+      example: {"key": "search keyword", "page": 1}
+    body_type:
+      type: string
+      enum: ["form", "json"]
+      description: How to encode the body — "form" sends application/x-www-form-urlencoded,
+        "json" sends application/json
+      default: form
+      example: form
+    extra_headers:
+      type: object
+      description: Additional HTTP headers to send with the request (e.g. Referer,
+        X-Requested-With, Cookie). Merged over the default headers.
+      default: {}
+      example: {"Referer": "https://www.scm.com.cn/search", "X-Requested-With": "XMLHttpRequest"}
   required:
     - url_list
 
