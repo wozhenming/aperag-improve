@@ -314,7 +314,7 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
     disjoint_pairs?: [string, string][];
   } | null>(null);
   const [owlDialogOpen, setOwlDialogOpen] = useState(false);
-  const [ontologies, setOntologies] = useState<{ id: string; title?: string }[]>([]);
+  const [ontologies, setOntologies] = useState<{ id: string; title?: string; file_path?: string }[]>([]);
   const [attachingOwl, setAttachingOwl] = useState(false);
   const owlFileRef = useRef<HTMLInputElement>(null);
   const embeddingModelName = useWatch({
@@ -387,7 +387,20 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
   }, []);
 
   const handleAttachOwl = async (ontologyId: string) => {
-    if (!ontologyId || !collection.id) return;
+    if (!ontologyId) return;
+    // Create mode: there is no collection yet, so we cannot copy the ontology
+    // into a per-collection path via the API. Instead, persist the ontology's
+    // own object-store path in the (not-yet-created) collection config. It is
+    // read the same way at index time (see _load_owl_schema).
+    if (!collection.id) {
+      const ontology = ontologies.find((o) => o.id === ontologyId);
+      if (ontology?.file_path) {
+        form.setValue('config.knowledge_graph_config.owl_file_path', ontology.file_path);
+        setOwlInfo(ontology.title || ontologyId);
+        setOwlPreview(null);
+      }
+      return;
+    }
     setAttachingOwl(true);
     try {
       const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
@@ -641,14 +654,17 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
                       </Select>
                       <Button variant="ghost" size="sm" className="text-destructive h-6"
                         onClick={async () => {
-                          if (!collection.id) return;
-                          try {
-                            const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-                            await axios.delete(`${basePath}/api/v1/collections/${collection.id}/owl`);
-                            form.setValue('config.knowledge_graph_config.owl_file_path', undefined);
-                            setOwlInfo('');
-                            toast.success(page_collections('owl_remove_success'));
-                          } catch { toast.error(page_collections('owl_remove_error')); }
+                          if (collection.id) {
+                            try {
+                              const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+                              await axios.delete(`${basePath}/api/v1/collections/${collection.id}/owl`);
+                            } catch { toast.error(page_collections('owl_remove_error')); }
+                          }
+                          // In create mode there is no collection yet; just clear
+                          // the pending config value so the user can pick again.
+                          form.setValue('config.knowledge_graph_config.owl_file_path', undefined);
+                          setOwlInfo('');
+                          setOwlPreview(null);
                         }}>
                         <Trash2 className="h-3 w-3 mr-1" /> {page_collections('owl_remove')}
                       </Button>
