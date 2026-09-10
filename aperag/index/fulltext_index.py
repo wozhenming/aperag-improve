@@ -275,8 +275,13 @@ class FulltextIndexer(BaseIndexer):
     ):
         """Insert a document chunk into the fulltext index"""
         if not self.es.indices.exists(index=index).body:
-            logger.warning("index %s not exists", index)
-            return
+            # Do not silently drop chunks: a missing index is a real data-integrity
+            # problem, so fail the whole indexing task to make it visible instead of
+            # reporting "success" with nothing stored.
+            raise RuntimeError(
+                f"Fulltext index '{index}' does not exist; refusing to silently drop chunks. "
+                f"Recreate the index (create_index) before re-indexing this document."
+            )
 
         doc = {
             "document_id": doc_id,
@@ -297,6 +302,12 @@ class FulltextIndexer(BaseIndexer):
         """Query paginated chunks for a document from Elasticsearch."""
         try:
             if not self.es.indices.exists(index=index).body:
+                logger.warning(
+                    "Chunks query skipped: fulltext index '%s' does not exist (document %s). "
+                    "The document's fulltext index was likely never written.",
+                    index,
+                    document_id,
+                )
                 return {"chunks": [], "total": 0, "page": page, "page_size": page_size}
             query = {"bool": {"must": [{"term": {"document_id": document_id}}]}}
             if search:
@@ -318,6 +329,11 @@ class FulltextIndexer(BaseIndexer):
                       for h in resp["hits"]["hits"]]
             return {"chunks": chunks, "total": total, "page": page, "page_size": page_size}
         except Exception:
+            logger.exception(
+                "Failed to query chunks for document %s from index %s",
+                document_id,
+                index,
+            )
             return {"chunks": [], "total": 0, "page": page, "page_size": page_size}
 
     def delete_chunk(self, index: str, chunk_id: str):
