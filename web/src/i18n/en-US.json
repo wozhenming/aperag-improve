@@ -477,6 +477,18 @@
     "no_data": "No data",
     "classes": "classes",
     "relations": "relations",
+    "repair": "Repair",
+    "repair_title": "Knowledge Base Repair",
+    "repair_desc": "Automatically detects possible problems in this knowledge base and, after confirmation, attempts to fix them.",
+    "repair_scanning": "Scanning knowledge base…",
+    "repair_healthy": "No issues detected. The knowledge base is healthy.",
+    "repair_issues_found": "{n} issue(s) detected that can be fixed:",
+    "repair_confirm": "Repair",
+    "repair_repairing": "Repairing…",
+    "repair_success": "Repair finished: {msg}",
+    "repair_error": "Repair failed. Please try again later.",
+    "repair_cancel": "Cancel",
+    "repair_close": "Close",
     "copied": "Copied to clipboard"
   },
   "page_docs": {

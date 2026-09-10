@@ -477,6 +477,18 @@
     "no_data": "暂无数据",
     "classes": "个类",
     "relations": "个关系",
+    "repair": "修复",
+    "repair_title": "知识库问题检测与修复",
+    "repair_desc": "自动检测知识库当前可能存在的问题，并在确认后尝试修复。",
+    "repair_scanning": "正在检测知识库…",
+    "repair_healthy": "未检测到问题，知识库运行正常",
+    "repair_issues_found": "检测到 {n} 个问题，可尝试修复：",
+    "repair_confirm": "尝试修复",
+    "repair_repairing": "正在修复…",
+    "repair_success": "修复完成：{msg}",
+    "repair_error": "修复失败，请稍后重试",
+    "repair_cancel": "取消",
+    "repair_close": "关闭",
     "copied": "已复制到剪贴板"
   },
   "page_docs": {

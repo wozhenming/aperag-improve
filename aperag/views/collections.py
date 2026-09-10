@@ -73,6 +73,34 @@ async def update_collection_view(
     return instance
 
 
+@router.post("/collections/{collection_id}/repair/scan", tags=["collections"])
+async def scan_collection_repairs(
+    request: Request, collection_id: str, user: User = Depends(required_user)
+) -> dict:
+    """Scan a collection for missing/inconsistent index data and return fixable issues."""
+    from aperag.service.collection_repair_service import collection_repair_service
+
+    return await collection_repair_service.scan(str(user.id), collection_id)
+
+
+@router.post("/collections/{collection_id}/repair", tags=["collections"])
+async def repair_collection(
+    request: Request,
+    collection_id: str,
+    data: dict = Body(default=None),
+    user: User = Depends(required_user),
+) -> dict:
+    """Repair the fixable issues found by the scan endpoint.
+
+    Body (optional): {"codes": ["fulltext_index_missing", ...]}. When omitted,
+    all fixable issues reported by the scan are repaired.
+    """
+    from aperag.service.collection_repair_service import collection_repair_service
+
+    codes = (data or {}).get("codes")
+    return await collection_repair_service.repair(str(user.id), collection_id, codes)
+
+
 @router.delete("/collections/{collection_id}", tags=["collections"])
 @audit(resource_type="collection", api_name="DeleteCollection")
 async def delete_collection_view(
